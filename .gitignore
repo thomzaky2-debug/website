@@ -1,0 +1,17 @@
+bin/
+obj/
+.dotnet/
+.dotnet-install.sh
+_template_ref/
+.vs/
+*.db
+*.db-shm
+*.db-wal
+appsettings.Local.json
+TestResults/
+publish/
+build.log
+*.log
+__pycache__/
+core
+core.*

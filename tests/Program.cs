@@ -1,0 +1,31 @@
+using BubbleThemeShop.Data;
+using BubbleThemeShop.Models;
+using BubbleThemeShop.Services;
+using BubbleThemeShop.ViewModels;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+using System.Globalization;
+DevelopmentSqlite.Initialize();
+await using var connection = new SqliteConnection("Data Source=:memory:");
+await connection.OpenAsync();
+await using var db = new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlite(connection).Options);
+await db.Database.EnsureCreatedAsync();
+var c = new Category { Slug="test", Translations=[new(){LanguageCode="en",Name="Test"}] };
+var p = new Product { Slug="test-product",Category=c,Price=10.25m,StockQuantity=3,Translations=[new(){LanguageCode="en",Name="Test product",FullDescription="Test"}] };
+var unavailable = new Product { Slug="unavailable",Category=c,Price=5,StockQuantity=0 };
+db.Products.AddRange(p,unavailable);await db.SaveChangesAsync();
+var service = new CheckoutService(db);
+CheckoutViewModel Customer(string token)=>new(){CheckoutToken=token,CustomerName="Test",CustomerEmail="test@example.com",CustomerPhone="01234567890",ShippingAddress="Test address"};
+void Check(bool condition,string name){if(!condition)throw new Exception(name);Console.WriteLine("PASS "+name);}
+var order=await service.PlaceAsync(Customer("token-one"),new Dictionary<int,int>{{p.Id,2}});
+Check(order.TotalAmount==20.5m,"server-calculated decimal total");
+Check(await db.Products.Where(x=>x.Id==p.Id).Select(x=>x.StockQuantity).SingleAsync()==1,"inventory decremented");
+var retry=await service.PlaceAsync(Customer("token-one"),new Dictionary<int,int>{{p.Id,2}});
+Check(retry.Id==order.Id && await db.Orders.CountAsync()==1,"idempotent checkout retry");
+try{await service.PlaceAsync(Customer("token-two"),new Dictionary<int,int>{{p.Id,1},{unavailable.Id,1}});throw new Exception("Expected stock failure");}catch(CheckoutException){}
+Check(await db.Products.Where(x=>x.Id==p.Id).Select(x=>x.StockQuantity).SingleAsync()==1,"partial stock update rolled back");
+Check(await db.Orders.CountAsync()==1,"failed checkout creates no order");
+CultureInfo.CurrentUICulture=new CultureInfo("ar");Check(CatalogService.Name(p)=="Test product","English translation fallback");
+Check(!OrderStatuses.CanTransition("Cancelled","Pending") && !OrderStatuses.CanTransition("Shipped","Cancelled"),"terminal order transitions rejected");
+Check(OrderStatuses.CanTransition("Pending","Cancelled"),"pending cancellation allowed");
+Console.WriteLine("All checkout checks passed.");

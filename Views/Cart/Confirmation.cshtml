@@ -1,0 +1,2 @@
+@model Order
+<div class="empty"><h1>@Localizer["Confirmation"]</h1><p><strong>@Model.OrderNumber</strong></p><p>@Localizer["Total"]: @Model.TotalAmount.ToString("N2") EGP</p><p>@Localizer["Status"]: @Localizer[Model.Status]</p><a class="primary-button" href="/">@Localizer["Nav_Shop"]</a></div>

@@ -1,0 +1,8 @@
+@model Order
+@{var gateway = ViewData["GatewayStatus"] as string; var terminal = gateway is "EXPIRED" or "CANCELLED" or "FAILED";}
+<div class="empty"><h1>@Localizer[Model.PaymentStatus == "Paid" ? "Payment_Paid" : "Payment_Pending"]</h1><p><strong>@Model.OrderNumber</strong></p><p>@Localizer["Total"]: @Model.TotalAmount.ToString("N2") EGP</p>
+@if(Model.PaymentStatus != "Paid") {
+<p>@Localizer[terminal ? "Payment_Expired" : "Payment_Explain"]</p>
+@if(!terminal && Model.Status != OrderStatuses.Cancelled){<form asp-action="Pay" method="post"><input type="hidden" name="token" value="@Model.PaymentAccessToken"/><button class="primary-button">@Localizer["Payment_Pay"]</button></form>}
+<form asp-action="Check" method="post"><input type="hidden" name="token" value="@Model.PaymentAccessToken"/><button>@Localizer["Payment_Check"]</button></form>
+}<p><a href="/">@Localizer["Nav_Shop"]</a></p></div>
