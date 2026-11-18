@@ -16,6 +16,9 @@ public class AccountController(UserManager<IdentityUser> users, SignInManager<Id
         var claims = await users.GetClaimsAsync(user);
         var fullName = form?.FullName ?? claims.FirstOrDefault(c => c.Type == CustomerProfileViewModel.FullNameClaim)?.Value ?? "";
         var phone = form?.Phone ?? user.PhoneNumber ?? "";
+        var whatsApp = form is not null
+            ? form.WhatsAppPhone
+            : claims.FirstOrDefault(c => c.Type == CustomerProfileViewModel.WhatsAppClaim)?.Value;
         var address = form is not null
             ? (form.Address ?? "")
             : (claims.FirstOrDefault(c => c.Type == CustomerProfileViewModel.AddressClaim)?.Value ?? "");
@@ -30,6 +33,7 @@ public class AccountController(UserManager<IdentityUser> users, SignInManager<Id
         {
             Email = user.Email,
             Phone = phone,
+            WhatsAppPhone = whatsApp,
             FullName = fullName,
             Address = address,
             OrdersCount = ordersCount,
@@ -68,6 +72,12 @@ public class AccountController(UserManager<IdentityUser> users, SignInManager<Id
             var old=claims.Where(c=>c.Type==CustomerProfileViewModel.FullNameClaim).ToArray();
             if(old.Length>0)result=await users.RemoveClaimsAsync(user,old);
             if(result.Succeeded)result=await users.AddClaimAsync(user,new Claim(CustomerProfileViewModel.FullNameClaim,model.FullName.Trim()));
+            if(result.Succeeded && Request.Form.ContainsKey(nameof(model.WhatsAppPhone))){
+                var oldWa=claims.Where(c=>c.Type==CustomerProfileViewModel.WhatsAppClaim).ToArray();
+                if(oldWa.Length>0)result=await users.RemoveClaimsAsync(user,oldWa);
+                if(result.Succeeded && !string.IsNullOrWhiteSpace(model.WhatsAppPhone))
+                    result=await users.AddClaimAsync(user,new Claim(CustomerProfileViewModel.WhatsAppClaim,model.WhatsAppPhone.Trim()));
+            }
             if(result.Succeeded && Request.Form.ContainsKey(nameof(model.Address))){
                 var oldAddr=claims.Where(c=>c.Type==CustomerProfileViewModel.AddressClaim).ToArray();
                 if(oldAddr.Length>0)result=await users.RemoveClaimsAsync(user,oldAddr);

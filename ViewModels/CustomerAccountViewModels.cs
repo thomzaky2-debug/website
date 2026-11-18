@@ -19,8 +19,10 @@ public class CustomerProfileViewModel
 {
     public const string FullNameClaim = "nileshop:full_name";
     public const string AddressClaim = "nileshop:delivery_address";
+    public const string WhatsAppClaim = "nileshop:whatsapp_phone";
     [Required, StringLength(100)] public string FullName { get; set; } = "";
     [Required, Phone, StringLength(30)] public string Phone { get; set; } = "";
+    [Phone, StringLength(30)] public string? WhatsAppPhone { get; set; }
     [StringLength(1000)] public string? Address { get; set; } = "";
     public string? Email { get; set; }
     public int OrdersCount { get; set; }

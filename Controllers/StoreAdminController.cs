@@ -17,7 +17,7 @@ public class StoreAdminController(ApplicationDbContext db, OrderOperations opera
     {
         q=q?.Trim();if(q?.Length>100)q=q[..100];page=Math.Clamp(page,1,100000);
         var query=db.Users.AsNoTracking().Where(u=>!db.UserRoles.Any(ur=>ur.UserId==u.Id&&db.Roles.Any(r=>r.Id==ur.RoleId&&r.Name=="Admin")));
-        if(!string.IsNullOrWhiteSpace(q))query=query.Where(u=>(u.Email!=null&&u.Email.Contains(q))||(u.PhoneNumber!=null&&u.PhoneNumber.Contains(q))||db.UserClaims.Any(c=>c.UserId==u.Id&&c.ClaimType==CustomerProfileViewModel.FullNameClaim&&c.ClaimValue!=null&&c.ClaimValue.Contains(q)));
+        if(!string.IsNullOrWhiteSpace(q))query=query.Where(u=>(u.Email!=null&&u.Email.Contains(q))||(u.PhoneNumber!=null&&u.PhoneNumber.Contains(q))||db.UserClaims.Any(c=>c.UserId==u.Id&&(c.ClaimType==CustomerProfileViewModel.FullNameClaim||c.ClaimType==CustomerProfileViewModel.WhatsAppClaim)&&c.ClaimValue!=null&&c.ClaimValue.Contains(q)));
         var count=await query.CountAsync();
         var rows=await query.OrderBy(u=>u.Email).Skip((page-1)*30).Take(30).Select(u=>new CustomerAdminRow(u.Id,u.Email??"",u.PhoneNumber??"",db.UserClaims.Where(c=>c.UserId==u.Id&&c.ClaimType==CustomerProfileViewModel.FullNameClaim).Select(c=>c.ClaimValue).FirstOrDefault()??"",db.Orders.Count(o=>o.CustomerUserId==u.Id))).ToListAsync();
         return View(new CustomersAdminViewModel(rows,q,page,(int)Math.Ceiling(count/30d)));

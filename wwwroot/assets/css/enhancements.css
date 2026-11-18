@@ -2531,3 +2531,64 @@ html.dark-mode .checkout-page .checkout-form .instapay-input > span {
     width: 100% !important;
   }
 }
+
+/* ---------- WhatsApp Number Field (Account & Checkout) ---------- */
+.account-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.customer-account-page .account-label-row label {
+  margin: 0 !important;
+}
+
+.whatsapp-field-label {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 6px;
+}
+
+.whatsapp-field-label svg,
+.saved-contact-chip.whatsapp-chip svg {
+  color: #25d366;
+  flex: none;
+}
+
+.btn-copy-phone {
+  padding: 2px 9px !important;
+  min-height: 24px !important;
+  margin: 0 !important;
+  border: 1px solid var(--line, #dce8e7);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--teal, #087d81);
+  font-size: .72rem !important;
+  font-weight: 700;
+  cursor: pointer;
+  line-height: 1.3;
+  width: auto !important;
+}
+
+.btn-copy-phone:hover {
+  background: rgba(8, 125, 129, .08);
+  border-color: var(--teal, #087d81);
+}
+
+html.dark-mode .btn-copy-phone {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--teal);
+}
+
+html.dark-mode .btn-copy-phone:hover {
+  background: #24364c;
+  border-color: var(--teal);
+}
+
+.profile-email-cell {
+  min-width: 0;
+}

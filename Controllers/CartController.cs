@@ -91,6 +91,8 @@ public class CartController(CartService cart, ApplicationDbContext db, CheckoutS
         var user=await users.GetUserAsync(User);if(user is null)return;
         var claims=await users.GetClaimsAsync(user);
         var name=claims.FirstOrDefault(c=>c.Type==CustomerProfileViewModel.FullNameClaim)?.Value;
+        var whatsApp=claims.FirstOrDefault(c=>c.Type==CustomerProfileViewModel.WhatsAppClaim)?.Value;
+        if(!string.IsNullOrWhiteSpace(whatsApp))ViewData["SavedWhatsApp"]=whatsApp;
         var savedAddress=claims.FirstOrDefault(c=>c.Type==CustomerProfileViewModel.AddressClaim)?.Value;
         if(!string.IsNullOrWhiteSpace(savedAddress)){
             ViewData["SavedAddress"]=savedAddress;

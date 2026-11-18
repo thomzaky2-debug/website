@@ -315,6 +315,16 @@ if ('IntersectionObserver' in window) {
   document.querySelectorAll('.animate-on-scroll').forEach(el => el.classList.add('visible'));
 }
 
+// --- Copy Phone to WhatsApp Helper ---
+document.querySelector('[data-copy-phone]')?.addEventListener('click', () => {
+  const phoneInput = document.querySelector('#Phone');
+  const waInput = document.querySelector('#WhatsAppPhone');
+  if (phoneInput && waInput) {
+    waInput.value = phoneInput.value.trim();
+    waInput.focus();
+  }
+});
+
 // --- A5. Checkout Spinner & Saved Delivery Address Switcher ---
 const checkoutAddressBox = document.querySelector('[data-checkout-address-box]');
 if (checkoutAddressBox) {
