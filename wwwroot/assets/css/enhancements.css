@@ -1533,5 +1533,562 @@ html.dark-mode .skeleton {
 }
 
 [dir="rtl"] .product-badges {
-  /* Already uses inset-inline-start, so it auto-mirrors. */
+  /* Already uses inset-inline-end, so it auto-mirrors. */
+}
+
+/* ---------- Customer Account Hub Enhancements ---------- */
+.customer-account-page .account-hero-head {
+  margin-bottom: 28px;
+}
+
+.customer-account-page .customer-account-layout {
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.account-sidebar {
+  position: sticky;
+  top: 98px;
+  padding: 24px;
+}
+
+.account-person {
+  gap: 12px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--line, #dce8e7);
+}
+
+.account-avatar-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 10px;
+}
+
+.account-sidebar .account-avatar {
+  width: 54px;
+  height: 54px;
+  margin: 0;
+  border-radius: 15px;
+  background: linear-gradient(135deg, rgba(8, 125, 129, .16), rgba(55, 199, 186, .28));
+  border: 1px solid rgba(8, 125, 129, .28);
+  color: var(--teal, #087d81);
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: .02em;
+}
+
+.account-role-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--surface, #f4f9f8);
+  border: 1px solid var(--line, #dce8e7);
+  color: var(--muted, #5f7480);
+  font-size: .72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.account-person-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  width: 100%;
+}
+
+.account-person-meta strong {
+  font-size: 1.02rem;
+  line-height: 1.3;
+}
+
+.account-person-meta small {
+  font-size: .8rem;
+  color: var(--muted, #5f7480);
+  overflow-wrap: anywhere;
+}
+
+/* Navigation links (both sidebar & horizontal bar on Orders/Saved) */
+.account-navigation a {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 13px;
+  border-radius: 10px;
+  font-size: .86rem;
+  font-weight: 600;
+  transition: background .15s, color .15s;
+}
+
+.account-navigation a svg {
+  flex: none;
+  opacity: .85;
+}
+
+.account-navigation a span {
+  flex: 1;
+}
+
+.account-nav-badge {
+  font-style: normal;
+  font-size: .72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(8, 125, 129, .12);
+  color: var(--teal, #087d81);
+  font-variant-numeric: tabular-nums;
+}
+
+.account-sidebar .account-navigation {
+  gap: 5px;
+  margin: 18px 0;
+}
+
+.account-sidebar .account-navigation a[aria-current="page"] {
+  background: rgba(8, 125, 129, .12);
+  color: var(--teal, #087d81);
+  font-weight: 700;
+}
+
+.account-logout-form {
+  margin: 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--line, #dce8e7);
+}
+
+.account-sidebar .account-logout {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 13px;
+  margin: 0;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted, #5f7480);
+  font-size: .86rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.account-sidebar .account-logout:hover {
+  background: rgba(220, 53, 69, .08);
+  border-color: rgba(220, 53, 69, .22);
+  color: #c0392b;
+}
+
+/* Main stack & Quick stats */
+.account-main-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+.account-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.account-stat-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px;
+  margin: 0;
+  text-decoration: none;
+  color: inherit;
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+
+a.account-stat-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--teal, #087d81);
+}
+
+.account-stat-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(8, 125, 129, .1);
+  color: var(--teal, #087d81);
+}
+
+.account-stat-card strong {
+  display: block;
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink, #073349);
+}
+
+.account-stat-card span:last-child {
+  display: block;
+  margin-top: 3px;
+  font-size: .8rem;
+  font-weight: 600;
+  color: var(--muted, #5f7480);
+}
+
+/* Profile, Recent Orders & Security cards */
+.account-profile-panel,
+.account-card {
+  padding: 28px;
+  margin: 0;
+}
+
+.account-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.account-card-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--surface, #f4f9f8);
+  border: 1px solid var(--line, #dce8e7);
+  color: var(--teal, #087d81);
+}
+
+.account-card-header h2 {
+  font-size: 1.18rem;
+  margin: 0 0 4px;
+}
+
+.account-card-header p {
+  font-size: .86rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Normalize form labels inside account panels (prevent legacy uppercase rule) */
+.customer-account-page .profile-fields label,
+.customer-account-page .profile-label {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: .83rem;
+  font-weight: 700;
+  color: var(--ink, #073349);
+  margin: 0 0 8px;
+}
+
+.customer-account-page .profile-fields input {
+  height: 46px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: .92rem;
+}
+
+.customer-account-page .wide-field {
+  grid-column: 1 / -1;
+}
+
+.profile-readonly-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 46px;
+  padding: 9px 14px;
+  border-radius: 10px;
+  background: var(--surface, #f4f9f8);
+  border: 1px dashed var(--line, #dce8e7);
+  flex-wrap: wrap;
+}
+
+.profile-readonly-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: .9rem;
+  font-weight: 600;
+  color: var(--text, #123b4d);
+  overflow-wrap: anywhere;
+}
+
+.profile-readonly-value svg {
+  flex: none;
+  color: var(--muted, #5f7480);
+}
+
+.profile-verified-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(8, 125, 129, .12);
+  color: var(--teal, #087d81);
+  font-size: .72rem;
+  font-weight: 700;
+}
+
+.customer-account-page .profile-form-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 22px;
+  margin-top: 24px;
+  border-top: 1px solid var(--line, #dce8e7);
+}
+
+.btn-account-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 45px;
+  padding: 10px 20px;
+  margin: 0;
+  border-radius: 9px;
+  border: 1px solid var(--line, #dce8e7);
+  background: var(--surface, #f4f9f8);
+  color: var(--ink, #073349);
+  font-size: .88rem;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn-account-secondary:hover {
+  border-color: var(--teal, #087d81);
+  color: var(--teal, #087d81);
+}
+
+.btn-account-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 45px;
+  padding: 10px 16px;
+  border-radius: 9px;
+  color: var(--muted, #5f7480);
+  font-size: .86rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.btn-account-ghost:hover {
+  background: var(--surface, #f4f9f8);
+  color: var(--ink, #073349);
+}
+
+/* Recent orders section */
+.account-section-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.account-recent-list {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--line, #dce8e7);
+}
+
+.account-recent-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 16px;
+  padding: 15px 0;
+  border-bottom: 1px solid var(--line, #dce8e7);
+}
+
+.account-recent-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.account-recent-row strong {
+  display: block;
+  font-size: .9rem;
+}
+
+.account-recent-row small {
+  display: block;
+  margin-top: 4px;
+  font-size: .76rem;
+  color: var(--muted, #5f7480);
+}
+
+.account-recent-amount {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.account-empty-inline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 16px 18px;
+  border-radius: 11px;
+  background: var(--surface, #f4f9f8);
+  border: 1px solid var(--line, #dce8e7);
+}
+
+.account-empty-inline p {
+  margin: 0;
+  font-size: .88rem;
+  color: var(--muted, #5f7480);
+}
+
+/* Password & Security accordion */
+.account-security-card {
+  padding: 0;
+}
+
+.account-security-details > summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 24px 28px;
+  cursor: pointer;
+}
+
+.account-security-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.account-security-details > summary .account-card-header {
+  margin: 0;
+}
+
+.security-chevron {
+  font-size: 1.25rem;
+  color: var(--muted, #5f7480);
+  transition: transform .2s ease;
+  line-height: 1;
+}
+
+.account-security-details[open] .security-chevron {
+  transform: rotate(180deg);
+}
+
+.account-password-form {
+  padding: 0 28px 28px;
+  border-top: 1px solid var(--line, #dce8e7);
+  padding-top: 22px;
+}
+
+.account-password-hint {
+  display: block;
+  margin-top: 12px;
+  font-size: .78rem;
+  line-height: 1.5;
+}
+
+/* Dark mode overrides for Customer Account Hub */
+html.dark-mode .account-sidebar .account-avatar {
+  background: linear-gradient(135deg, rgba(56, 201, 188, .18), rgba(13, 138, 142, .3));
+  border-color: rgba(56, 201, 188, .35);
+  color: var(--teal);
+}
+
+html.dark-mode .account-role-pill {
+  background: #1f2e41;
+  border-color: var(--border);
+  color: var(--muted);
+}
+
+html.dark-mode .account-sidebar .account-navigation a[aria-current="page"] {
+  background: rgba(56, 201, 188, .14);
+  color: var(--teal);
+}
+
+html.dark-mode .account-nav-badge,
+html.dark-mode .profile-verified-pill,
+html.dark-mode .account-stat-icon {
+  background: rgba(56, 201, 188, .15);
+  color: var(--teal);
+}
+
+html.dark-mode .account-sidebar .account-logout:hover {
+  background: rgba(231, 76, 60, .14);
+  border-color: rgba(231, 76, 60, .35);
+  color: #ff948b;
+}
+
+html.dark-mode .account-card-icon,
+html.dark-mode .profile-readonly-box,
+html.dark-mode .account-empty-inline,
+html.dark-mode .btn-account-secondary {
+  background: #1f2e41;
+  border-color: var(--border);
+  color: var(--ink);
+}
+
+html.dark-mode .btn-account-secondary:hover {
+  background: #273a52;
+  border-color: var(--teal);
+  color: var(--teal);
+}
+
+html.dark-mode .btn-account-ghost:hover {
+  background: #1f2e41;
+  color: var(--ink);
+}
+
+/* Responsive adjustments for Customer Account Hub */
+@media (max-width: 900px) {
+  .customer-account-page .customer-account-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .account-sidebar {
+    position: static;
+  }
+
+  .account-sidebar .account-person {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 700px) {
+  .account-stats-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .account-recent-row {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 14px;
+  }
+
+  .account-profile-panel,
+  .account-card {
+    padding: 20px;
+  }
+
+  .account-security-details > summary {
+    padding: 20px;
+  }
+
+  .account-password-form {
+    padding: 18px 20px 20px;
+  }
 }

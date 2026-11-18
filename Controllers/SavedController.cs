@@ -7,10 +7,19 @@ using NileShop.Models;
 using NileShop.Services;
 namespace NileShop.Controllers;
 [Authorize,ResponseCache(Duration=0,Location=ResponseCacheLocation.None,NoStore=true)]
-public class SavedController(ApplicationDbContext db,UserManager<IdentityUser> users) : Controller
+public class SavedController(ApplicationDbContext db,UserManager<IdentityUser> users,CatalogService catalog) : Controller
 {
     [HttpGet("/saved")]
-    public async Task<IActionResult> Index(){var id=users.GetUserId(User)!;return View((await db.Products.AsNoTracking().Where(p=>p.IsActive&&db.SavedProducts.Any(s=>s.UserId==id&&s.ProductId==p.Id)).Include(p=>p.Translations).Include(p=>p.Category).ThenInclude(c=>c.Translations).ToListAsync()).Select(CatalogService.Card).ToList());}
+    public async Task<IActionResult> Index()
+    {
+        var id=users.GetUserId(User)!;
+        var products=await db.Products.AsNoTracking().Where(p=>p.IsActive&&db.SavedProducts.Any(s=>s.UserId==id&&s.ProductId==p.Id)).Include(p=>p.Translations).Include(p=>p.Category).ThenInclude(c=>c.Translations).ToListAsync();
+        ViewBag.AccountSavedCount=products.Count;
+        ViewBag.AccountOrdersCount=await db.Orders.AsNoTracking().CountAsync(o=>o.CustomerUserId==id);
+        ViewBag.Ratings=await catalog.GetProductRatingsAsync(db,products.Select(p=>p.Id));
+        ViewBag.BestsellerIds=await catalog.GetBestsellerIdsAsync(db);
+        return View(products.Select(CatalogService.Card).ToList());
+    }
     [HttpPost,ValidateAntiForgeryToken]
     public async Task<IActionResult> Save(int productId,string? returnUrl)
     {

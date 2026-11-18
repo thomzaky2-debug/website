@@ -1,7 +1,214 @@
 @model CustomerProfileViewModel
-@{ViewData["Title"]=Localizer["Your_Account"];var initial=string.IsNullOrWhiteSpace(Model.FullName)?"N":Model.FullName.Trim()[..1];}
+@{
+    ViewData["Title"] = Localizer["Your_Account"];
+    var parts = (Model.FullName ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    var initials = parts.Length >= 2
+        ? string.Concat(parts[0][0], parts[^1][0]).ToUpperInvariant()
+        : parts.Length == 1 && parts[0].Length > 0
+            ? parts[0][..1].ToUpperInvariant()
+            : "N";
+    var pwError = ViewData["PasswordError"] as string;
+}
 <div class="customer-account-page">
-<nav class="breadcrumb-nav" aria-label="Breadcrumb"><ol class="breadcrumb-list"><li class="breadcrumb-item"><a href="/">@Localizer["Nav_Home"]</a></li><li class="breadcrumb-separator" aria-hidden="true">›</li><li class="breadcrumb-item" aria-current="page">@Localizer["Your_Account"]</li></ol></nav>
-<div class="section-head"><div><span class="eyebrow">NileShop · @Localizer["Your_Account"]</span><h1>@Localizer["Your_Account"]</h1><p class="muted">@Localizer["Profile_Intro"]</p></div><a class="action-link" asp-controller="Home" asp-action="Index">← @Localizer["Nav_Home"]</a></div>
-<div class="customer-account-layout"><aside class="account-sidebar panel"><div class="account-person"><span class="account-avatar" aria-hidden="true">@initial</span><strong>@Model.FullName</strong><small>@Model.Email</small></div><partial name="_AccountNavigation"/><form asp-action="Logout" method="post"><button class="account-logout">@Localizer["Nav_Logout"]</button></form></aside>
-<section class="account-profile-panel panel"><header><h2>@Localizer["Contact_Details"]</h2><p class="muted">@Localizer["Profile_Checkout_Help"]</p></header><form asp-action="Profile" method="post"><div asp-validation-summary="All" class="validation" role="alert"></div><div class="profile-fields"><div class="field"><label asp-for="FullName">@Localizer["CustomerName"]</label><input asp-for="FullName" required maxlength="100" autocomplete="name"/><span asp-validation-for="FullName"></span></div><div class="field"><label asp-for="Phone">@Localizer["CustomerPhone"]</label><input asp-for="Phone" type="tel" required maxlength="30" autocomplete="tel"/><span asp-validation-for="Phone"></span></div><div class="field profile-email"><span class="profile-label">@Localizer["Email"]</span><p>@Model.Email</p></div></div><div class="profile-form-actions"><button class="primary-button">@Localizer["Save_And_Home"]</button><a asp-controller="Home" asp-action="Index">@Localizer["Cancel"]</a></div></form></section></div></div>
+    <nav class="breadcrumb-nav" aria-label="Breadcrumb">
+        <ol class="breadcrumb-list">
+            <li class="breadcrumb-item"><a href="/">@Localizer["Nav_Home"]</a></li>
+            <li class="breadcrumb-separator" aria-hidden="true">›</li>
+            <li class="breadcrumb-item" aria-current="page">@Localizer["Your_Account"]</li>
+        </ol>
+    </nav>
+
+    <div class="section-head account-hero-head">
+        <div>
+            <span class="eyebrow">NileShop · @Localizer["Your_Account"]</span>
+            <h1>@Localizer["Your_Account"]</h1>
+            <p class="muted">@Localizer["Profile_Intro"]</p>
+        </div>
+        <a class="action-link account-shop-cta" asp-controller="Home" asp-action="Shop">@Localizer["Explore_Collection"] →</a>
+    </div>
+
+    <div class="customer-account-layout">
+        <aside class="account-sidebar panel">
+            <div class="account-person">
+                <div class="account-avatar-wrap">
+                    <span class="account-avatar" aria-hidden="true">@initials</span>
+                    <span class="account-role-pill">@Localizer["Member_Account"]</span>
+                </div>
+                <div class="account-person-meta">
+                    <strong>@Model.FullName</strong>
+                    <small>@Model.Email</small>
+                </div>
+            </div>
+            <partial name="_AccountNavigation"/>
+            <form asp-action="Logout" method="post" class="account-logout-form">
+                <button type="submit" class="account-logout">
+                    <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    <span>@Localizer["Nav_Logout"]</span>
+                </button>
+            </form>
+        </aside>
+
+        <div class="account-main-stack">
+            <div class="account-stats-grid">
+                <a class="account-stat-card panel" asp-controller="Account" asp-action="Orders">
+                    <span class="account-stat-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                    </span>
+                    <div>
+                        <strong>@Model.OrdersCount</strong>
+                        <span>@Localizer["My_Orders"]</span>
+                    </div>
+                </a>
+                <a class="account-stat-card panel" asp-controller="Saved" asp-action="Index">
+                    <span class="account-stat-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/></svg>
+                    </span>
+                    <div>
+                        <strong>@Model.SavedCount</strong>
+                        <span>@Localizer["Saved_Items"]</span>
+                    </div>
+                </a>
+                <div class="account-stat-card panel">
+                    <span class="account-stat-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                    </span>
+                    <div>
+                        <strong>@Model.ReviewsCount</strong>
+                        <span>@Localizer["Customer_Reviews"]</span>
+                    </div>
+                </div>
+            </div>
+
+            <section class="account-profile-panel panel">
+                <header class="account-card-header">
+                    <span class="account-card-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    </span>
+                    <div>
+                        <h2>@Localizer["Contact_Details"]</h2>
+                        <p class="muted">@Localizer["Profile_Checkout_Help"]</p>
+                    </div>
+                </header>
+
+                <form asp-action="Profile" method="post">
+                    <div asp-validation-summary="All" class="validation" role="alert"></div>
+                    <div class="profile-fields">
+                        <div class="field">
+                            <label asp-for="FullName">@Localizer["CustomerName"]</label>
+                            <input asp-for="FullName" required maxlength="100" autocomplete="name"/>
+                            <span asp-validation-for="FullName"></span>
+                        </div>
+                        <div class="field">
+                            <label asp-for="Phone">@Localizer["CustomerPhone"]</label>
+                            <input asp-for="Phone" type="tel" required maxlength="30" autocomplete="tel" dir="ltr"/>
+                            <span asp-validation-for="Phone"></span>
+                        </div>
+                        <div class="field profile-email">
+                            <span class="profile-label">@Localizer["Email"]</span>
+                            <div class="profile-readonly-box">
+                                <span class="profile-readonly-value">
+                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                                    <span>@Model.Email</span>
+                                </span>
+                                <span class="profile-verified-pill">@Localizer["Account_Email_Locked"]</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="profile-form-actions">
+                        <button type="submit" class="primary-button">@Localizer["Save_And_Home"]</button>
+                        <button type="submit" name="stay" value="true" class="btn-account-secondary">@Localizer["Save_Changes"]</button>
+                        <a class="btn-account-ghost" asp-controller="Home" asp-action="Index">@Localizer["Cancel"]</a>
+                    </div>
+                </form>
+            </section>
+
+            <section class="account-card panel">
+                <div class="account-section-top">
+                    <div class="account-card-header">
+                        <span class="account-card-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/></svg>
+                        </span>
+                        <div>
+                            <h2>@Localizer["Recent_Orders"]</h2>
+                            <p class="muted">@Localizer["My_Orders_Help"]</p>
+                        </div>
+                    </div>
+                    @if (Model.OrdersCount > 0)
+                    {
+                        <a class="action-link" asp-controller="Account" asp-action="Orders">@Localizer["View_All_Orders"] →</a>
+                    }
+                </div>
+
+                @if (Model.RecentOrders.Any())
+                {
+                    <div class="account-recent-list">
+                        @foreach (var order in Model.RecentOrders)
+                        {
+                            <div class="account-recent-row">
+                                <div>
+                                    <strong>@order.OrderNumber</strong>
+                                    <small>@order.CreatedAt.ToString("yyyy-MM-dd HH:mm")</small>
+                                </div>
+                                <div class="account-recent-badges">
+                                    <span class="status-pill @(order.Status=="Cancelled"?"off":"")">@Localizer[order.Status]</span>
+                                    <small>@Localizer[order.PaymentStatus]</small>
+                                </div>
+                                <strong class="account-recent-amount">@order.TotalAmount.ToString("N2") EGP</strong>
+                                <a class="action-link" asp-controller="Orders" asp-action="Track" asp-route-token="@order.PaymentAccessToken">@Localizer["Track_Order"] →</a>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="account-empty-inline">
+                        <p>@Localizer["No_Account_Orders"]</p>
+                        <a class="action-link" asp-controller="Home" asp-action="Shop">@Localizer["Explore_Collection"] →</a>
+                    </div>
+                }
+            </section>
+
+            <section class="account-card panel account-security-card">
+                <details class="account-security-details" open="@(pwError != null ? "open" : null)">
+                    <summary>
+                        <div class="account-card-header">
+                            <span class="account-card-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>
+                            </span>
+                            <div>
+                                <h2>@Localizer["Change_Password"]</h2>
+                                <p class="muted">@Localizer["Change_Password_Help"]</p>
+                            </div>
+                        </div>
+                        <span class="security-chevron" aria-hidden="true">⌄</span>
+                    </summary>
+
+                    <form asp-action="ChangePassword" method="post" class="account-password-form">
+                        @if (pwError != null)
+                        {
+                            <div class="validation-summary-errors" role="alert">@pwError</div>
+                        }
+                        <div class="profile-fields">
+                            <div class="field wide-field">
+                                <label for="CurrentPassword">@Localizer["Current_Password"]</label>
+                                <input id="CurrentPassword" name="CurrentPassword" type="password" required maxlength="128" autocomplete="current-password"/>
+                            </div>
+                            <div class="field">
+                                <label for="NewPassword">@Localizer["New_Password"]</label>
+                                <input id="NewPassword" name="NewPassword" type="password" required minlength="12" maxlength="128" autocomplete="new-password"/>
+                            </div>
+                            <div class="field">
+                                <label for="ConfirmNewPassword">@Localizer["Confirm_Password"]</label>
+                                <input id="ConfirmNewPassword" name="ConfirmNewPassword" type="password" required minlength="12" maxlength="128" autocomplete="new-password"/>
+                            </div>
+                        </div>
+                        <small class="account-password-hint muted">@Localizer["Customer_Password_Help"]</small>
+                        <div class="profile-form-actions">
+                            <button type="submit" class="btn-account-secondary">@Localizer["Update_Password"]</button>
+                        </div>
+                    </form>
+                </details>
+            </section>
+        </div>
+    </div>
+</div>

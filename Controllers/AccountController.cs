@@ -11,24 +11,50 @@ namespace NileShop.Controllers;
 [ResponseCache(Duration=0,Location=ResponseCacheLocation.None,NoStore=true)]
 public class AccountController(UserManager<IdentityUser> users, SignInManager<IdentityUser> signIn, IStringLocalizer<SharedResource> localizer, ApplicationDbContext db) : Controller
 {
+    async Task<CustomerProfileViewModel> BuildProfileAsync(IdentityUser user, CustomerProfileViewModel? form = null)
+    {
+        var fullName = form?.FullName ?? (await users.GetClaimsAsync(user)).FirstOrDefault(c => c.Type == CustomerProfileViewModel.FullNameClaim)?.Value ?? "";
+        var phone = form?.Phone ?? user.PhoneNumber ?? "";
+        var ordersQuery = db.Orders.AsNoTracking().Where(o => o.CustomerUserId == user.Id);
+        var ordersCount = await ordersQuery.CountAsync();
+        var savedCount = await db.SavedProducts.AsNoTracking().CountAsync(s => s.UserId == user.Id && s.Product.IsActive);
+        var reviewsCount = await db.ProductReviews.AsNoTracking().CountAsync(r => r.UserId == user.Id);
+        var recentOrders = await ordersQuery.OrderByDescending(o => o.Id).Take(3).ToListAsync();
+        ViewBag.AccountOrdersCount = ordersCount;
+        ViewBag.AccountSavedCount = savedCount;
+        return new CustomerProfileViewModel
+        {
+            Email = user.Email,
+            Phone = phone,
+            FullName = fullName,
+            OrdersCount = ordersCount,
+            SavedCount = savedCount,
+            ReviewsCount = reviewsCount,
+            RecentOrders = recentOrders
+        };
+    }
+
     public async Task<IActionResult> Index()
     {
         var user=await users.GetUserAsync(User);if(user is null)return RedirectToAction(nameof(Login));
-        return View(new CustomerProfileViewModel {Email=user.Email,Phone=user.PhoneNumber??"",FullName=(await users.GetClaimsAsync(user)).FirstOrDefault(c=>c.Type==CustomerProfileViewModel.FullNameClaim)?.Value??""});
+        return View(await BuildProfileAsync(user));
     }
     [Authorize,HttpGet]
     public async Task<IActionResult> Orders(int page=1)
     {
         var id=users.GetUserId(User);page=Math.Clamp(page,1,100000);
         var query=db.Orders.AsNoTracking().Where(o=>o.CustomerUserId==id);
-        ViewData["Page"]=page;ViewData["Pages"]=(int)Math.Ceiling(await query.CountAsync()/20d);
+        var total=await query.CountAsync();
+        ViewBag.AccountOrdersCount=total;
+        ViewBag.AccountSavedCount=await db.SavedProducts.AsNoTracking().CountAsync(s=>s.UserId==id&&s.Product.IsActive);
+        ViewData["Page"]=page;ViewData["Pages"]=(int)Math.Ceiling(total/20d);
         return View(await query.OrderByDescending(o=>o.Id).Skip((page-1)*20).Take(20).ToListAsync());
     }
     [Authorize,HttpPost,ValidateAntiForgeryToken]
-    public async Task<IActionResult> Profile(CustomerProfileViewModel model)
+    public async Task<IActionResult> Profile(CustomerProfileViewModel model, bool stay = false)
     {
         var user=await users.GetUserAsync(User);if(user is null)return Challenge();model.Email=user.Email;
-        if(!ModelState.IsValid)return View("Index",model);
+        if(!ModelState.IsValid)return View("Index",await BuildProfileAsync(user,model));
         await using var tx=await db.Database.BeginTransactionAsync();
         user.PhoneNumber=model.Phone.Trim();
         var result=await users.UpdateAsync(user);
@@ -38,8 +64,26 @@ public class AccountController(UserManager<IdentityUser> users, SignInManager<Id
             if(old.Length>0)result=await users.RemoveClaimsAsync(user,old);
             if(result.Succeeded)result=await users.AddClaimAsync(user,new Claim(CustomerProfileViewModel.FullNameClaim,model.FullName.Trim()));
         }
-        if(!result.Succeeded){await tx.RollbackAsync();ModelState.AddModelError("",localizer["Error"]);return View("Index",model);}
-        await tx.CommitAsync();await signIn.RefreshSignInAsync(user);TempData["Success"]="Profile_Saved";return RedirectToAction("Index","Home");
+        if(!result.Succeeded){await tx.RollbackAsync();ModelState.AddModelError("",localizer["Error"]);return View("Index",await BuildProfileAsync(user,model));}
+        await tx.CommitAsync();await signIn.RefreshSignInAsync(user);TempData["Success"]="Profile_Saved";
+        return stay ? RedirectToAction(nameof(Index)) : RedirectToAction("Index","Home");
+    }
+    [Authorize,HttpPost,ValidateAntiForgeryToken,EnableRateLimiting("customer-auth")]
+    public async Task<IActionResult> ChangePassword(CustomerPasswordViewModel model)
+    {
+        var user=await users.GetUserAsync(User);if(user is null)return Challenge();
+        if(!ModelState.IsValid){
+            ViewData["PasswordError"]=localizer[model.NewPassword!=model.ConfirmNewPassword?"Password_Mismatch":"Password_Change_Failed"].Value;
+            return View("Index",await BuildProfileAsync(user));
+        }
+        var result=await users.ChangePasswordAsync(user,model.CurrentPassword,model.NewPassword);
+        if(!result.Succeeded){
+            ViewData["PasswordError"]=localizer["Password_Change_Failed"].Value;
+            return View("Index",await BuildProfileAsync(user));
+        }
+        await signIn.RefreshSignInAsync(user);
+        TempData["Success"]="Password_Updated";
+        return RedirectToAction(nameof(Index));
     }
     [AllowAnonymous,HttpGet]
     public IActionResult Login(string? returnUrl)=>User.Identity?.IsAuthenticated==true ? LocalRedirect(SafeReturn(returnUrl)) : View(new CustomerLoginViewModel {ReturnUrl=returnUrl});
