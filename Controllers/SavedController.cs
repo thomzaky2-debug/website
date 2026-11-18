@@ -7,7 +7,7 @@ using NileShop.Models;
 using NileShop.Services;
 namespace NileShop.Controllers;
 [Authorize,ResponseCache(Duration=0,Location=ResponseCacheLocation.None,NoStore=true)]
-public class SavedController(ApplicationDbContext db,UserManager<IdentityUser> users,CatalogService catalog) : Controller
+public class SavedController(ApplicationDbContext db,UserManager<IdentityUser> users,CatalogService catalog,WalletService wallet) : Controller
 {
     [HttpGet("/saved")]
     public async Task<IActionResult> Index()
@@ -16,6 +16,7 @@ public class SavedController(ApplicationDbContext db,UserManager<IdentityUser> u
         var products=await db.Products.AsNoTracking().Where(p=>p.IsActive&&db.SavedProducts.Any(s=>s.UserId==id&&s.ProductId==p.Id)).Include(p=>p.Translations).Include(p=>p.Category).ThenInclude(c=>c.Translations).ToListAsync();
         ViewBag.AccountSavedCount=products.Count;
         ViewBag.AccountOrdersCount=await db.Orders.AsNoTracking().CountAsync(o=>o.CustomerUserId==id);
+        ViewBag.AccountWalletBalance=await wallet.GetBalanceAsync(id);
         ViewBag.Ratings=await catalog.GetProductRatingsAsync(db,products.Select(p=>p.Id));
         ViewBag.BestsellerIds=await catalog.GetBestsellerIdsAsync(db);
         return View(products.Select(CatalogService.Card).ToList());

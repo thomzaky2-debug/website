@@ -29,15 +29,19 @@ public class CartViewModel
     public IReadOnlyList<CartLine> Lines { get; set; } = [];
     public decimal Total => Lines.Sum(x => x.Total);
 }
-public class CheckoutViewModel
+public class CheckoutViewModel : IValidatableObject
 {
     [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever] public string? CustomerUserId { get; set; }
+    [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever] public decimal WalletBalance { get; set; }
+    public bool UseWallet { get; set; }
     public int ShippingMethodId { get; set; }
     public IReadOnlyList<ShippingMethod> ShippingMethods { get; set; } = [];
     public decimal ShippingFee => ShippingMethods.FirstOrDefault(s => s.Id == ShippingMethodId)?.Fee ?? 0;
     public decimal TotalWithShipping => Cart.Total + ShippingFee;
+    public decimal WalletAppliedPreview => UseWallet ? Math.Min(WalletBalance, TotalWithShipping) : 0m;
+    public decimal PayablePreview => Math.Max(0m, TotalWithShipping - WalletAppliedPreview);
     private string instaPayUsername = "";
-    [Required(ErrorMessage = "InstaPay_Required"), StringLength(100), RegularExpression(InstaPayHandle.UsernamePattern, ErrorMessage = "InstaPay_Invalid")]
+    [StringLength(100)]
     public string InstaPayUsername { get => instaPayUsername; set => instaPayUsername = value?.Trim() ?? ""; }
     [Required, StringLength(150)] public string CustomerName { get; set; } = "";
     [Required, EmailAddress, StringLength(254)] public string CustomerEmail { get; set; } = "";
@@ -46,6 +50,18 @@ public class CheckoutViewModel
     public bool SaveAddressToProfile { get; set; }
     [Required, StringLength(64)] public string CheckoutToken { get; set; } = "";
     public CartViewModel Cart { get; set; } = new();
+
+    public IEnumerable<ValidationResult> Validate(ValidationContext context)
+    {
+        var fullyCovered = UseWallet && WalletBalance > 0 && TotalWithShipping > 0 && WalletBalance >= TotalWithShipping;
+        if (!fullyCovered)
+        {
+            if (string.IsNullOrWhiteSpace(InstaPayUsername))
+                yield return new ValidationResult("InstaPay_Required", [nameof(InstaPayUsername)]);
+            else if (!System.Text.RegularExpressions.Regex.IsMatch(InstaPayUsername, InstaPayHandle.UsernamePattern))
+                yield return new ValidationResult("InstaPay_Invalid", [nameof(InstaPayUsername)]);
+        }
+    }
 }
 public class ProductFormViewModel : IValidatableObject
 {

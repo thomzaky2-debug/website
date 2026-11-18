@@ -28,7 +28,16 @@ public class CustomerProfileViewModel
     public int OrdersCount { get; set; }
     public int SavedCount { get; set; }
     public int ReviewsCount { get; set; }
+    public decimal WalletBalance { get; set; }
     public IReadOnlyList<Order> RecentOrders { get; set; } = [];
+}
+
+public class CustomerWalletViewModel
+{
+    public string FullName { get; set; } = "";
+    public string? Email { get; set; }
+    public decimal Balance { get; set; }
+    public IReadOnlyList<WalletTransaction> Transactions { get; set; } = [];
 }
 
 public class CustomerPasswordViewModel

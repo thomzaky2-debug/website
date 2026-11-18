@@ -6,6 +6,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 {
     public DbSet<SavedProduct> SavedProducts => Set<SavedProduct>();
     public DbSet<ProductReview> ProductReviews => Set<ProductReview>();
+    public DbSet<WalletTransaction> WalletTransactions => Set<WalletTransaction>();
     public DbSet<StoreMailSettings> StoreMailSettings => Set<StoreMailSettings>();
     public DbSet<StoreSettings> StoreSettings => Set<StoreSettings>();
     public DbSet<ShippingMethod> ShippingMethods => Set<ShippingMethod>();
@@ -31,6 +32,13 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         b.Entity<ProductReview>().HasOne<Microsoft.AspNetCore.Identity.IdentityUser>().WithMany().HasForeignKey(x=>x.UserId).OnDelete(DeleteBehavior.Restrict);
         b.Entity<ProductReview>().HasOne(x=>x.Product).WithMany().OnDelete(DeleteBehavior.Restrict);
         b.Entity<Order>().HasOne<Microsoft.AspNetCore.Identity.IdentityUser>().WithMany().HasForeignKey(x=>x.CustomerUserId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<WalletTransaction>().HasIndex(x => new { x.UserId, x.CreatedAt });
+        b.Entity<WalletTransaction>().HasIndex(x => x.ReferenceKey).IsUnique().HasFilter("[ReferenceKey] IS NOT NULL");
+        b.Entity<WalletTransaction>().HasOne<Microsoft.AspNetCore.Identity.IdentityUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<WalletTransaction>().HasOne(x => x.Order).WithMany().HasForeignKey(x => x.OrderId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<WalletTransaction>().Property(x => x.Amount).HasPrecision(18, 2);
+        b.Entity<Order>().Property(x => x.WalletAmountUsed).HasPrecision(18, 2);
+        b.Entity<Order>().Property(x => x.DetectedAmountEgp).HasPrecision(18, 2);
         b.Entity<ProductReview>().ToTable(t=>t.HasCheckConstraint("CK_Review_Rating","[Rating] >= 1 AND [Rating] <= 5"));
         b.Entity<ShippingMethod>().Property(x => x.Fee).HasPrecision(18,2);
         b.Entity<Order>().Property(x => x.ShippingFee).HasPrecision(18,2);
@@ -49,6 +57,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             b.Entity<Product>().Property(x => x.Price).HasConversion<double>();
             b.Entity<Product>().Property(x => x.OldPrice).HasConversion<double>();
             b.Entity<Order>().Property(x => x.TotalAmount).HasConversion<double>();
+            b.Entity<Order>().Property(x => x.WalletAmountUsed).HasConversion<double>();
+            b.Entity<Order>().Property(x => x.DetectedAmountEgp).HasConversion<double>();
+            b.Entity<WalletTransaction>().Property(x => x.Amount).HasConversion<double>();
             b.Entity<OrderItem>().Property(x => x.UnitPrice).HasConversion<double>();
         }
         b.Entity<Category>().HasIndex(x => x.Slug).IsUnique();

@@ -11,26 +11,43 @@ public class NilePayService(ApplicationDbContext db, NilePayClient client, IOpti
     {
         await using var creation = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         var currentOrder = await db.Orders.AsNoTracking().SingleAsync(o => o.Id == order.Id, ct);
-        if (currentOrder.Status == OrderStatuses.Cancelled || currentOrder.InventoryReleased) throw new NilePayException("Review_NotTerminal");
+        if (currentOrder.Status == OrderStatuses.Cancelled || currentOrder.InventoryReleased || currentOrder.IsSettled) throw new NilePayException("Review_NotTerminal");
+        var payable = currentOrder.PayableAmount;
         var rolledBack = false;
         var attempt = await db.PaymentAttempts.SingleOrDefaultAsync(p => p.OrderId == order.Id, ct);
         if (attempt is null) {
             if (string.IsNullOrWhiteSpace(order.InstaPaySenderHandle)) throw new NilePayException("InstaPay_Missing");
-            if (order.TotalAmount <= 0 || order.TotalAmount > 10000000 || order.Items.Count is 0 or > 100) throw new NilePayException("Payment_Limit");
-            var productIds = order.Items.Select(i => i.ProductId).Distinct().ToArray();
-            var categories = await db.Products.AsNoTracking().Where(p => productIds.Contains(p.Id))
-                .Include(p => p.Category).ThenInclude(c => c.Translations)
-                .ToDictionaryAsync(p => p.Id, p => p.Category.Translations.FirstOrDefault(t => t.LanguageCode == "en")?.Name ?? "Products", ct);
-            var lines = order.Items.OrderBy(i => i.Id).Select(i => new {
-                name = ItemName(i), quantity = i.Quantity, unitPrice = i.UnitPrice,
-                category = Limit(categories.GetValueOrDefault(i.ProductId) ?? "Products", 100)
-            }).ToList();
-            if (order.ShippingFee > 0) lines.Add(new { name = "Delivery - " + (order.ShippingMethodName ?? "Shipping"), quantity = 1, unitPrice = order.ShippingFee, category = "Delivery" });
-            if (lines.Count > 100 || lines.Sum(i => i.quantity * i.unitPrice) != order.TotalAmount) throw new NilePayException("Payment_Mismatch");
+            if (payable <= 0 || payable > 10000000 || order.Items.Count is 0 or > 100) throw new NilePayException("Payment_Limit");
+            object linesPayload;
+            if (currentOrder.WalletAmountUsed > 0) {
+                linesPayload = new[] {
+                    new {
+                        name = Limit($"NileShop order {order.OrderNumber} (after {currentOrder.WalletAmountUsed:0.00} EGP wallet credit)", 200),
+                        quantity = 1,
+                        unitPrice = payable,
+                        category = "Retail products"
+                    }
+                };
+            } else {
+                var productIds = order.Items.Select(i => i.ProductId).Distinct().ToArray();
+                var categories = await db.Products.AsNoTracking().Where(p => productIds.Contains(p.Id))
+                    .Include(p => p.Category).ThenInclude(c => c.Translations)
+                    .ToDictionaryAsync(p => p.Id, p => p.Category.Translations.FirstOrDefault(t => t.LanguageCode == "en")?.Name ?? "Products", ct);
+                var lines = order.Items.OrderBy(i => i.Id).Select(i => new {
+                    name = ItemName(i), quantity = i.Quantity, unitPrice = i.UnitPrice,
+                    category = Limit(categories.GetValueOrDefault(i.ProductId) ?? "Products", 100)
+                }).ToList();
+                if (order.ShippingFee > 0) lines.Add(new { name = "Delivery - " + (order.ShippingMethodName ?? "Shipping"), quantity = 1, unitPrice = order.ShippingFee, category = "Delivery" });
+                if (lines.Count > 100 || lines.Sum(i => i.quantity * i.unitPrice) != payable) throw new NilePayException("Payment_Mismatch");
+                linesPayload = lines;
+            }
+            var rawNote = "NileShop order " + order.OrderNumber
+                + (string.IsNullOrWhiteSpace(order.ShippingMethodName) ? "" : " | " + order.ShippingMethodName)
+                + (currentOrder.WalletAmountUsed > 0 ? $" | Wallet credit -{currentOrder.WalletAmountUsed:0.00} EGP" : "");
             attempt = new PaymentAttempt { OrderId = order.Id, IdempotencyKey = "bts-" + order.CheckoutToken,
-                RequestJson = JsonSerializer.Serialize(new { amountEgp = order.TotalAmount, senderHandle = order.InstaPaySenderHandle,
-                    note = ("NileShop order " + order.OrderNumber + (string.IsNullOrWhiteSpace(order.ShippingMethodName) ? "" : " | " + order.ShippingMethodName))[..Math.Min(1000, ("NileShop order " + order.OrderNumber + (string.IsNullOrWhiteSpace(order.ShippingMethodName) ? "" : " | " + order.ShippingMethodName)).Length)],
-                    productCategory = "Retail products", items = lines,
+                RequestJson = JsonSerializer.Serialize(new { amountEgp = payable, senderHandle = order.InstaPaySenderHandle,
+                    note = rawNote[..Math.Min(1000, rawNote.Length)],
+                    productCategory = "Retail products", items = linesPayload,
                     returnUrl = options.Value.PublicUrl.TrimEnd('/') + "/payment/return?token=" + order.PaymentAccessToken }) };
             db.PaymentAttempts.Add(attempt);
             try { await db.SaveChangesAsync(ct); }
@@ -40,7 +57,7 @@ public class NilePayService(ApplicationDbContext db, NilePayClient client, IOpti
         if (attempt.SessionId is null) {
             // Persisted request and key are reused after every timeout, restart, or uncertain outcome.
             var remote = await client.CreateAsync(attempt.RequestJson, attempt.IdempotencyKey, ct);
-            if (string.IsNullOrWhiteSpace(remote.SessionId) || remote.SessionId.Length > 200 || remote.AmountEgp != order.TotalAmount || remote.Currency != "EGP" || !client.ValidCheckoutUrl(remote.CheckoutUrl) || remote.CheckoutUrl!.Length > 2000) throw new NilePayException("Payment_Retry");
+            if (string.IsNullOrWhiteSpace(remote.SessionId) || remote.SessionId.Length > 200 || remote.AmountEgp != payable || remote.Currency != "EGP" || !client.ValidCheckoutUrl(remote.CheckoutUrl) || remote.CheckoutUrl!.Length > 2000) throw new NilePayException("Payment_Retry");
             attempt.SessionId = remote.SessionId; attempt.CheckoutUrl = remote.CheckoutUrl;
             await db.SaveChangesAsync(ct);
         }
@@ -65,26 +82,122 @@ public class NilePayService(ApplicationDbContext db, NilePayClient client, IOpti
     }
     public async Task<bool> ApplyAsync(NileCheckout transaction, string? eventId, CancellationToken ct)
     {
+        var wallet = new WalletService(db);
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         if (eventId is not null && await db.PaymentEvents.AnyAsync(e => e.EventId == eventId, ct)) { await tx.CommitAsync(ct); return true; }
         var attempt = await db.PaymentAttempts.AsNoTracking().Include(p => p.Order).SingleOrDefaultAsync(p => p.SessionId == transaction.SessionId, ct);
         if (attempt is null) return false; // Receiver returns 503 until creation has saved its session mapping.
-        if (transaction.AmountEgp != attempt.Order.TotalAmount || transaction.Currency != "EGP") throw new NilePayException("Payment_Mismatch");
+        var expectedAmount = attempt.Order.PayableAmount;
+        if (transaction.AmountEgp != expectedAmount || transaction.Currency != "EGP") throw new NilePayException("Payment_Mismatch");
         if (string.IsNullOrWhiteSpace(transaction.Status) || transaction.Status.Length > 30) throw new NilePayException("Payment_Mismatch");
+        if (transaction.DetectedAmountEgp.HasValue && (transaction.DetectedAmountEgp.Value <= 0 || transaction.DetectedAmountEgp.Value > 10000000m || decimal.Round(transaction.DetectedAmountEgp.Value, 2) != transaction.DetectedAmountEgp.Value))
+            throw new NilePayException("Payment_Mismatch");
+
         if (eventId is not null) db.PaymentEvents.Add(new PaymentEvent { EventId = eventId, PaymentAttemptId = attempt.Id });
-        if (transaction.Status == "CONFIRMED") {
-            var changed = await db.Orders.Where(o => o.Id == attempt.OrderId && o.PaidAt == null)
-                .ExecuteUpdateAsync(s => s.SetProperty(o => o.PaymentStatus, "Paid").SetProperty(o => o.PaidAt, DateTime.UtcNow)
+
+        var ownerId = attempt.Order.CustomerUserId;
+        var detected = transaction.DetectedAmountEgp;
+
+        // 1. Overpayment for a customer with an account: complete order as Overpaid and credit remaining excess to Wallet.
+        if (!string.IsNullOrWhiteSpace(ownerId) && detected.HasValue && detected.Value > expectedAmount && transaction.Status is "OVERPAID" or "CONFIRMED")
+        {
+            var excess = decimal.Round(detected.Value - expectedAmount, 2);
+            var changed = await db.Orders.Where(o => o.Id == attempt.OrderId && o.PaidAt == null && o.PaymentStatus == "Unpaid")
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(o => o.PaymentStatus, "Overpaid")
+                    .SetProperty(o => o.PaidAt, DateTime.UtcNow)
+                    .SetProperty(o => o.DetectedAmountEgp, detected.Value)
                     .SetProperty(o => o.NeedsPaymentReview, o => o.InventoryReleased || o.Status == OrderStatuses.Cancelled)
                     .SetProperty(o => o.Status, o => o.Status == OrderStatuses.Pending && !o.InventoryReleased ? OrderStatuses.Processing : o.Status), ct);
-            if (changed == 1) {
+
+            await wallet.RecordIdempotentAsync(
+                ownerId,
+                excess,
+                WalletTransactionKinds.OverpaidCredit,
+                $"overpaid:order:{attempt.OrderId}",
+                attempt.OrderId,
+                $"Overpayment excess from order {attempt.Order.OrderNumber} (transferred {detected.Value:0.00} EGP, required {expectedAmount:0.00} EGP)",
+                ct);
+
+            if (changed == 1)
+            {
+                db.AuditLogs.Add(new AuditLog { Action = "PAYMENT_OVERPAID_WALLET", EntityName = "Order", Details = $"{attempt.Order.OrderNumber}: +{excess:0.00} EGP credited to wallet", UserEmail = "NilePay" });
+                db.OrderUpdates.Add(new OrderUpdate { OrderId = attempt.OrderId, Status = attempt.Order.InventoryReleased ? "PaymentReview" : "Overpaid" });
+                if (!await db.OrderEmails.AnyAsync(e => e.OrderId == attempt.OrderId && e.Kind == "Paid", ct))
+                    db.OrderEmails.Add(new OrderEmail { OrderId = attempt.OrderId, Kind = "Paid" });
+            }
+            await db.PaymentAttempts.Where(p => p.Id == attempt.Id).ExecuteUpdateAsync(s => s.SetProperty(p => p.GatewayStatus, "OVERPAID"), ct);
+        }
+        // 2. Underpayment for a customer with an account: stop order as Underpaid, release stock once, and credit transferred amount to Wallet.
+        else if (!string.IsNullOrWhiteSpace(ownerId) && detected.HasValue && detected.Value < expectedAmount && transaction.Status == "UNDERPAID")
+        {
+            var transferred = decimal.Round(detected.Value, 2);
+            var trackedOrder = await db.Orders.Include(o => o.Items).SingleAsync(o => o.Id == attempt.OrderId, ct);
+            if (trackedOrder.PaidAt == null && trackedOrder.PaymentStatus == "Unpaid")
+            {
+                if (!trackedOrder.InventoryReleased)
+                {
+                    foreach (var item in trackedOrder.Items.OrderBy(i => i.ProductId))
+                        await db.Products.Where(p => p.Id == item.ProductId)
+                            .ExecuteUpdateAsync(s => s.SetProperty(p => p.StockQuantity, p => p.StockQuantity + item.Quantity), ct);
+                    trackedOrder.InventoryReleased = true;
+                }
+                trackedOrder.Status = OrderStatuses.Cancelled;
+                trackedOrder.PaymentStatus = "Underpaid";
+                trackedOrder.DetectedAmountEgp = transferred;
+                trackedOrder.NeedsPaymentReview = false;
+
+                await wallet.RecordIdempotentAsync(
+                    ownerId,
+                    transferred,
+                    WalletTransactionKinds.UnderpaidCredit,
+                    $"underpaid:order:{trackedOrder.Id}",
+                    trackedOrder.Id,
+                    $"Underpaid transfer from stopped order {trackedOrder.OrderNumber} (transferred {transferred:0.00} EGP, required {expectedAmount:0.00} EGP)",
+                    ct);
+
+                if (trackedOrder.WalletAmountUsed > 0)
+                {
+                    await wallet.RecordIdempotentAsync(
+                        ownerId,
+                        trackedOrder.WalletAmountUsed,
+                        WalletTransactionKinds.OrderWalletRefund,
+                        $"refund-wallet:order:{trackedOrder.Id}",
+                        trackedOrder.Id,
+                        $"Wallet balance restored from stopped underpaid order {trackedOrder.OrderNumber}",
+                        ct);
+                }
+
+                db.AuditLogs.Add(new AuditLog { Action = "PAYMENT_UNDERPAID_WALLET", EntityName = "Order", Details = $"{trackedOrder.OrderNumber}: stopped as underpaid; +{transferred:0.00} EGP credited to wallet", UserEmail = "NilePay" });
+                db.OrderUpdates.Add(new OrderUpdate { OrderId = trackedOrder.Id, Status = "Underpaid" });
+                if (!await db.OrderEmails.AnyAsync(e => e.OrderId == trackedOrder.Id && e.Kind == "Underpaid", ct))
+                    db.OrderEmails.Add(new OrderEmail { OrderId = trackedOrder.Id, Kind = "Underpaid" });
+            }
+            await db.PaymentAttempts.Where(p => p.Id == attempt.Id).ExecuteUpdateAsync(s => s.SetProperty(p => p.GatewayStatus, "UNDERPAID"), ct);
+        }
+        // 3. Exact confirmation
+        else if (transaction.Status == "CONFIRMED")
+        {
+            var changed = await db.Orders.Where(o => o.Id == attempt.OrderId && o.PaidAt == null && o.PaymentStatus == "Unpaid")
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(o => o.PaymentStatus, "Paid")
+                    .SetProperty(o => o.PaidAt, DateTime.UtcNow)
+                    .SetProperty(o => o.DetectedAmountEgp, detected ?? expectedAmount)
+                    .SetProperty(o => o.NeedsPaymentReview, o => o.InventoryReleased || o.Status == OrderStatuses.Cancelled)
+                    .SetProperty(o => o.Status, o => o.Status == OrderStatuses.Pending && !o.InventoryReleased ? OrderStatuses.Processing : o.Status), ct);
+            if (changed == 1)
+            {
                 db.AuditLogs.Add(new AuditLog { Action = "PAYMENT_CONFIRMED", EntityName = "Order", Details = attempt.Order.OrderNumber, UserEmail = "NilePay" });
                 db.OrderUpdates.Add(new OrderUpdate { OrderId = attempt.OrderId, Status = attempt.Order.InventoryReleased ? "PaymentReview" : "Paid" });
-                db.OrderEmails.Add(new OrderEmail { OrderId = attempt.OrderId, Kind = "Paid" });
+                if (!await db.OrderEmails.AnyAsync(e => e.OrderId == attempt.OrderId && e.Kind == "Paid", ct))
+                    db.OrderEmails.Add(new OrderEmail { OrderId = attempt.OrderId, Kind = "Paid" });
             }
             await db.PaymentAttempts.Where(p => p.Id == attempt.Id).ExecuteUpdateAsync(s => s.SetProperty(p => p.GatewayStatus, "CONFIRMED"), ct);
-        } else {
-            await db.PaymentAttempts.Where(p => p.Id == attempt.Id && p.GatewayStatus != "CONFIRMED").ExecuteUpdateAsync(s => s.SetProperty(p => p.GatewayStatus, transaction.Status), ct);
+        }
+        else
+        {
+            await db.PaymentAttempts.Where(p => p.Id == attempt.Id && p.GatewayStatus != "CONFIRMED" && p.GatewayStatus != "OVERPAID")
+                .ExecuteUpdateAsync(s => s.SetProperty(p => p.GatewayStatus, transaction.Status), ct);
         }
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return true;
     }

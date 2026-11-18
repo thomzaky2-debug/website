@@ -18,8 +18,8 @@ public class AdminController(ApplicationDbContext db, AuditService audit, Catalo
         var count = await db.Products.CountAsync();
         // Decimal aggregation is performed by SQL Server; bounded decimal conversion supports local SQLite QA.
         var revenue = db.Database.IsSqlite()
-            ? (decimal)await db.Orders.Where(o => o.PaymentStatus == "Paid" && o.Status != OrderStatuses.Cancelled).SumAsync(o => (double)o.TotalAmount)
-            : await db.Orders.Where(o => o.PaymentStatus == "Paid" && o.Status != OrderStatuses.Cancelled).SumAsync(o => (decimal?)o.TotalAmount) ?? 0;
+            ? (decimal)await db.Orders.Where(o => (o.PaymentStatus == "Paid" || o.PaymentStatus == "Overpaid") && o.Status != OrderStatuses.Cancelled).SumAsync(o => (double)o.TotalAmount)
+            : await db.Orders.Where(o => (o.PaymentStatus == "Paid" || o.PaymentStatus == "Overpaid") && o.Status != OrderStatuses.Cancelled).SumAsync(o => (decimal?)o.TotalAmount) ?? 0;
         return View(new DashboardViewModel {
             Revenue = revenue, TotalOrders = await db.Orders.CountAsync(), ActiveProducts = await db.Products.CountAsync(p => p.IsActive),
             LowStock = await db.Products.CountAsync(p => p.IsActive && p.StockQuantity <= 5), TotalLogs = await db.AuditLogs.CountAsync(),
@@ -144,10 +144,10 @@ public class AdminController(ApplicationDbContext db, AuditService audit, Catalo
         if (order is null) return NotFound();
         if (!OrderStatuses.CanTransition(order.Status, status)) { TempData["Error"] = "Error_StatusTransition"; return RedirectToAction(nameof(Dashboard)); }
         if (order.Status == status) return RedirectToAction(nameof(Dashboard));
-        if (status == OrderStatuses.Cancelled || (await db.PaymentAttempts.AnyAsync(p => p.OrderId == orderId) && order.PaymentStatus != "Paid")) {
+        if (status == OrderStatuses.Cancelled || (await db.PaymentAttempts.AnyAsync(p => p.OrderId == orderId) && order.PaymentStatus is not ("Paid" or "Overpaid"))) {
             TempData["Error"] = "Payment_AdminReview"; return RedirectToAction(nameof(Dashboard));
         }
-        if ((order.PaymentStatus != "Paid" || order.NeedsPaymentReview) && (status is OrderStatuses.Processing or OrderStatuses.Shipped)) {
+        if ((order.PaymentStatus is not ("Paid" or "Overpaid") || order.NeedsPaymentReview) && (status is OrderStatuses.Processing or OrderStatuses.Shipped)) {
             TempData["Error"] = "Payment_AdminReview"; return RedirectToAction(nameof(Dashboard));
         }
         var changed = await db.Orders.Where(o => o.Id == orderId && o.Status == order.Status).ExecuteUpdateAsync(s => s.SetProperty(o => o.Status, status));

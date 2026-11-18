@@ -123,10 +123,23 @@
     </div>
 
     <h2>@Localizer["Payment_Gateway"]</h2>
-    <div class="field checkout-instapay-field">
+    @if (Model.WalletBalance > 0)
+    {
+        <div class="checkout-wallet-box" data-wallet-box data-wallet-balance="@Model.WalletBalance.ToString(CultureInfo.InvariantCulture)">
+            <label class="checkout-wallet-toggle">
+                <input asp-for="UseWallet" id="use-wallet" type="checkbox"/>
+                <span class="checkout-wallet-copy">
+                    <strong>@Localizer["Use_Wallet_Balance"]</strong>
+                    <small>@Localizer["Wallet_Balance"]: <b>@Model.WalletBalance.ToString("N2") EGP</b></small>
+                </span>
+            </label>
+            <p class="wallet-full-banner" id="walletFullBanner" hidden="@(Model.PayablePreview > 0 ? "hidden" : null)">@Localizer["Wallet_Full_Covered"]</p>
+        </div>
+    }
+    <div class="field checkout-instapay-field" id="instapayFieldWrap" hidden="@(Model.WalletBalance > 0 && Model.UseWallet && Model.PayablePreview == 0 ? "hidden" : null)">
         <label asp-for="InstaPayUsername">@Localizer["InstaPay_Username"]</label>
         <div class="instapay-input" dir="ltr">
-            <input asp-for="InstaPayUsername" placeholder="ahmed.mohammed" required maxlength="100" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="instapay-help"/>
+            <input asp-for="InstaPayUsername" placeholder="ahmed.mohammed" required="@(Model.WalletBalance > 0 && Model.UseWallet && Model.PayablePreview == 0 ? null : "required")" maxlength="100" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="instapay-help"/>
             <span aria-hidden="true">@@instapay</span>
         </div>
         <small id="instapay-help">@Localizer["InstaPay_Help"]</small>
@@ -134,7 +147,7 @@
     </div>
 
     <div class="checkout-actions-row">
-        <button type="submit" class="primary-button checkout-submit">@Localizer["PlaceOrder"] →</button>
+        <button type="submit" class="primary-button checkout-submit" data-label-nilepay="@Localizer["PlaceOrder"] →" data-label-wallet="@Localizer["PlaceOrder_Wallet"] →">@(Model.WalletBalance > 0 && Model.UseWallet && Model.PayablePreview == 0 ? Localizer["PlaceOrder_Wallet"].Value : Localizer["PlaceOrder"].Value) →</button>
     </div>
 </form>
 
@@ -145,7 +158,9 @@
         <div class="order-total-row"><span>@line.Product.Name <small>@line.Size @line.Color × @line.Quantity</small></span><strong>@line.Total.ToString("N2") EGP</strong></div>
     }
     <div class="order-total-row"><span>@Localizer["Shipping_Fee"]</span><strong><span id="shipping-fee">@Model.ShippingFee.ToString("N2")</span> EGP</strong></div>
+    <div class="order-total-row wallet-summary-row" id="wallet-credit-row" hidden="@(Model.WalletAppliedPreview <= 0 ? "hidden" : null)"><span>@Localizer["Wallet_Credit_Applied"]</span><strong>−<span id="wallet-applied">@Model.WalletAppliedPreview.ToString("N2")</span> EGP</strong></div>
     <div class="order-total-row grand"><span>@Localizer["Total"]</span><strong><span id="checkout-total" data-subtotal="@Model.Cart.Total.ToString(CultureInfo.InvariantCulture)">@Model.TotalWithShipping.ToString("N2")</span> EGP</strong></div>
+    <div class="order-total-row payable-summary-row" id="checkout-payable-row" hidden="@(Model.WalletAppliedPreview <= 0 ? "hidden" : null)"><span>@Localizer["Remaining_To_Pay"]</span><strong><span id="checkout-payable">@Model.PayablePreview.ToString("N2")</span> EGP</strong></div>
     <p class="muted">@Localizer["Delivery_EstimateNote"]</p>
 </aside>
 </div>

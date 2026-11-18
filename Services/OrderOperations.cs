@@ -23,6 +23,16 @@ public class OrderOperations(ApplicationDbContext db, NilePayClient client, Nile
         if (order.Status == OrderStatuses.Cancelled) { await tx.CommitAsync(ct); return; }
         await ReleaseAsync(order, ct);
         order.Status = OrderStatuses.Cancelled;
+        if (order.WalletAmountUsed > 0 && !string.IsNullOrWhiteSpace(order.CustomerUserId)) {
+            await new WalletService(db).RecordIdempotentAsync(
+                order.CustomerUserId,
+                order.WalletAmountUsed,
+                WalletTransactionKinds.OrderWalletRefund,
+                $"refund-wallet:order:{order.Id}",
+                order.Id,
+                $"Wallet balance restored from cancelled order {order.OrderNumber}",
+                ct);
+        }
         order.Updates.Add(new OrderUpdate { Status = "Cancelled" });
         db.OrderEmails.Add(new OrderEmail { OrderId = id, Kind = "Cancelled" });
         db.AuditLogs.Add(new AuditLog { Action = "CANCEL_RECONCILED", EntityName = "Order", Details = $"{order.OrderNumber}: {reason}" });
@@ -33,7 +43,7 @@ public class OrderOperations(ApplicationDbContext db, NilePayClient client, Nile
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         var order = await db.Orders.Include(o => o.Items).SingleAsync(o => o.Id == id, ct);
         if (order.PaymentStatus == "Refunded") { await tx.CommitAsync(ct); return; }
-        if (order.PaymentStatus != "Paid") throw new NilePayException("Review_NotPaid");
+        if (order.PaymentStatus is not ("Paid" or "Overpaid")) throw new NilePayException("Review_NotPaid");
         order.PaymentStatus = "Refunded"; order.RefundReference = reference; order.RefundedAt = DateTime.UtcNow;
         order.NeedsPaymentReview = false; order.Status = OrderStatuses.Cancelled;
         if (restock) await ReleaseAsync(order, ct);

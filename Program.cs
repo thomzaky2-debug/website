@@ -72,6 +72,7 @@ builder.Services.AddHttpClient<NilePayClient>(http => http.Timeout = TimeSpan.Fr
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 builder.Services.AddScoped<NilePayService>();
 builder.Services.AddScoped<OrderOperations>();
+builder.Services.AddScoped<WalletService>();
 builder.Services.AddScoped<ProductImageService>();
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("Smtp"));
 builder.Services.AddHostedService<StoreWorker>();
@@ -123,7 +124,10 @@ app.MapControllerRoute("default", "{controller=Home}/{action=Index}/{id?}");
 app.MapRazorPages();
 await using (var scope = app.Services.CreateAsyncScope()) {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    if (sqlite) await db.Database.EnsureCreatedAsync();
+    if (sqlite) {
+        await db.Database.EnsureCreatedAsync();
+        await DevelopmentSqlite.EnsureWalletSchemaAsync(db);
+    }
     else if (builder.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup")) await db.Database.MigrateAsync();
     await DbInitializer.InitializeAsync(scope.ServiceProvider, builder.Configuration);
 }

@@ -5,8 +5,44 @@ document.querySelectorAll('[data-preview]').forEach(b=>b.addEventListener('click
 document.querySelectorAll('[data-confirm]').forEach(f=>f.addEventListener('submit',e=>{if(!confirm(document.documentElement.lang==='ar'?'تأكيد هذا الإجراء؟':'Confirm this action?'))e.preventDefault();}));
 
 const shipping=document.querySelector('#shipping-method');
-function updateShipping(){if(!shipping)return;const fee=Number(shipping.selectedOptions[0]?.dataset.fee||0),total=document.querySelector('#checkout-total');document.querySelector('#shipping-fee').textContent=fee.toFixed(2);if(total)total.textContent=(Number(total.dataset.subtotal)+fee).toFixed(2);}
-shipping?.addEventListener('change',updateShipping);updateShipping();
+const useWalletToggle=document.querySelector('#use-wallet');
+function updateShipping(){
+ if(!shipping)return;
+ const fee=Number(shipping.selectedOptions[0]?.dataset.fee||0);
+ const totalEl=document.querySelector('#checkout-total');
+ const feeEl=document.querySelector('#shipping-fee');
+ if(feeEl)feeEl.textContent=fee.toFixed(2);
+ if(!totalEl)return;
+ const grand=Number(totalEl.dataset.subtotal||0)+fee;
+ totalEl.textContent=grand.toFixed(2);
+ const walletBox=document.querySelector('[data-wallet-box]');
+ if(!walletBox)return;
+ const balance=Number(walletBox.dataset.walletBalance||0);
+ const applied=useWalletToggle?.checked?Math.min(balance,grand):0;
+ const payable=Math.max(0,grand-applied);
+ const creditRow=document.querySelector('#wallet-credit-row');
+ const appliedEl=document.querySelector('#wallet-applied');
+ const payableRow=document.querySelector('#checkout-payable-row');
+ const payableEl=document.querySelector('#checkout-payable');
+ const fullBanner=document.querySelector('#walletFullBanner');
+ const instapayWrap=document.querySelector('#instapayFieldWrap');
+ const instapayInput=instapayWrap?.querySelector('input[name="InstaPayUsername"]');
+ const submitBtn=document.querySelector('.checkout-submit');
+ if(creditRow)creditRow.hidden=applied<=0;
+ if(appliedEl)appliedEl.textContent=applied.toFixed(2);
+ if(payableRow)payableRow.hidden=applied<=0;
+ if(payableEl)payableEl.textContent=payable.toFixed(2);
+ const fullCovered=applied>0&&payable===0;
+ if(fullBanner)fullBanner.hidden=!fullCovered;
+ if(instapayWrap)instapayWrap.hidden=fullCovered;
+ if(instapayInput)instapayInput.required=!fullCovered;
+ if(submitBtn&&submitBtn.dataset.labelWallet&&submitBtn.dataset.labelNilepay){
+  submitBtn.textContent=fullCovered?submitBtn.dataset.labelWallet:submitBtn.dataset.labelNilepay;
+ }
+}
+shipping?.addEventListener('change',updateShipping);
+useWalletToggle?.addEventListener('change',updateShipping);
+updateShipping();
 const paymentForm=document.querySelector('#payment-status-form');
 if(paymentForm){let checks=0;let active=false;async function refreshPayment(){if(document.hidden||active||checks++>=60)return;active=true;try{const response=await fetch(paymentForm.action,{method:'POST',body:new FormData(paymentForm),credentials:'same-origin',headers:{'Accept':'application/json'}});if(response.ok){const state=await response.json();if(state.paymentStatus!=='Unpaid'||['EXPIRED','CANCELLED','FAILED'].includes(state.gatewayStatus)){location.reload();}}}catch{}finally{active=false}}setInterval(refreshPayment,10000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshPayment()});}
 const menuToggle=document.querySelector('.menu-toggle');

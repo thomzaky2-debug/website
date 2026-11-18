@@ -68,6 +68,12 @@ public class Order
     [MaxLength(64)] public string PaymentAccessToken { get; set; } = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
     [MaxLength(20)] public string PaymentStatus { get; set; } = "Unpaid";
     public DateTime? PaidAt { get; set; }
+    public decimal WalletAmountUsed { get; set; }
+    public decimal? DetectedAmountEgp { get; set; }
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public decimal PayableAmount => Math.Max(0m, TotalAmount - WalletAmountUsed);
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public bool IsSettled => PaymentStatus is "Paid" or "Overpaid";
     public int Id { get; set; }
     [Required, MaxLength(40)] public string OrderNumber { get; set; } = "";
     [Required, MaxLength(64)] public string CheckoutToken { get; set; } = "";

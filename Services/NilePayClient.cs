@@ -11,7 +11,7 @@ public class NilePayOptions
     public string WebhookSecret { get; set; } = "";
     public string PublicUrl { get; set; } = "";
 }
-public record NileCheckout(string SessionId, string Status, decimal AmountEgp, string Currency, string? CheckoutUrl);
+public record NileCheckout(string SessionId, string Status, decimal AmountEgp, string Currency, string? CheckoutUrl, decimal? DetectedAmountEgp = null);
 public class NilePayException(string message) : Exception(message);
 public class NilePayClient(HttpClient http, IOptions<NilePayOptions> settings, IHostEnvironment environment)
 {
@@ -39,5 +39,17 @@ public class NilePayClient(HttpClient http, IOptions<NilePayOptions> settings, I
             }
         } catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or KeyNotFoundException or InvalidOperationException or FormatException) { throw new NilePayException("Payment_Retry"); }
     }
-    public static NileCheckout Parse(JsonElement data) => new(data.GetProperty("sessionId").GetString()!, data.GetProperty("status").GetString()!, data.GetProperty("amountEgp").GetDecimal(), data.GetProperty("currency").GetString()!, data.TryGetProperty("checkoutUrl", out var url) ? url.GetString() : null);
+    public static NileCheckout Parse(JsonElement data)
+    {
+        decimal? detected = null;
+        if (data.TryGetProperty("detectedAmountEgp", out var detEl) && detEl.ValueKind == JsonValueKind.Number)
+            detected = detEl.GetDecimal();
+        return new(
+            data.GetProperty("sessionId").GetString()!,
+            data.GetProperty("status").GetString()!,
+            data.GetProperty("amountEgp").GetDecimal(),
+            data.GetProperty("currency").GetString()!,
+            data.TryGetProperty("checkoutUrl", out var url) ? url.GetString() : null,
+            detected);
+    }
 }

@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;
 namespace NileShop.Controllers;
 [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-public class CartController(CartService cart, ApplicationDbContext db, CheckoutService checkout, NilePayClient nilePay, IStringLocalizer<SharedResource> localizer, UserManager<IdentityUser> users) : Controller
+public class CartController(CartService cart, ApplicationDbContext db, CheckoutService checkout, NilePayClient nilePay, WalletService wallet, IStringLocalizer<SharedResource> localizer, UserManager<IdentityUser> users) : Controller
 {
     public async Task<IActionResult> Index() => View(await cart.ViewAsync());
     [HttpPost, ValidateAntiForgeryToken]
@@ -51,8 +51,14 @@ public class CartController(CartService cart, ApplicationDbContext db, CheckoutS
         var token = HttpContext.Session.GetString("CheckoutToken") ?? Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
         HttpContext.Session.SetString("CheckoutToken", token);
         var methods = await db.ShippingMethods.AsNoTracking().Where(s => s.IsActive).OrderBy(s => s.Id).ToListAsync();
-        var model=new CheckoutViewModel { Cart = view, CheckoutToken = token, ShippingMethods = methods, ShippingMethodId = methods.FirstOrDefault()?.Id ?? 0 };
-        await FillSavedContact(model, prefillAddress: true);return View(model);
+        var userId = users.GetUserId(User);
+        var walletBalance = await wallet.GetBalanceAsync(userId);
+        var model = new CheckoutViewModel {
+            Cart = view, CheckoutToken = token, ShippingMethods = methods,
+            ShippingMethodId = methods.FirstOrDefault()?.Id ?? 0,
+            CustomerUserId = userId, WalletBalance = walletBalance, UseWallet = walletBalance > 0
+        };
+        await FillSavedContact(model, prefillAddress: true); return View(model);
     }
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Checkout(CheckoutViewModel model)
@@ -60,14 +66,17 @@ public class CartController(CartService cart, ApplicationDbContext db, CheckoutS
         if (model.CheckoutToken != HttpContext.Session.GetString("CheckoutToken") && model.CheckoutToken != HttpContext.Session.GetString("LastCheckoutToken")) return BadRequest();
         if (model.CheckoutToken == HttpContext.Session.GetString("LastCheckoutToken") && model.CheckoutToken != HttpContext.Session.GetString("CheckoutToken")) {
             var existing = await db.Orders.AsNoTracking().SingleOrDefaultAsync(o => o.CheckoutToken == model.CheckoutToken);
-            if (existing is null || existing.InstaPaySenderHandle != InstaPayHandle.FromUsername(model.InstaPayUsername)) return BadRequest();
+            if (existing is null || (existing.PayableAmount > 0 && existing.InstaPaySenderHandle != InstaPayHandle.FromUsername(model.InstaPayUsername))) return BadRequest();
             return RedirectToAction("Return", "Payment", new { token = existing.PaymentAccessToken });
         }
-        model.CustomerUserId=users.GetUserId(User);
+        model.CustomerUserId = users.GetUserId(User);
+        model.WalletBalance = await wallet.GetBalanceAsync(model.CustomerUserId);
         await FillSavedContact(model, prefillAddress: false);
         model.Cart = await cart.ViewAsync();
         model.ShippingMethods = await db.ShippingMethods.AsNoTracking().Where(s => s.IsActive).ToListAsync();
-        if (!nilePay.Ready) ModelState.AddModelError("", localizer["Payment_Unavailable"]);
+        var fullyCoveredByWallet = model.UseWallet && model.WalletBalance > 0 && model.TotalWithShipping > 0 && model.WalletBalance >= model.TotalWithShipping;
+        if (fullyCoveredByWallet) ModelState.Remove(nameof(model.InstaPayUsername));
+        if (!fullyCoveredByWallet && !nilePay.Ready) ModelState.AddModelError("", localizer["Payment_Unavailable"]);
         if (!ModelState.IsValid) return View(model);
         try {
             var order = await checkout.PlaceSelectionsAsync(model, cart.Read().Values.ToList());

@@ -6,10 +6,11 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Localization;
+using NileShop.Services;
 using NileShop.ViewModels;
 namespace NileShop.Controllers;
 [ResponseCache(Duration=0,Location=ResponseCacheLocation.None,NoStore=true)]
-public class AccountController(UserManager<IdentityUser> users, SignInManager<IdentityUser> signIn, IStringLocalizer<SharedResource> localizer, ApplicationDbContext db) : Controller
+public class AccountController(UserManager<IdentityUser> users, SignInManager<IdentityUser> signIn, IStringLocalizer<SharedResource> localizer, ApplicationDbContext db, WalletService wallet) : Controller
 {
     async Task<CustomerProfileViewModel> BuildProfileAsync(IdentityUser user, CustomerProfileViewModel? form = null)
     {
@@ -26,9 +27,11 @@ public class AccountController(UserManager<IdentityUser> users, SignInManager<Id
         var ordersCount = await ordersQuery.CountAsync();
         var savedCount = await db.SavedProducts.AsNoTracking().CountAsync(s => s.UserId == user.Id && s.Product.IsActive);
         var reviewsCount = await db.ProductReviews.AsNoTracking().CountAsync(r => r.UserId == user.Id);
+        var walletBalance = await wallet.GetBalanceAsync(user.Id);
         var recentOrders = await ordersQuery.OrderByDescending(o => o.Id).Take(3).ToListAsync();
         ViewBag.AccountOrdersCount = ordersCount;
         ViewBag.AccountSavedCount = savedCount;
+        ViewBag.AccountWalletBalance = walletBalance;
         return new CustomerProfileViewModel
         {
             Email = user.Email,
@@ -39,6 +42,7 @@ public class AccountController(UserManager<IdentityUser> users, SignInManager<Id
             OrdersCount = ordersCount,
             SavedCount = savedCount,
             ReviewsCount = reviewsCount,
+            WalletBalance = walletBalance,
             RecentOrders = recentOrders
         };
     }
@@ -48,6 +52,26 @@ public class AccountController(UserManager<IdentityUser> users, SignInManager<Id
         var user=await users.GetUserAsync(User);if(user is null)return RedirectToAction(nameof(Login));
         return View(await BuildProfileAsync(user));
     }
+    [Authorize, HttpGet("/Account/Wallet")]
+    public async Task<IActionResult> Wallet()
+    {
+        var user = await users.GetUserAsync(User);
+        if (user is null) return RedirectToAction(nameof(Login));
+        var claims = await users.GetClaimsAsync(user);
+        var fullName = claims.FirstOrDefault(c => c.Type == CustomerProfileViewModel.FullNameClaim)?.Value ?? "";
+        var balance = await wallet.GetBalanceAsync(user.Id);
+        var txList = await wallet.GetTransactionsAsync(user.Id, 100);
+        ViewBag.AccountOrdersCount = await db.Orders.AsNoTracking().CountAsync(o => o.CustomerUserId == user.Id);
+        ViewBag.AccountSavedCount = await db.SavedProducts.AsNoTracking().CountAsync(s => s.UserId == user.Id && s.Product.IsActive);
+        ViewBag.AccountWalletBalance = balance;
+        return View(new CustomerWalletViewModel
+        {
+            FullName = fullName,
+            Email = user.Email,
+            Balance = balance,
+            Transactions = txList
+        });
+    }
     [Authorize,HttpGet]
     public async Task<IActionResult> Orders(int page=1)
     {
@@ -56,6 +80,7 @@ public class AccountController(UserManager<IdentityUser> users, SignInManager<Id
         var total=await query.CountAsync();
         ViewBag.AccountOrdersCount=total;
         ViewBag.AccountSavedCount=await db.SavedProducts.AsNoTracking().CountAsync(s=>s.UserId==id&&s.Product.IsActive);
+        ViewBag.AccountWalletBalance=await wallet.GetBalanceAsync(id);
         ViewData["Page"]=page;ViewData["Pages"]=(int)Math.Ceiling(total/20d);
         return View(await query.OrderByDescending(o=>o.Id).Skip((page-1)*20).Take(20).ToListAsync());
     }

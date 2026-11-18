@@ -24,13 +24,13 @@ public class PaymentController(ApplicationDbContext db, NilePayService payments,
     public async Task<IActionResult> Pay(string token, CancellationToken ct)
     {
         var order = await Owned(token); if (order is null) return NotFound();
-        if (order.PaymentStatus == "Paid" || order.Status == Models.OrderStatuses.Cancelled) return RedirectToAction(nameof(Return), new { token });
+        if (order.PaymentStatus != "Unpaid" || order.Status == Models.OrderStatuses.Cancelled) return RedirectToAction(nameof(Return), new { token });
         try {
             var attempt = await payments.StartAsync(order, ct);
             await payments.ReconcileAsync(attempt.Id, ct);
             var fresh = await db.Orders.AsNoTracking().SingleAsync(o => o.Id == order.Id, ct);
             var state = await db.PaymentAttempts.AsNoTracking().SingleAsync(p => p.Id == attempt.Id, ct);
-            if (fresh.PaymentStatus == "Paid" || state.GatewayStatus is "EXPIRED" or "CANCELLED" or "FAILED") return RedirectToAction(nameof(Return), new { token });
+            if (fresh.PaymentStatus != "Unpaid" || state.GatewayStatus is "EXPIRED" or "CANCELLED" or "FAILED") return RedirectToAction(nameof(Return), new { token });
             if (!client.ValidCheckoutUrl(attempt.CheckoutUrl)) throw new NilePayException("Payment_Retry");
             return Redirect(attempt.CheckoutUrl!);
         } catch (NilePayException ex) { TempData["Error"] = ex.Message; return RedirectToAction(nameof(Return), new { token }); }
@@ -41,7 +41,7 @@ public class PaymentController(ApplicationDbContext db, NilePayService payments,
         var order = await Owned(token); if (order is null) return NotFound();
         try {
             var attempt = await db.PaymentAttempts.AsNoTracking().SingleOrDefaultAsync(p => p.OrderId == order.Id, ct);
-            if (attempt is not null && order.PaymentStatus != "Paid") await payments.ReconcileAsync(attempt.Id, ct);
+            if (attempt is not null && order.PaymentStatus == "Unpaid") await payments.ReconcileAsync(attempt.Id, ct);
         } catch (NilePayException ex) { TempData["Error"] = ex.Message; }
         return RedirectToAction(nameof(Return), new { token });
     }

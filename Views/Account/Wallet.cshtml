@@ -1,0 +1,115 @@
+@model CustomerWalletViewModel
+@{
+    ViewData["Title"] = Localizer["Wallet"];
+    var parts = (Model.FullName ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    var initials = parts.Length >= 2
+        ? string.Concat(parts[0][0], parts[^1][0]).ToUpperInvariant()
+        : parts.Length == 1 && parts[0].Length > 0
+            ? parts[0][..1].ToUpperInvariant()
+            : "N";
+}
+<div class="customer-account-page">
+    <nav class="breadcrumb-nav" aria-label="Breadcrumb">
+        <ol class="breadcrumb-list">
+            <li class="breadcrumb-item"><a href="/">@Localizer["Nav_Home"]</a></li>
+            <li class="breadcrumb-separator" aria-hidden="true">›</li>
+            <li class="breadcrumb-item"><a asp-controller="Account" asp-action="Index">@Localizer["Your_Account"]</a></li>
+            <li class="breadcrumb-separator" aria-hidden="true">›</li>
+            <li class="breadcrumb-item" aria-current="page">@Localizer["Wallet"]</li>
+        </ol>
+    </nav>
+
+    <div class="section-head account-hero-head">
+        <div>
+            <span class="eyebrow">NileShop · @Localizer["Your_Account"]</span>
+            <h1>@Localizer["Wallet"]</h1>
+            <p class="muted">@Localizer["Wallet_Intro"]</p>
+        </div>
+        <a class="action-link account-shop-cta" asp-controller="Home" asp-action="Shop">@Localizer["Explore_Collection"] →</a>
+    </div>
+
+    <div class="customer-account-layout">
+        <aside class="account-sidebar panel">
+            <div class="account-person">
+                <div class="account-avatar-wrap">
+                    <span class="account-avatar" aria-hidden="true">@initials</span>
+                    <span class="account-role-pill">@Localizer["Member_Account"]</span>
+                </div>
+                <div class="account-person-meta">
+                    <strong>@Model.FullName</strong>
+                    <small>@Model.Email</small>
+                </div>
+            </div>
+            <partial name="_AccountNavigation"/>
+            <form asp-action="Logout" method="post" class="account-logout-form">
+                <button type="submit" class="account-logout">
+                    <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    <span>@Localizer["Nav_Logout"]</span>
+                </button>
+            </form>
+        </aside>
+
+        <div class="account-main-stack">
+            <section class="wallet-balance-hero panel">
+                <div class="wallet-balance-copy">
+                    <span class="wallet-balance-label">@Localizer["Wallet_Balance"]</span>
+                    <strong class="wallet-balance-amount">@Model.Balance.ToString("N2") <small>EGP</small></strong>
+                    <p class="muted">@Localizer["Wallet_Intro"]</p>
+                </div>
+                <div class="wallet-balance-actions">
+                    <a class="primary-button" asp-controller="Home" asp-action="Shop">@Localizer["Nav_Shop"] →</a>
+                </div>
+            </section>
+
+            <section class="account-card panel">
+                <header class="account-card-header">
+                    <span class="account-card-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+                    </span>
+                    <div>
+                        <h2>@Localizer["Wallet_History"]</h2>
+                        <p class="muted">@Model.Transactions.Count @(Model.Transactions.Count == 1 ? Localizer["Item"].Value : Localizer["Items"].Value)</p>
+                    </div>
+                </header>
+
+                @if (Model.Transactions.Any())
+                {
+                    <div class="wallet-tx-list">
+                        @foreach (var tx in Model.Transactions)
+                        {
+                            var isCredit = tx.Amount > 0;
+                            <article class="wallet-tx-row">
+                                <span class="wallet-tx-icon @(isCredit ? "credit" : "debit")" aria-hidden="true">@(isCredit ? "+" : "−")</span>
+                                <div class="wallet-tx-details">
+                                    <div class="wallet-tx-title">
+                                        <strong>@Localizer[tx.Kind]</strong>
+                                        @if (tx.Order is not null)
+                                        {
+                                            <a class="wallet-order-link" asp-controller="Orders" asp-action="Track" asp-route-token="@tx.Order.PaymentAccessToken">@tx.Order.OrderNumber</a>
+                                        }
+                                    </div>
+                                    @if (!string.IsNullOrWhiteSpace(tx.Description))
+                                    {
+                                        <p>@tx.Description</p>
+                                    }
+                                    <time>@tx.CreatedAt.ToString("yyyy-MM-dd HH:mm") UTC</time>
+                                </div>
+                                <strong class="wallet-tx-amount @(isCredit ? "credit" : "debit")">
+                                    @(isCredit ? "+" : "−")@Math.Abs(tx.Amount).ToString("N2") EGP
+                                </strong>
+                            </article>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="account-empty-inline">
+                        <p>@Localizer["Wallet_Empty"]</p>
+                        <a class="action-link" asp-controller="Home" asp-action="Shop">@Localizer["Explore_Collection"] →</a>
+                    </div>
+                }
+            </section>
+        </div>
+    </div>
+</div>
+

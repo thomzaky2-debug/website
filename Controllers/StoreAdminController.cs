@@ -40,7 +40,7 @@ public class StoreAdminController(ApplicationDbContext db, OrderOperations opera
         var query = db.Orders.AsNoTracking();
         if (!string.IsNullOrEmpty(q)) query = query.Where(o => o.OrderNumber.Contains(q) || o.CustomerName.Contains(q) || o.CustomerEmail.Contains(q));
         if (status == "review") query = query.Where(o => o.NeedsPaymentReview);
-        else if (status is "Paid" or "Unpaid" or "Refunded") query = query.Where(o => o.PaymentStatus == status);
+        else if (status is "Paid" or "Overpaid" or "Underpaid" or "Unpaid" or "Refunded") query = query.Where(o => o.PaymentStatus == status);
         else if (OrderStatuses.All.Contains(status)) query = query.Where(o => o.Status == status);
         var count = await query.CountAsync();
         return View(new OperationsViewModel { Orders = await query.OrderByDescending(o => o.Id).Skip((page-1)*30).Take(30).ToListAsync(), Page=page, TotalPages=(int)Math.Ceiling(count/30d), Search=q, Status=status,
@@ -94,7 +94,7 @@ public class StoreAdminController(ApplicationDbContext db, OrderOperations opera
         if(!string.IsNullOrWhiteSpace(trackingUrl) && (trackingUrl.Length>800 || !Uri.TryCreate(trackingUrl,UriKind.Absolute,out var url)||url.Scheme!="https"||!string.IsNullOrEmpty(url.UserInfo)))return BadRequest();
         await using var tx=await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
         var order=await db.Orders.SingleOrDefaultAsync(o=>o.Id==id);if(order is null)return NotFound();
-        if(order.PaymentStatus!="Paid"||order.NeedsPaymentReview||order.Status is not (OrderStatuses.Processing or OrderStatuses.Shipped))return BadRequest();
+        if(order.PaymentStatus is not ("Paid" or "Overpaid")||order.NeedsPaymentReview||order.Status is not (OrderStatuses.Processing or OrderStatuses.Shipped))return BadRequest();
         order.Carrier=carrier.Trim();order.TrackingNumber=trackingNumber.Trim();order.TrackingUrl=trackingUrl;
         if(order.Status!=OrderStatuses.Shipped){order.Status=OrderStatuses.Shipped;order.Updates.Add(new OrderUpdate{Status="Shipped"});db.OrderEmails.Add(new OrderEmail{OrderId=id,Kind="Shipped"});}
         await audit.LogAsync("DISPATCH","Order",order.OrderNumber);await tx.CommitAsync();return RedirectToAction(nameof(Order),new{id});

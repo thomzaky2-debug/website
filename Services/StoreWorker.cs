@@ -27,7 +27,7 @@ public class StoreWorker(IServiceScopeFactory scopes, IConfiguration config, ILo
                 var client = scope.ServiceProvider.GetRequiredService<NilePayClient>();
                 if (config.GetValue("StoreWorker:ReconcilePayments", true) && client.Ready) {
                     var cutoff = DateTime.UtcNow.AddMinutes(-1);
-                    var ids = await db.PaymentAttempts.AsNoTracking().Where(p => p.SessionId != null && p.GatewayStatus != "CONFIRMED" && p.GatewayStatus != "EXPIRED" && p.GatewayStatus != "CANCELLED" && p.GatewayStatus != "FAILED" && (p.LastCheckedAt == null || p.LastCheckedAt < cutoff)).OrderBy(p => p.LastCheckedAt).Select(p => p.Id).Take(10).ToListAsync(stoppingToken);
+                    var ids = await db.PaymentAttempts.AsNoTracking().Where(p => p.SessionId != null && p.Order.PaymentStatus == "Unpaid" && p.GatewayStatus != "CONFIRMED" && p.GatewayStatus != "EXPIRED" && p.GatewayStatus != "CANCELLED" && p.GatewayStatus != "FAILED" && (p.LastCheckedAt == null || p.LastCheckedAt < cutoff)).OrderBy(p => p.LastCheckedAt).Select(p => p.Id).Take(10).ToListAsync(stoppingToken);
                     foreach (var id in ids) {
                         try { await scope.ServiceProvider.GetRequiredService<NilePayService>().ReconcileAsync(id, stoppingToken); }
                         catch (Exception e) when (!stoppingToken.IsCancellationRequested) { logger.LogWarning("Payment reconciliation failed for attempt {Id}: {Type}", id, e.GetType().Name); }
