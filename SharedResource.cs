@@ -1,2 +1,2 @@
-namespace BubbleThemeShop;
+namespace NileShop;
 public class SharedResource { }

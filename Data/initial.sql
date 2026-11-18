@@ -591,3 +591,433 @@ GO
 COMMIT;
 GO
 
+BEGIN TRANSACTION;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261113202618_InstaPaySenderHandle'
+)
+BEGIN
+    ALTER TABLE [Orders] ADD [InstaPaySenderHandle] nvarchar(109) NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261113202618_InstaPaySenderHandle'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261113202618_InstaPaySenderHandle', N'8.0.22');
+END;
+GO
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261113210852_NileShopEnhancements'
+)
+BEGIN
+    ALTER TABLE [Products] ADD [Colors] nvarchar(500) NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261113210852_NileShopEnhancements'
+)
+BEGIN
+    ALTER TABLE [Products] ADD [GalleryImages] nvarchar(max) NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261113210852_NileShopEnhancements'
+)
+BEGIN
+    ALTER TABLE [Products] ADD [Sizes] nvarchar(500) NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261113210852_NileShopEnhancements'
+)
+BEGIN
+    ALTER TABLE [Orders] ADD [Carrier] nvarchar(100) NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261113210852_NileShopEnhancements'
+)
+BEGIN
+    ALTER TABLE [Orders] ADD [DeliveryMaxDays] int NOT NULL DEFAULT 0;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261113210852_NileShopEnhancements'
+)
+BEGIN
+    ALTER TABLE [Orders] ADD [DeliveryMinDays] int NOT NULL DEFAULT 0;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261113210852_NileShopEnhancements'
+)
+BEGIN
+    ALTER TABLE [Orders] ADD [InventoryReleased] bit NOT NULL DEFAULT CAST(0 AS bit);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261113210852_NileShopEnhancements'
+)
+BEGIN
+    ALTER TABLE [Orders] ADD [NeedsPaymentReview] bit NOT NULL DEFAULT CAST(0 AS bit);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261113210852_NileShopEnhancements'
+)
+BEGIN
+    ALTER TABLE [Orders] ADD [RefundReference] nvarchar(200) NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261113210852_NileShopEnhancements'
+)
+BEGIN
+    ALTER TABLE [Orders] ADD [RefundedAt] datetime2 NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261113210852_NileShopEnhancements'
+)
+BEGIN
+    ALTER TABLE [Orders] ADD [ShippingFee] decimal(18,2) NOT NULL DEFAULT 0.0;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261113210852_NileShopEnhancements'
+)
+BEGIN
+    ALTER TABLE [Orders] ADD [ShippingMethodName] nvarchar(100) NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261113210852_NileShopEnhancements'
+)
+BEGIN
+    ALTER TABLE [Orders] ADD [TrackingNumber] nvarchar(100) NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261113210852_NileShopEnhancements'
+)
+BEGIN
+    ALTER TABLE [Orders] ADD [TrackingUrl] nvarchar(800) NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261113210852_NileShopEnhancements'
+)
+BEGIN
+    ALTER TABLE [OrderItems] ADD [SelectedColor] nvarchar(100) NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261113210852_NileShopEnhancements'
+)
+BEGIN
+    ALTER TABLE [OrderItems] ADD [SelectedSize] nvarchar(100) NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261113210852_NileShopEnhancements'
+)
+BEGIN
+    CREATE TABLE [OrderEmails] (
+        [Id] int NOT NULL IDENTITY,
+        [OrderId] int NOT NULL,
+        [Kind] nvarchar(30) NOT NULL,
+        [Attempts] int NOT NULL,
+        [NextAttemptAt] datetime2 NOT NULL,
+        [SentAt] datetime2 NULL,
+        [LastError] nvarchar(100) NULL,
+        CONSTRAINT [PK_OrderEmails] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_OrderEmails_Orders_OrderId] FOREIGN KEY ([OrderId]) REFERENCES [Orders] ([Id]) ON DELETE CASCADE
+    );
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261113210852_NileShopEnhancements'
+)
+BEGIN
+    CREATE TABLE [OrderUpdates] (
+        [Id] int NOT NULL IDENTITY,
+        [OrderId] int NOT NULL,
+        [Status] nvarchar(40) NOT NULL,
+        [CreatedAt] datetime2 NOT NULL,
+        CONSTRAINT [PK_OrderUpdates] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_OrderUpdates_Orders_OrderId] FOREIGN KEY ([OrderId]) REFERENCES [Orders] ([Id]) ON DELETE CASCADE
+    );
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261113210852_NileShopEnhancements'
+)
+BEGIN
+    CREATE TABLE [ShippingMethods] (
+        [Id] int NOT NULL IDENTITY,
+        [NameEn] nvarchar(100) NOT NULL,
+        [NameAr] nvarchar(100) NOT NULL,
+        [Fee] decimal(18,2) NOT NULL,
+        [MinDays] int NOT NULL,
+        [MaxDays] int NOT NULL,
+        [IsActive] bit NOT NULL,
+        CONSTRAINT [PK_ShippingMethods] PRIMARY KEY ([Id]),
+        CONSTRAINT [CK_Shipping_Fee] CHECK ([Fee] >= 0 AND [MaxDays] >= [MinDays])
+    );
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261113210852_NileShopEnhancements'
+)
+BEGIN
+    CREATE TABLE [StoreSettings] (
+        [Id] int NOT NULL IDENTITY,
+        [ContactEmail] nvarchar(254) NULL,
+        [ContactPhone] nvarchar(30) NULL,
+        [AddressEn] nvarchar(500) NULL,
+        [AddressAr] nvarchar(500) NULL,
+        [ReturnDays] int NOT NULL,
+        [DeliveryPolicyEn] nvarchar(max) NULL,
+        [DeliveryPolicyAr] nvarchar(max) NULL,
+        [ReturnsPolicyEn] nvarchar(max) NULL,
+        [ReturnsPolicyAr] nvarchar(max) NULL,
+        CONSTRAINT [PK_StoreSettings] PRIMARY KEY ([Id])
+    );
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261113210852_NileShopEnhancements'
+)
+BEGIN
+    CREATE UNIQUE INDEX [IX_OrderEmails_OrderId_Kind] ON [OrderEmails] ([OrderId], [Kind]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261113210852_NileShopEnhancements'
+)
+BEGIN
+    CREATE INDEX [IX_OrderEmails_SentAt_NextAttemptAt] ON [OrderEmails] ([SentAt], [NextAttemptAt]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261113210852_NileShopEnhancements'
+)
+BEGIN
+    CREATE INDEX [IX_OrderUpdates_OrderId] ON [OrderUpdates] ([OrderId]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261113210852_NileShopEnhancements'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261113210852_NileShopEnhancements', N'8.0.22');
+END;
+GO
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261113212902_AdminMailSettings'
+)
+BEGIN
+    CREATE TABLE [StoreMailSettings] (
+        [Id] int NOT NULL IDENTITY,
+        [Enabled] bit NOT NULL,
+        [Host] nvarchar(255) NOT NULL,
+        [Port] int NOT NULL,
+        [Username] nvarchar(255) NOT NULL,
+        [EncryptedPassword] nvarchar(max) NOT NULL,
+        [From] nvarchar(254) NOT NULL,
+        [EnableSsl] bit NOT NULL,
+        CONSTRAINT [PK_StoreMailSettings] PRIMARY KEY ([Id])
+    );
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261113212902_AdminMailSettings'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261113212902_AdminMailSettings', N'8.0.22');
+END;
+GO
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261114220722_CustomerExperience'
+)
+BEGIN
+    ALTER TABLE [Orders] ADD [CustomerUserId] nvarchar(450) NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261114220722_CustomerExperience'
+)
+BEGIN
+    CREATE TABLE [ProductReviews] (
+        [Id] int NOT NULL IDENTITY,
+        [UserId] nvarchar(450) NOT NULL,
+        [ProductId] int NOT NULL,
+        [Rating] int NOT NULL,
+        [DisplayName] nvarchar(100) NOT NULL,
+        [Text] nvarchar(1000) NOT NULL,
+        [IsApproved] bit NOT NULL,
+        [CreatedAt] datetime2 NOT NULL,
+        CONSTRAINT [PK_ProductReviews] PRIMARY KEY ([Id]),
+        CONSTRAINT [CK_Review_Rating] CHECK ([Rating] >= 1 AND [Rating] <= 5),
+        CONSTRAINT [FK_ProductReviews_AspNetUsers_UserId] FOREIGN KEY ([UserId]) REFERENCES [AspNetUsers] ([Id]) ON DELETE NO ACTION,
+        CONSTRAINT [FK_ProductReviews_Products_ProductId] FOREIGN KEY ([ProductId]) REFERENCES [Products] ([Id]) ON DELETE NO ACTION
+    );
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261114220722_CustomerExperience'
+)
+BEGIN
+    CREATE TABLE [SavedProducts] (
+        [UserId] nvarchar(450) NOT NULL,
+        [ProductId] int NOT NULL,
+        [CreatedAt] datetime2 NOT NULL,
+        CONSTRAINT [PK_SavedProducts] PRIMARY KEY ([UserId], [ProductId]),
+        CONSTRAINT [FK_SavedProducts_AspNetUsers_UserId] FOREIGN KEY ([UserId]) REFERENCES [AspNetUsers] ([Id]) ON DELETE NO ACTION,
+        CONSTRAINT [FK_SavedProducts_Products_ProductId] FOREIGN KEY ([ProductId]) REFERENCES [Products] ([Id]) ON DELETE NO ACTION
+    );
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261114220722_CustomerExperience'
+)
+BEGIN
+    CREATE INDEX [IX_Orders_CustomerUserId] ON [Orders] ([CustomerUserId]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261114220722_CustomerExperience'
+)
+BEGIN
+    CREATE INDEX [IX_ProductReviews_ProductId_IsApproved] ON [ProductReviews] ([ProductId], [IsApproved]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261114220722_CustomerExperience'
+)
+BEGIN
+    CREATE UNIQUE INDEX [IX_ProductReviews_UserId_ProductId] ON [ProductReviews] ([UserId], [ProductId]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261114220722_CustomerExperience'
+)
+BEGIN
+    CREATE INDEX [IX_SavedProducts_ProductId] ON [SavedProducts] ([ProductId]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261114220722_CustomerExperience'
+)
+BEGIN
+    ALTER TABLE [Orders] ADD CONSTRAINT [FK_Orders_AspNetUsers_CustomerUserId] FOREIGN KEY ([CustomerUserId]) REFERENCES [AspNetUsers] ([Id]) ON DELETE NO ACTION;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261114220722_CustomerExperience'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261114220722_CustomerExperience', N'8.0.22');
+END;
+GO
+
+COMMIT;
+GO
+

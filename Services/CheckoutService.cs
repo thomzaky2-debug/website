@@ -1,42 +1,58 @@
 using System.Security.Cryptography;
-using BubbleThemeShop.Data;
-using BubbleThemeShop.Models;
-using BubbleThemeShop.ViewModels;
+using NileShop.Data;
+using NileShop.Models;
+using NileShop.ViewModels;
 using Microsoft.EntityFrameworkCore;
-namespace BubbleThemeShop.Services;
+namespace NileShop.Services;
 public class CheckoutException(string key) : Exception(key);
 public class CheckoutService(ApplicationDbContext db)
 {
-    public async Task<Order> PlaceAsync(CheckoutViewModel customer, IReadOnlyDictionary<int, int> cart)
+    public Task<Order> PlaceAsync(CheckoutViewModel customer, IReadOnlyDictionary<int, int> cart) => PlaceSelectionsAsync(customer, cart.Select(x => new CartSelection(x.Key, x.Value)).ToList());
+    public async Task<Order> PlaceSelectionsAsync(CheckoutViewModel customer, IReadOnlyList<CartSelection> cart)
     {
+        var senderHandle = InstaPayHandle.FromUsername(customer.InstaPayUsername) ?? throw new CheckoutException("InstaPay_Invalid");
         // The token is a server-issued session secret, unique in the database, so retries cannot place a second order.
         var existing = await db.Orders.AsNoTracking().FirstOrDefaultAsync(o => o.CheckoutToken == customer.CheckoutToken);
-        if (existing is not null) return existing;
-        if (cart.Count is 0 or > 50 || cart.Values.Any(q => q is < 1 or > 99)) throw new CheckoutException("Error_CartEmpty");
+        if (existing is not null) {
+            if (existing.InstaPaySenderHandle != senderHandle) throw new CheckoutException("InstaPay_Locked");
+            return existing;
+        }
+        if (cart.Count is 0 or > 50 || cart.Any(q => q.Quantity is < 1 or > 99)) throw new CheckoutException("Error_CartEmpty");
+        var shipping = await db.ShippingMethods.AsNoTracking().SingleOrDefaultAsync(s => s.Id == customer.ShippingMethodId && s.IsActive);
+        if (shipping is null && await db.ShippingMethods.AnyAsync()) throw new CheckoutException("Shipping_Choose");
         await using var tx = await db.Database.BeginTransactionAsync();
         var order = new Order {
-            OrderNumber = $"BTS-{DateTime.UtcNow:yyyyMMdd}-{Convert.ToHexString(RandomNumberGenerator.GetBytes(6))}",
-            CheckoutToken = customer.CheckoutToken, CustomerName = customer.CustomerName.Trim(),
+            CustomerUserId=customer.CustomerUserId,
+            ShippingFee = shipping?.Fee ?? 0, ShippingMethodName = shipping?.NameEn, DeliveryMinDays = shipping?.MinDays ?? 0, DeliveryMaxDays = shipping?.MaxDays ?? 0,
+            OrderNumber = $"NILE-{DateTime.UtcNow:yyyyMMdd}-{Convert.ToHexString(RandomNumberGenerator.GetBytes(6))}",
+            CheckoutToken = customer.CheckoutToken, InstaPaySenderHandle = senderHandle, CustomerName = customer.CustomerName.Trim(),
             CustomerEmail = customer.CustomerEmail.Trim(), CustomerPhone = customer.CustomerPhone.Trim(), ShippingAddress = customer.ShippingAddress.Trim()
         };
-        foreach (var (id, quantity) in cart.OrderBy(x => x.Key))
+        foreach (var selection in cart.OrderBy(x => x.ProductId).ThenBy(x => x.Key))
         {
+            var id = selection.ProductId; var quantity = selection.Quantity;
             var p = await db.Products.AsNoTracking().Include(p => p.Translations).SingleOrDefaultAsync(p => p.Id == id && p.IsActive);
+            if (p is not null && (!ProductOptions.Valid(p.Sizes, selection.Size) || !ProductOptions.Valid(p.Colors, selection.Color))) throw new CheckoutException("Options_Choose");
             if (p is null) throw new CheckoutException("Error_StockChanged");
             // One guarded SQL update prevents overselling even across simultaneous IIS requests.
             var changed = await db.Products.Where(x => x.Id == id && x.IsActive && x.StockQuantity >= quantity && x.Price == p.Price)
                 .ExecuteUpdateAsync(s => s.SetProperty(x => x.StockQuantity, x => x.StockQuantity - quantity));
             if (changed != 1) throw new CheckoutException("Error_StockChanged");
-            order.Items.Add(new OrderItem { ProductId = id, ProductName = CatalogService.Name(p), Quantity = quantity, UnitPrice = p.Price });
+            order.Items.Add(new OrderItem { SelectedSize = selection.Size, SelectedColor = selection.Color, ProductId = id, ProductName = CatalogService.Name(p), Quantity = quantity, UnitPrice = p.Price });
         }
-        order.TotalAmount = order.Items.Sum(x => x.Quantity * x.UnitPrice);
+        order.TotalAmount = order.Items.Sum(x => x.Quantity * x.UnitPrice) + order.ShippingFee;
         if (order.TotalAmount <= 0 || order.TotalAmount > 10000000) throw new CheckoutException("Payment_Limit");
+        order.Updates.Add(new OrderUpdate { Status = "Pending" });
         db.Orders.Add(order);
+        db.OrderEmails.Add(new OrderEmail { Order = order, Kind = "Created" });
         try { await db.SaveChangesAsync(); await tx.CommitAsync(); }
         catch (DbUpdateException) {
             await tx.RollbackAsync(); db.ChangeTracker.Clear();
             var duplicate = await db.Orders.AsNoTracking().FirstOrDefaultAsync(o => o.CheckoutToken == customer.CheckoutToken);
-            if (duplicate is not null) return duplicate;
+            if (duplicate is not null) {
+                if (duplicate.InstaPaySenderHandle != senderHandle) throw new CheckoutException("InstaPay_Locked");
+                return duplicate;
+            }
             throw;
         }
         return order;

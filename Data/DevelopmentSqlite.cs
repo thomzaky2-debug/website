@@ -1,5 +1,5 @@
 using System.Runtime.InteropServices;
-namespace BubbleThemeShop.Data;
+namespace NileShop.Data;
 public static class DevelopmentSqlite
 {
     public static void Initialize()

@@ -1,2 +1,3 @@
 @model CategoryFormViewModel
-<h1>@Localizer["CreateCategory"]</h1><form asp-action="CreateCategory" method="post" class="panel"><partial name="_CategoryForm" model="Model"/></form>
+@{ViewData["Title"] = Localizer["CreateCategory"];}
+<div class="editor-shell"><div class="editor-header"><div><span class="eyebrow">NileShop · @Localizer["Catalog_Management"]</span><h1>@Localizer["CreateCategory"]</h1></div><a asp-action="Dashboard" asp-fragment="categories">← @Localizer["Nav_Dashboard"]</a></div><form asp-action="CreateCategory" method="post" class="panel editor-form"><partial name="_CategoryForm" model="Model"/></form></div>

@@ -2,12 +2,12 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using BubbleThemeShop.Data;
-using BubbleThemeShop.Services;
+using NileShop.Data;
+using NileShop.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-namespace BubbleThemeShop.Controllers;
+namespace NileShop.Controllers;
 [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
 public class PaymentController(ApplicationDbContext db, NilePayService payments, NilePayClient client, IOptions<NilePayOptions> options, ILogger<PaymentController> logger) : Controller
 {
@@ -44,6 +44,17 @@ public class PaymentController(ApplicationDbContext db, NilePayService payments,
             if (attempt is not null && order.PaymentStatus != "Paid") await payments.ReconcileAsync(attempt.Id, ct);
         } catch (NilePayException ex) { TempData["Error"] = ex.Message; }
         return RedirectToAction(nameof(Return), new { token });
+    }
+    [HttpPost("/payment/status"), ValidateAntiForgeryToken]
+    public async Task<IActionResult> Status(string token, CancellationToken ct)
+    {
+        var order = await Owned(token); if (order is null) return NotFound();
+        var attempt = await db.PaymentAttempts.AsNoTracking().SingleOrDefaultAsync(p => p.OrderId == order.Id, ct);
+        if (attempt is not null && attempt.SessionId is not null && order.PaymentStatus == "Unpaid" && attempt.GatewayStatus is not ("EXPIRED" or "CANCELLED" or "FAILED"))
+            try { await payments.ReconcileAsync(attempt.Id, ct); } catch (NilePayException) { logger.LogWarning("Payment status refresh failed for order {OrderId}", order.Id); }
+        var fresh = await db.Orders.AsNoTracking().SingleAsync(o => o.Id == order.Id, ct);
+        var gateway = attempt is null ? "NOT_CREATED" : await db.PaymentAttempts.AsNoTracking().Where(p => p.Id == attempt.Id).Select(p => p.GatewayStatus).SingleAsync(ct);
+        return Json(new { paymentStatus = fresh.PaymentStatus, orderStatus = fresh.Status, gatewayStatus = gateway, review = fresh.NeedsPaymentReview });
     }
     [HttpPost("/webhooks/nilepay"), IgnoreAntiforgeryToken, RequestSizeLimit(65536)]
     public async Task<IActionResult> Webhook(CancellationToken ct)

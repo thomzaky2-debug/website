@@ -1,1 +1,2 @@
-<h1>@Localizer["Error"]</h1><a href="/">@Localizer["Nav_Home"]</a>
+@{ViewData["Title"] = Localizer["Error"];}
+<div class="status-page"><div class="panel status-card"><div class="status-icon" aria-hidden="true">!</div><h1>@Localizer["Error"]</h1><a class="primary-button" asp-controller="Home" asp-action="Index">@Localizer["Nav_Home"]</a></div></div>

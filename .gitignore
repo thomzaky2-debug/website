@@ -15,3 +15,5 @@ build.log
 __pycache__/
 core
 core.*
+
+wwwroot/assets/uploads/

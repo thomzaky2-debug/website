@@ -1,6 +1,6 @@
-using BubbleThemeShop.Data;
-using BubbleThemeShop.Models;
-namespace BubbleThemeShop.Services;
+using NileShop.Data;
+using NileShop.Models;
+namespace NileShop.Services;
 public class AuditService(ApplicationDbContext db, IHttpContextAccessor accessor)
 {
     static string? Cut(string? value, int length) => value is null ? null : value[..Math.Min(value.Length, length)];

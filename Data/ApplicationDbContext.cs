@@ -1,9 +1,16 @@
-using BubbleThemeShop.Models;
+using NileShop.Models;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-namespace BubbleThemeShop.Data;
+namespace NileShop.Data;
 public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : IdentityDbContext(options)
 {
+    public DbSet<SavedProduct> SavedProducts => Set<SavedProduct>();
+    public DbSet<ProductReview> ProductReviews => Set<ProductReview>();
+    public DbSet<StoreMailSettings> StoreMailSettings => Set<StoreMailSettings>();
+    public DbSet<StoreSettings> StoreSettings => Set<StoreSettings>();
+    public DbSet<ShippingMethod> ShippingMethods => Set<ShippingMethod>();
+    public DbSet<OrderEmail> OrderEmails => Set<OrderEmail>();
+    public DbSet<OrderUpdate> OrderUpdates => Set<OrderUpdate>();
     public DbSet<PaymentAttempt> PaymentAttempts => Set<PaymentAttempt>();
     public DbSet<PaymentEvent> PaymentEvents => Set<PaymentEvent>();
     public DbSet<Category> Categories => Set<Category>();
@@ -16,6 +23,20 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     protected override void OnModelCreating(ModelBuilder b)
     {
         base.OnModelCreating(b);
+        b.Entity<SavedProduct>().HasKey(x=>new{x.UserId,x.ProductId});
+        b.Entity<SavedProduct>().HasOne<Microsoft.AspNetCore.Identity.IdentityUser>().WithMany().HasForeignKey(x=>x.UserId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<SavedProduct>().HasOne(x=>x.Product).WithMany().OnDelete(DeleteBehavior.Restrict);
+        b.Entity<ProductReview>().HasIndex(x=>new{x.UserId,x.ProductId}).IsUnique();
+        b.Entity<ProductReview>().HasIndex(x=>new{x.ProductId,x.IsApproved});
+        b.Entity<ProductReview>().HasOne<Microsoft.AspNetCore.Identity.IdentityUser>().WithMany().HasForeignKey(x=>x.UserId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<ProductReview>().HasOne(x=>x.Product).WithMany().OnDelete(DeleteBehavior.Restrict);
+        b.Entity<Order>().HasOne<Microsoft.AspNetCore.Identity.IdentityUser>().WithMany().HasForeignKey(x=>x.CustomerUserId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<ProductReview>().ToTable(t=>t.HasCheckConstraint("CK_Review_Rating","[Rating] >= 1 AND [Rating] <= 5"));
+        b.Entity<ShippingMethod>().Property(x => x.Fee).HasPrecision(18,2);
+        b.Entity<Order>().Property(x => x.ShippingFee).HasPrecision(18,2);
+        b.Entity<OrderEmail>().HasIndex(x => new { x.OrderId, x.Kind }).IsUnique();
+        b.Entity<OrderEmail>().HasIndex(x => new { x.SentAt, x.NextAttemptAt });
+        b.Entity<ShippingMethod>().ToTable(t => t.HasCheckConstraint("CK_Shipping_Fee", "[Fee] >= 0 AND [MaxDays] >= [MinDays]"));
         b.Entity<PaymentAttempt>().HasIndex(p => p.OrderId).IsUnique();
         b.Entity<PaymentAttempt>().HasIndex(p => p.IdempotencyKey).IsUnique();
         b.Entity<PaymentAttempt>().HasIndex(p => p.SessionId).IsUnique().HasFilter("[SessionId] IS NOT NULL");
@@ -23,6 +44,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         b.Entity<PaymentEvent>().HasIndex(p => p.EventId).IsUnique();
         b.Entity<Order>().HasIndex(p => p.PaymentAccessToken);
         if (Database.IsSqlite()) {
+            b.Entity<ShippingMethod>().Property(x => x.Fee).HasConversion<double>();
+            b.Entity<Order>().Property(x => x.ShippingFee).HasConversion<double>();
             b.Entity<Product>().Property(x => x.Price).HasConversion<double>();
             b.Entity<Product>().Property(x => x.OldPrice).HasConversion<double>();
             b.Entity<Order>().Property(x => x.TotalAmount).HasConversion<double>();

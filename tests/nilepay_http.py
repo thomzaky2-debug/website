@@ -8,7 +8,7 @@ class Gateway(BaseHTTPRequestHandler):
  def do_POST(self):
   global mode
   assert self.headers.get('Authorization')=='Bearer '+key
-  body=self.rfile.read(int(self.headers['Content-Length']));request=json.loads(body);identity=self.headers['Idempotency-Key'];requests.append((identity,body))
+  body=self.rfile.read(int(self.headers['Content-Length']));request=json.loads(body);assert request['senderHandle'] in ('ahmed.mohammed@instapay','second.customer@instapay');identity=self.headers['Idempotency-Key'];requests.append((identity,body))
   if identity in sessions:assert sessions[identity][0]==body
   else:sessions[identity]=(body,{'sessionId':'session-'+str(len(sessions)+1),'status':'PENDING','amountEgp':request['amountEgp'],'currency':'EGP','checkoutUrl':'http://localhost:5450/hosted'})
   if mode=='failure':self.send_response(503);self.end_headers();return
@@ -23,13 +23,13 @@ server=ThreadingHTTPServer(('localhost',5450),Gateway);threading.Thread(target=s
 class NoRedirect(urllib.request.HTTPRedirectHandler):
  def redirect_request(self,*a,**k):return None
 jar=http.cookiejar.CookieJar();opener=urllib.request.build_opener(urllib.request.HTTPSHandler(context=ssl._create_unverified_context()),urllib.request.HTTPCookieProcessor(jar),NoRedirect())
-base='https://localhost:5443';dbfile='.dotnet/nilepay-'+secrets.token_hex(6)+'.db'
-env=dict(os.environ,ASPNETCORE_ENVIRONMENT='Development',Database__UseDevelopmentSqlite='true',Database__DevelopmentSqlitePath=dbfile,AdminSettings__Email='nilepay-test@example.com',AdminSettings__Password=password,ASPNETCORE_URLS=base,NilePay__Enabled='true',NilePay__ApiUrl='http://localhost:5450',NilePay__ApiKey=key,NilePay__WebhookSecret=secret,NilePay__PublicUrl=base)
+base='https://localhost:5445';dbfile='.dotnet/nilepay-'+secrets.token_hex(6)+'.db'
+env=dict(os.environ,ASPNETCORE_ENVIRONMENT='Development',Database__UseDevelopmentSqlite='true',Database__DevelopmentSqlitePath=dbfile,AdminSettings__Email='nilepay-test@example.com',AdminSettings__Password=password,ASPNETCORE_URLS=base,NilePay__Enabled='true',NilePay__ApiUrl='http://localhost:5450',NilePay__ApiKey=key,NilePay__WebhookSecret=secret,NilePay__PublicUrl=base,StoreWorker__ReconcilePayments='false',Smtp__Enabled='false')
 proc=None
 log=open('nilepay-server.log','w')
 def start():
  global proc
- proc=subprocess.Popen(['.dotnet/dotnet','bin/Debug/net8.0/BubbleThemeShop.dll'],env=env,stdout=log,stderr=log)
+ proc=subprocess.Popen(['.dotnet/dotnet','bin/Debug/net8.0/NileShop.dll'],env=env,stdout=log,stderr=log)
  for _ in range(100):
   try:
    if req('/')[0]==200:return
@@ -55,13 +55,23 @@ try:
  start()
  _,home,_=req('/');req('/Cart/Add',{'productId':'1','quantity':'2','__RequestVerificationToken':token(home)})
  _,checkout,_=req('/Cart/Checkout');checkouttoken=re.search(r'name="CheckoutToken"[^>]*value="([^"]+)"',checkout).group(1)
- code,_,headers=req('/Cart/Checkout',{'CheckoutToken':checkouttoken,'CustomerName':'Payment Test','CustomerEmail':'buyer@example.com','CustomerPhone':'01234567890','ShippingAddress':'Test address','__RequestVerificationToken':token(checkout)})
+ for username in ['', 'ahmed.mohammed@instapay', 'wrong user']:
+  code,invalid,_=req('/Cart/Checkout',{'CheckoutToken':checkouttoken,'CustomerName':'Payment Test','CustomerEmail':'buyer@example.com','CustomerPhone':'01234567890','ShippingAddress':'Test address','ShippingMethodId':'1','InstaPayUsername':username,'__RequestVerificationToken':token(checkout)})
+  check(code==200 and 'validation-summary-errors' in invalid,'invalid or missing username rejected before order creation: '+repr(username))
+ code,_,headers=req('/Cart/Checkout',{'CheckoutToken':checkouttoken,'CustomerName':'Payment Test','CustomerEmail':'buyer@example.com','CustomerPhone':'01234567890','ShippingAddress':'Test address','ShippingMethodId':'1','InstaPayUsername':'ahmed.mohammed','__RequestVerificationToken':token(checkout)})
  check(code==302 and '/payment/return' in headers['Location'],'order goes to payment page')
+ original_location=headers['Location']
+ retry_code,_,retry_headers=req('/Cart/Checkout',{'CheckoutToken':checkouttoken,'InstaPayUsername':'ahmed.mohammed','__RequestVerificationToken':token(checkout)})
+ check(retry_code==302 and retry_headers['Location']==original_location,'checkout response retry returns the existing order')
  location=headers['Location'];access=urllib.parse.parse_qs(urllib.parse.urlparse(location).query)['token'][0]
  _,page,_=req(location);check('Awaiting payment' in page,'browser return is not payment proof')
  check(req('/payment/return?token='+'A'*64)[0]==404,'unrelated customer cannot read payment')
  form={'token':access,'__RequestVerificationToken':token(page)}
  mode='failure';check(req('/payment/pay',form)[0]==302,'unknown gateway outcome returns recoverable payment page')
+ check(json.loads(requests[0][1])['senderHandle']=='ahmed.mohammed@instapay','NilePay receives complete senderHandle')
+ gateway_payload=json.loads(requests[0][1]);check(gateway_payload['productCategory']=='Retail products' and gateway_payload['note'].startswith('NileShop order NILE-'),'NilePay receives store and order context')
+ check(gateway_payload['items'][0]['category']=='Shoes' and gateway_payload['items'][-1]['category']=='Delivery' and gateway_payload['items'][-1]['unitPrice']==50,'NilePay receives category and explicit delivery charge')
+ check(sum(item['quantity']*item['unitPrice'] for item in gateway_payload['items'])==gateway_payload['amountEgp'],'NilePay itemized total matches order amount')
  check(len(sessions)==1 and len(requests)==2 and requests[0]==requests[1],'bounded retry reuses exact durable request and key')
  checkoutremote=next(iter(sessions.values()))[1];total=checkoutremote['amountEgp'];session=checkoutremote['sessionId']
  check(webhook(session)==503,'early webhook retries before mapping exists')
@@ -91,14 +101,42 @@ try:
   check(db.execute('SELECT StockQuantity FROM Products WHERE Id=1').fetchone()[0]==22,'payment retries never decrement stock twice')
   check(db.execute('SELECT Status FROM Orders').fetchone()[0]=='Processing','paid order enters fulfilment queue')
  # A second order is settled by authenticated polling instead of a webhook.
+ _,register,_=req('/Account/Register')
+ code,_,_=req('/Account/Register',{'FullName':'Saved Customer','Phone':'01012345678','Email':'saved@example.test','Password':password,'ConfirmPassword':password,'__RequestVerificationToken':token(register)})
+ check(code==302,'signup saves customer contact details')
+
  _,home,_=req('/');req('/Cart/Add',{'productId':'2','quantity':'1','__RequestVerificationToken':token(home)})
- _,checkout,_=req('/Cart/Checkout');ct=re.search(r'name="CheckoutToken"[^>]*value="([^"]+)"',checkout).group(1)
- _,_,headers=req('/Cart/Checkout',{'CheckoutToken':ct,'CustomerName':'Second','CustomerEmail':'buyer@example.com','CustomerPhone':'01234567890','ShippingAddress':'Test','__RequestVerificationToken':token(checkout)})
+ _,checkout,_=req('/Cart/Checkout');check('Saved Customer' in checkout and 'name="CustomerName"' not in checkout and 'name="CustomerPhone"' not in checkout,'signed-in checkout displays saved contact without re-entry');ct=re.search(r'name="CheckoutToken"[^>]*value="([^"]+)"',checkout).group(1)
+ _,_,headers=req('/Cart/Checkout',{'CheckoutToken':ct,'CustomerName':'Second','CustomerEmail':'buyer@example.com','CustomerPhone':'01234567890','ShippingAddress':'Test','ShippingMethodId':'1','InstaPayUsername':'second.customer','__RequestVerificationToken':token(checkout)})
+ with sqlite3.connect(dbfile) as db:
+  contact=db.execute('SELECT CustomerName,CustomerEmail,CustomerPhone FROM Orders ORDER BY Id DESC LIMIT 1').fetchone()
+  check(contact==('Saved Customer','saved@example.test','01012345678'),'checkout uses saved profile and ignores posted contact changes')
  loc2=headers['Location'];_,page,_=req(loc2);acc2=urllib.parse.parse_qs(urllib.parse.urlparse(loc2).query)['token'][0]
  req('/payment/pay',{'token':acc2,'__RequestVerificationToken':token(page)})
  with sqlite3.connect(dbfile) as db:db.execute('UPDATE PaymentAttempts SET LastCheckedAt=NULL');db.commit()
  status='CONFIRMED';_,page,_=req(loc2);req('/payment/check',{'token':acc2,'__RequestVerificationToken':token(page)})
  check('Payment received' in req(loc2)[1],'authenticated status reconciliation settles delayed webhook')
+ _,history,_=req('/Account/Orders')
+ check(acc2 in history and access not in history,'order history includes owned orders and excludes guest orders')
+ with sqlite3.connect(dbfile) as db:db.execute("UPDATE Orders SET Status='Shipped' WHERE PaymentAccessToken=?",(acc2,));db.commit()
+ _,detail,_=req('/products/soft-knit-cardigan')
+ review_data={'productId':'2','rating':'5','text':'Verified review text','__RequestVerificationToken':token(detail)}
+ check(req('/Reviews/Create',review_data)[0]==302,'verified customer can submit a review')
+ check('Verified review text' not in req('/products/soft-knit-cardigan')[1],'pending review is hidden from the public')
+ req('/Reviews/Create',review_data)
+ with sqlite3.connect(dbfile) as db:
+  check(db.execute('SELECT COUNT(*) FROM ProductReviews').fetchone()[0]==1,'duplicate product review is blocked')
+  review_id=db.execute('SELECT Id FROM ProductReviews').fetchone()[0]
+ _,account_page,_=req('/Account/Index');req('/Account/Logout',{'__RequestVerificationToken':token(account_page)})
+ _,admin_login,_=req('/Identity/Account/Login')
+ req('/Identity/Account/Login',{'Email':'nilepay-test@example.com','Password':password,'__RequestVerificationToken':token(admin_login)})
+ _,moderation,_=req('/StoreAdmin/Reviews')
+ check(req('/StoreAdmin/ModerateReview',{'id':review_id,'approved':'true','__RequestVerificationToken':token(moderation)})[0]==302,'administrator can approve a pending review')
+ check('Verified review text' in req('/products/soft-knit-cardigan')[1],'approved review appears on the product page')
+
+ with sqlite3.connect(dbfile) as db:db.execute("UPDATE Orders SET PaymentStatus='Refunded',Status='Cancelled' WHERE PaymentAccessToken=?",(acc2,));db.commit()
+ refunded=req(loc2)[1]
+ check('Refunded' in refunded and 'Awaiting payment' not in refunded and 'action="/payment/pay"' not in refunded,'refunded order displays final state without payment action')
  print('All NilePay mock checks passed.',flush=True)
 finally:
  if proc:proc.terminate();proc.wait(timeout=10)

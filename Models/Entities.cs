@@ -1,5 +1,5 @@
 using System.ComponentModel.DataAnnotations;
-namespace BubbleThemeShop.Models;
+namespace NileShop.Models;
 public class Category
 {
     public int Id { get; set; }
@@ -17,6 +17,9 @@ public class CategoryTranslation
 }
 public class Product
 {
+    [MaxLength(500)] public string? Sizes { get; set; }
+    [MaxLength(500)] public string? Colors { get; set; }
+    [MaxLength(6000)] public string? GalleryImages { get; set; }
     public int Id { get; set; }
     [Required, MaxLength(200)] public string Slug { get; set; } = "";
     public decimal Price { get; set; }
@@ -48,6 +51,20 @@ public static class OrderStatuses
 }
 public class Order
 {
+    [MaxLength(450)] public string? CustomerUserId { get; set; }
+    public decimal ShippingFee { get; set; }
+    public int DeliveryMinDays { get; set; }
+    public int DeliveryMaxDays { get; set; }
+    [MaxLength(100)] public string? ShippingMethodName { get; set; }
+    [MaxLength(100)] public string? Carrier { get; set; }
+    [MaxLength(100)] public string? TrackingNumber { get; set; }
+    [MaxLength(800)] public string? TrackingUrl { get; set; }
+    public bool InventoryReleased { get; set; }
+    public bool NeedsPaymentReview { get; set; }
+    [MaxLength(200)] public string? RefundReference { get; set; }
+    public DateTime? RefundedAt { get; set; }
+    public ICollection<OrderUpdate> Updates { get; set; } = new List<OrderUpdate>();
+    [MaxLength(109)] public string? InstaPaySenderHandle { get; set; }
     [MaxLength(64)] public string PaymentAccessToken { get; set; } = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
     [MaxLength(20)] public string PaymentStatus { get; set; } = "Unpaid";
     public DateTime? PaidAt { get; set; }
@@ -65,6 +82,8 @@ public class Order
 }
 public class OrderItem
 {
+    [MaxLength(100)] public string? SelectedSize { get; set; }
+    [MaxLength(100)] public string? SelectedColor { get; set; }
     public int Id { get; set; }
     public int OrderId { get; set; }
     public Order Order { get; set; } = null!;

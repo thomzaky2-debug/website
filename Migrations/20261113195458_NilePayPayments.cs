@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace BubbleThemeShop.Migrations
+namespace NileShop.Migrations
 {
     /// <inheritdoc />
     public partial class NilePayPayments : Migration

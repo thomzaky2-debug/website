@@ -1,5 +1,5 @@
 using System.ComponentModel.DataAnnotations;
-namespace BubbleThemeShop.Models;
+namespace NileShop.Models;
 public class PaymentAttempt
 {
     public int Id { get; set; }

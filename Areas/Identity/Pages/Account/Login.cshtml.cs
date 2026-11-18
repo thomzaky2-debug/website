@@ -1,10 +1,10 @@
 using System.ComponentModel.DataAnnotations;
-using BubbleThemeShop.Services;
+using NileShop.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Localization;
-namespace BubbleThemeShop.Areas.Identity.Pages.Account;
+namespace NileShop.Areas.Identity.Pages.Account;
 public class LoginModel(SignInManager<IdentityUser> signIn, UserManager<IdentityUser> users, AuditService audit, IStringLocalizer<SharedResource> localizer) : PageModel
 {
     [BindProperty, Required, EmailAddress] public string Email { get; set; } = "";

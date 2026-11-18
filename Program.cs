@@ -1,8 +1,10 @@
 using System.Globalization;
-using BubbleThemeShop;
-using BubbleThemeShop.Data;
-using BubbleThemeShop.Services;
+using System.Threading.RateLimiting;
+using NileShop;
+using NileShop.Data;
+using NileShop.Services;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.EntityFrameworkCore;
@@ -27,12 +29,27 @@ builder.Services.AddDefaultIdentity<IdentityUser>(options => {
 builder.Services.ConfigureApplicationCookie(o => {
     o.Cookie.HttpOnly = true; o.Cookie.SecurePolicy = CookieSecurePolicy.Always;
     o.Cookie.SameSite = SameSiteMode.Lax; o.ExpireTimeSpan = TimeSpan.FromHours(2);
-    o.LoginPath = "/Identity/Account/Login";
+    o.LoginPath = "/Account/Login";
+    o.Events.OnRedirectToLogin = context => {
+        var admin = context.Request.Path.StartsWithSegments("/Admin") || context.Request.Path.StartsWithSegments("/StoreAdmin");
+        var path = admin ? "/Identity/Account/Login" : "/Account/Login";
+        var destination=HttpMethods.IsGet(context.Request.Method)
+            ? (context.Request.PathBase+context.Request.Path+context.Request.QueryString).ToString()
+            : admin ? "/Admin/Dashboard" : context.Request.Path.StartsWithSegments("/Saved") ? "/saved" : "/Account";
+        context.Response.Redirect(path + QueryString.Create("returnUrl",destination));
+        return Task.CompletedTask;
+    };
 });
 builder.Services.AddLocalization(o => o.ResourcesPath = "Resources");
 builder.Services.AddControllersWithViews(o => o.Filters.Add(new Microsoft.AspNetCore.Mvc.AutoValidateAntiforgeryTokenAttribute()))
     .AddViewLocalization().AddDataAnnotationsLocalization(o => o.DataAnnotationLocalizerProvider = (_, f) => f.Create(typeof(SharedResource)));
 builder.Services.AddRazorPages();
+builder.Services.AddRateLimiter(options => {
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("customer-auth", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit=20, Window=TimeSpan.FromMinutes(5), QueueLimit=0, AutoReplenishment=true }));
+});
 builder.Services.Configure<RequestLocalizationOptions>(o => {
     o.DefaultRequestCulture = new RequestCulture("en");
     o.SupportedCultures = o.SupportedUICultures = new[] { new CultureInfo("en"), new CultureInfo("ar") };
@@ -45,6 +62,7 @@ builder.Services.AddSession(o => {
 });
 builder.Services.AddAntiforgery(o => o.Cookie.SecurePolicy = CookieSecurePolicy.Always);
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddDataProtection().SetApplicationName("NileShop");
 builder.Services.AddScoped<AuditService>();
 builder.Services.AddScoped<CartService>();
 builder.Services.AddScoped<CatalogService>();
@@ -53,6 +71,10 @@ builder.Services.Configure<NilePayOptions>(builder.Configuration.GetSection("Nil
 builder.Services.AddHttpClient<NilePayClient>(http => http.Timeout = TimeSpan.FromSeconds(20))
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 builder.Services.AddScoped<NilePayService>();
+builder.Services.AddScoped<OrderOperations>();
+builder.Services.AddScoped<ProductImageService>();
+builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("Smtp"));
+builder.Services.AddHostedService<StoreWorker>();
 var app = builder.Build();
 app.UseExceptionHandler(error => error.Run(async context => {
     var exception = context.Features.Get<IExceptionHandlerFeature>()?.Error;
@@ -65,6 +87,7 @@ app.UseExceptionHandler(error => error.Run(async context => {
     context.Response.Redirect("/Home/Error");
 }));
 if (!app.Environment.IsDevelopment()) app.UseHsts();
+app.UseStatusCodePagesWithReExecute("/Home/NotFound");
 app.UseHttpsRedirection();
 app.Use(async (context, next) => {
     context.Response.Headers["X-Content-Type-Options"] = "nosniff";
@@ -77,6 +100,7 @@ app.Use(async (context, next) => {
 });
 app.UseStaticFiles();
 app.UseRouting();
+app.UseRateLimiter();
 app.UseRequestLocalization();
 app.UseSession();
 app.UseAuthentication();

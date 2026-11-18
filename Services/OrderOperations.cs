@@ -1,0 +1,52 @@
+using System.Data;
+using NileShop.Data;
+using NileShop.Models;
+using Microsoft.EntityFrameworkCore;
+namespace NileShop.Services;
+public class OrderOperations(ApplicationDbContext db, NilePayClient client, NilePayService payments)
+{
+    public async Task CancelUnpaidAsync(int id, string reason, CancellationToken ct)
+    {
+        var attempt = await db.PaymentAttempts.AsNoTracking().SingleOrDefaultAsync(p => p.OrderId == id, ct);
+        if (attempt is not null) {
+            if (attempt.SessionId is null) throw new NilePayException("Review_Unknown");
+            var remote = await client.StatusAsync(attempt.SessionId, ct);
+            await payments.ApplyAsync(remote, null, ct);
+            if (remote.Status is not ("EXPIRED" or "CANCELLED" or "FAILED")) throw new NilePayException("Review_NotTerminal");
+        }
+        await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
+        var order = await db.Orders.Include(o => o.Items).SingleAsync(o => o.Id == id, ct);
+        // Recheck mapping inside the transaction: creation may have raced with the initial read.
+        var current = await db.PaymentAttempts.AsNoTracking().SingleOrDefaultAsync(p => p.OrderId == id, ct);
+        if (current?.Id != attempt?.Id || (current is not null && current.GatewayStatus is not ("EXPIRED" or "CANCELLED" or "FAILED"))) throw new NilePayException("Review_Unknown");
+        if (order.PaymentStatus != "Unpaid" || order.PaidAt is not null) throw new NilePayException("Review_NotTerminal");
+        if (order.Status == OrderStatuses.Cancelled) { await tx.CommitAsync(ct); return; }
+        await ReleaseAsync(order, ct);
+        order.Status = OrderStatuses.Cancelled;
+        order.Updates.Add(new OrderUpdate { Status = "Cancelled" });
+        db.OrderEmails.Add(new OrderEmail { OrderId = id, Kind = "Cancelled" });
+        db.AuditLogs.Add(new AuditLog { Action = "CANCEL_RECONCILED", EntityName = "Order", Details = $"{order.OrderNumber}: {reason}" });
+        await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
+    }
+    public async Task RecordRefundAsync(int id, string reference, bool restock, CancellationToken ct)
+    {
+        await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
+        var order = await db.Orders.Include(o => o.Items).SingleAsync(o => o.Id == id, ct);
+        if (order.PaymentStatus == "Refunded") { await tx.CommitAsync(ct); return; }
+        if (order.PaymentStatus != "Paid") throw new NilePayException("Review_NotPaid");
+        order.PaymentStatus = "Refunded"; order.RefundReference = reference; order.RefundedAt = DateTime.UtcNow;
+        order.NeedsPaymentReview = false; order.Status = OrderStatuses.Cancelled;
+        if (restock) await ReleaseAsync(order, ct);
+        order.Updates.Add(new OrderUpdate { Status = "Refunded" });
+        db.OrderEmails.Add(new OrderEmail { OrderId = id, Kind = "Refunded" });
+        db.AuditLogs.Add(new AuditLog { Action = "REFUND_RECORDED", EntityName = "Order", Details = $"{order.OrderNumber}: external reference {reference}; restock {restock}" });
+        await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
+    }
+    async Task ReleaseAsync(Order order, CancellationToken ct)
+    {
+        if (order.InventoryReleased) return;
+        foreach (var item in order.Items.OrderBy(i => i.ProductId))
+            await db.Products.Where(p => p.Id == item.ProductId).ExecuteUpdateAsync(s => s.SetProperty(p => p.StockQuantity, p => p.StockQuantity + item.Quantity), ct);
+        order.InventoryReleased = true;
+    }
+}

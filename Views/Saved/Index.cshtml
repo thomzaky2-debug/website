@@ -1,0 +1,5 @@
+@model IReadOnlyList<ProductCard>
+@{ViewData["Title"]=Localizer["Saved_Items"];}
+<partial name="_AccountNavigation"/>
+<div class="section-head"><div><span class="eyebrow">NileShop · @Localizer["Your_Account"]</span><h1>@Localizer["Saved_Items"]</h1><p class="muted">@Localizer["Saved_Help"]</p></div><a asp-controller="Home" asp-action="Shop">@Localizer["Nav_Shop"] →</a></div>
+@if(!Model.Any()){<div class="panel empty"><h2>@Localizer["Saved_Empty"]</h2><p>@Localizer["Saved_Help"]</p><a class="primary-button" asp-controller="Home" asp-action="Shop">@Localizer["Nav_Shop"]</a></div>}else{<div class="product-grid">@foreach(var product in Model){<div><partial name="_ProductCard" model="product"/><form asp-action="Remove" method="post" class="saved-remove"><input type="hidden" name="productId" value="@product.Id"/><button>@Localizer["Remove"]</button></form></div>}</div>}

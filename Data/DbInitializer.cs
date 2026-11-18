@@ -1,7 +1,7 @@
-using BubbleThemeShop.Models;
+using NileShop.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-namespace BubbleThemeShop.Data;
+namespace NileShop.Data;
 public static class DbInitializer
 {
     public static async Task InitializeAsync(IServiceProvider services, IConfiguration config)
@@ -21,6 +21,12 @@ public static class DbInitializer
             Check(await users.CreateAsync(admin, password));
         }
         if (!await users.IsInRoleAsync(admin, "Admin")) Check(await users.AddToRoleAsync(admin, "Admin"));
+        if (!await db.StoreMailSettings.AnyAsync()) db.StoreMailSettings.Add(new StoreMailSettings());
+        if (!await db.StoreSettings.AnyAsync()) db.StoreSettings.Add(new StoreSettings { DeliveryPolicyEn = "Delivery estimates begin after payment confirmation. Shipping fees are shown before checkout.", DeliveryPolicyAr = "تبدأ مدة التوصيل المتوقعة بعد تأكيد الدفع. تظهر رسوم التوصيل قبل إتمام الطلب.", ReturnsPolicyEn = "Request a return within 14 days of delivery. Contact NileShop with your order number and item details; eligibility is reviewed before approval.", ReturnsPolicyAr = "اطلب الاسترجاع خلال ١٤ يومًا من التوصيل. تواصل مع نايل شوب برقم الطلب وتفاصيل المنتج، ثم تتم مراجعة الأهلية قبل الموافقة." });
+        if (!await db.ShippingMethods.AnyAsync()) db.ShippingMethods.AddRange(
+            new ShippingMethod { NameEn = "Cairo & Giza", NameAr = "القاهرة والجيزة", Fee = 50, MinDays = 3, MaxDays = 5 },
+            new ShippingMethod { NameEn = "Other governorates", NameAr = "المحافظات الأخرى", Fee = 80, MinDays = 5, MaxDays = 7 });
+        await db.SaveChangesAsync();
         if (await db.Categories.AnyAsync()) return;
         await using var transaction = await db.Database.BeginTransactionAsync();
         var shoes = Category("shoes", "Shoes", "أحذية");

@@ -1,6 +1,6 @@
 # NilePay setup
 
-The storefront calculates the EGP total from its database, reserves stock once, saves an unpaid order, then offers NilePay hosted checkout. Click **Pay securely with NilePay** on the order payment page. The customer enters their real InstaPay sender handle on NilePay. The application redirects to the returned checkoutUrl; it does not assume that checkout is hosted on the API origin.
+The storefront calculates the EGP total from its database, reserves stock once, saves an unpaid order, then offers NilePay hosted checkout. Click **Pay securely with NilePay** on the order payment page. Before checkout, the customer enters only the username (for example `ahmed.mohammed`). The server validates it, appends `@instapay`, saves the full sender handle with the order, and includes it as `senderHandle` in the immutable NilePay request. Full handles, spaces, and missing usernames are rejected. The sender cannot be changed when retrying an existing order. Existing payment attempts keep their original payload; older orders without a sender and without an attempt require merchant review. The application redirects to the returned checkoutUrl; it does not assume that checkout is hosted on the API origin.
 
 ## Configure the server
 
@@ -20,14 +20,14 @@ Use the API origin shown in your merchant Developers page if different. PublicUr
 https://your-store.example/webhooks/nilepay
 ```
 
-Apply the new `NilePayPayments` migration before launching the updated application:
+Apply the `NilePayPayments` and `InstaPaySenderHandle` migrations before launching the updated application:
 
 ```sh
 dotnet ef database update
 dotnet publish -c Release -o publish
 ```
 
-`Data/initial.sql` is the complete idempotent SQL Server deployment script including both migrations. The payment migration creates durable attempt and event tables. Existing orders get an access token and Unpaid payment status; no historical payment is inferred. Back up your database before applying production migrations.
+`Data/initial.sql` is the complete idempotent SQL Server deployment script including all migrations. The payment migration creates durable attempt and event tables. Existing orders get an access token and Unpaid payment status; no historical payment is inferred. Back up your database before applying production migrations.
 
 The merchant account must be approved, have a valid plan/trial, and have the merchant detector and actual payment configuration enabled. This code does not activate plans or initiate bank transfers for testing. Restart the app after rotating keys/secrets. No live gateway calls were used in development verification.
 
@@ -52,3 +52,7 @@ python3 tests/nilepay_http.py
 The Python test uses the workspace `.dotnet/dotnet` SDK and local system SQLite. It starts an isolated mock HTTP gateway and an HTTPS development storefront, with random credentials and a new isolated database, and stops both on completion. It never contacts NilePay, InstaPay or a bank. Tests cover retry payload/key stability, restart persistence, signatures, timestamp window, duplicate deliveries, unknown sessions, amount/currency mismatch, no settlement from return or nonconfirmed events, one durable fulfilment transition, stock retention and authenticated reconciliation.
 
 Live merchant acceptance, SQL Server concurrency/deadlock testing, and IIS webhook reachability still require your deployment environment. Monitor NilePay delivery logs and reconcile unpaid orders when deliveries fail. Back up payment mappings and event records alongside orders.
+
+The payment return page polls the authenticated server status while visible, and the background worker reconciles open sessions. The operations screen can reconcile an uncertain session, safely cancel an unpaid order after NilePay reports a terminal state, and release reserved stock once. Refunds are external: complete the transfer using your merchant process first, then record the refund reference in NileShop. Late confirmations after released stock are flagged for review and blocked from dispatch.
+
+NileShop now sends `productCategory` as retail products, each item with a category and selected options in its name, and the delivery fee as a separate item. The note includes the NileShop order number and delivery area. It excludes customer phone, email and street address because the create API does not define fields for them. The full JSON is persisted with the idempotency key, so an existing payment attempt retains its original payload on retries.
