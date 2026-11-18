@@ -103,6 +103,12 @@
                             <input asp-for="Phone" type="tel" required maxlength="30" autocomplete="tel" dir="ltr"/>
                             <span asp-validation-for="Phone"></span>
                         </div>
+                        <div class="field wide-field">
+                            <label asp-for="Address">@Localizer["ShippingAddress"]</label>
+                            <input asp-for="Address" maxlength="1000" autocomplete="street-address" placeholder="@Localizer["Delivery_Address_Placeholder"]"/>
+                            <small class="account-field-hint muted">@Localizer["Saved_Address_Help"]</small>
+                            <span asp-validation-for="Address"></span>
+                        </div>
                         <div class="field profile-email">
                             <span class="profile-label">@Localizer["Email"]</span>
                             <div class="profile-readonly-box">

@@ -315,7 +315,32 @@ if ('IntersectionObserver' in window) {
   document.querySelectorAll('.animate-on-scroll').forEach(el => el.classList.add('visible'));
 }
 
-// --- A5. Checkout Spinner ---
+// --- A5. Checkout Spinner & Saved Delivery Address Switcher ---
+const checkoutAddressBox = document.querySelector('[data-checkout-address-box]');
+if (checkoutAddressBox) {
+  const savedCard = document.querySelector('#savedAddressCard');
+  const editor = document.querySelector('#checkoutAddressEditor');
+  const addressInput = editor?.querySelector('input[name="ShippingAddress"]');
+  const saveCheck = editor?.querySelector('input[name="SaveAddressToProfile"]');
+  const savedValue = checkoutAddressBox.dataset.savedAddress || '';
+
+  checkoutAddressBox.querySelector('[data-change-address]')?.addEventListener('click', () => {
+    if (savedCard) savedCard.hidden = true;
+    if (editor) editor.hidden = false;
+    if (addressInput) {
+      addressInput.value = '';
+      addressInput.focus();
+    }
+  });
+
+  checkoutAddressBox.querySelector('[data-use-saved-address]')?.addEventListener('click', () => {
+    if (addressInput) addressInput.value = savedValue;
+    if (saveCheck) saveCheck.checked = false;
+    if (editor) editor.hidden = true;
+    if (savedCard) savedCard.hidden = false;
+  });
+}
+
 const checkoutForm = document.querySelector('.checkout-form');
 const checkoutOverlayEl = document.querySelector('.checkout-overlay');
 if (checkoutForm && checkoutOverlayEl) {

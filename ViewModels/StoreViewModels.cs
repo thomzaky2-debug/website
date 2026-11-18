@@ -43,6 +43,7 @@ public class CheckoutViewModel
     [Required, EmailAddress, StringLength(254)] public string CustomerEmail { get; set; } = "";
     [Required, Phone, StringLength(30)] public string CustomerPhone { get; set; } = "";
     [Required, StringLength(1000)] public string ShippingAddress { get; set; } = "";
+    public bool SaveAddressToProfile { get; set; }
     [Required, StringLength(64)] public string CheckoutToken { get; set; } = "";
     public CartViewModel Cart { get; set; } = new();
 }

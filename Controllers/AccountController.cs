@@ -13,8 +13,12 @@ public class AccountController(UserManager<IdentityUser> users, SignInManager<Id
 {
     async Task<CustomerProfileViewModel> BuildProfileAsync(IdentityUser user, CustomerProfileViewModel? form = null)
     {
-        var fullName = form?.FullName ?? (await users.GetClaimsAsync(user)).FirstOrDefault(c => c.Type == CustomerProfileViewModel.FullNameClaim)?.Value ?? "";
+        var claims = await users.GetClaimsAsync(user);
+        var fullName = form?.FullName ?? claims.FirstOrDefault(c => c.Type == CustomerProfileViewModel.FullNameClaim)?.Value ?? "";
         var phone = form?.Phone ?? user.PhoneNumber ?? "";
+        var address = form is not null
+            ? (form.Address ?? "")
+            : (claims.FirstOrDefault(c => c.Type == CustomerProfileViewModel.AddressClaim)?.Value ?? "");
         var ordersQuery = db.Orders.AsNoTracking().Where(o => o.CustomerUserId == user.Id);
         var ordersCount = await ordersQuery.CountAsync();
         var savedCount = await db.SavedProducts.AsNoTracking().CountAsync(s => s.UserId == user.Id && s.Product.IsActive);
@@ -27,6 +31,7 @@ public class AccountController(UserManager<IdentityUser> users, SignInManager<Id
             Email = user.Email,
             Phone = phone,
             FullName = fullName,
+            Address = address,
             OrdersCount = ordersCount,
             SavedCount = savedCount,
             ReviewsCount = reviewsCount,
@@ -63,6 +68,12 @@ public class AccountController(UserManager<IdentityUser> users, SignInManager<Id
             var old=claims.Where(c=>c.Type==CustomerProfileViewModel.FullNameClaim).ToArray();
             if(old.Length>0)result=await users.RemoveClaimsAsync(user,old);
             if(result.Succeeded)result=await users.AddClaimAsync(user,new Claim(CustomerProfileViewModel.FullNameClaim,model.FullName.Trim()));
+            if(result.Succeeded && Request.Form.ContainsKey(nameof(model.Address))){
+                var oldAddr=claims.Where(c=>c.Type==CustomerProfileViewModel.AddressClaim).ToArray();
+                if(oldAddr.Length>0)result=await users.RemoveClaimsAsync(user,oldAddr);
+                if(result.Succeeded && !string.IsNullOrWhiteSpace(model.Address))
+                    result=await users.AddClaimAsync(user,new Claim(CustomerProfileViewModel.AddressClaim,model.Address.Trim()));
+            }
         }
         if(!result.Succeeded){await tx.RollbackAsync();ModelState.AddModelError("",localizer["Error"]);return View("Index",await BuildProfileAsync(user,model));}
         await tx.CommitAsync();await signIn.RefreshSignInAsync(user);TempData["Success"]="Profile_Saved";

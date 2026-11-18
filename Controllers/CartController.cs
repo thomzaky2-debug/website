@@ -52,7 +52,7 @@ public class CartController(CartService cart, ApplicationDbContext db, CheckoutS
         HttpContext.Session.SetString("CheckoutToken", token);
         var methods = await db.ShippingMethods.AsNoTracking().Where(s => s.IsActive).OrderBy(s => s.Id).ToListAsync();
         var model=new CheckoutViewModel { Cart = view, CheckoutToken = token, ShippingMethods = methods, ShippingMethodId = methods.FirstOrDefault()?.Id ?? 0 };
-        await FillSavedContact(model);return View(model);
+        await FillSavedContact(model, prefillAddress: true);return View(model);
     }
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Checkout(CheckoutViewModel model)
@@ -64,13 +64,21 @@ public class CartController(CartService cart, ApplicationDbContext db, CheckoutS
             return RedirectToAction("Return", "Payment", new { token = existing.PaymentAccessToken });
         }
         model.CustomerUserId=users.GetUserId(User);
-        await FillSavedContact(model);
+        await FillSavedContact(model, prefillAddress: false);
         model.Cart = await cart.ViewAsync();
         model.ShippingMethods = await db.ShippingMethods.AsNoTracking().Where(s => s.IsActive).ToListAsync();
         if (!nilePay.Ready) ModelState.AddModelError("", localizer["Payment_Unavailable"]);
         if (!ModelState.IsValid) return View(model);
         try {
             var order = await checkout.PlaceSelectionsAsync(model, cart.Read().Values.ToList());
+            if (model.SaveAddressToProfile && !string.IsNullOrWhiteSpace(model.ShippingAddress)) {
+                var user = await users.GetUserAsync(User);
+                if (user is not null) {
+                    var oldAddr = (await users.GetClaimsAsync(user)).Where(c => c.Type == CustomerProfileViewModel.AddressClaim).ToArray();
+                    if (oldAddr.Length > 0) await users.RemoveClaimsAsync(user, oldAddr);
+                    await users.AddClaimAsync(user, new System.Security.Claims.Claim(CustomerProfileViewModel.AddressClaim, model.ShippingAddress.Trim()));
+                }
+            }
             cart.Clear();
             HttpContext.Session.SetString("LastOrder", order.OrderNumber);
             HttpContext.Session.SetString("LastCheckoutToken", model.CheckoutToken);
@@ -78,10 +86,16 @@ public class CartController(CartService cart, ApplicationDbContext db, CheckoutS
             return RedirectToAction("Return", "Payment", new { token = order.PaymentAccessToken });
         } catch (CheckoutException ex) { ModelState.AddModelError("", localizer[ex.Message]); return View(model); }
     }
-    async Task FillSavedContact(CheckoutViewModel model)
+    async Task FillSavedContact(CheckoutViewModel model, bool prefillAddress = false)
     {
         var user=await users.GetUserAsync(User);if(user is null)return;
-        var name=(await users.GetClaimsAsync(user)).FirstOrDefault(c=>c.Type==CustomerProfileViewModel.FullNameClaim)?.Value;
+        var claims=await users.GetClaimsAsync(user);
+        var name=claims.FirstOrDefault(c=>c.Type==CustomerProfileViewModel.FullNameClaim)?.Value;
+        var savedAddress=claims.FirstOrDefault(c=>c.Type==CustomerProfileViewModel.AddressClaim)?.Value;
+        if(!string.IsNullOrWhiteSpace(savedAddress)){
+            ViewData["SavedAddress"]=savedAddress;
+            if(prefillAddress && string.IsNullOrWhiteSpace(model.ShippingAddress))model.ShippingAddress=savedAddress;
+        }
         if(string.IsNullOrWhiteSpace(name)||string.IsNullOrWhiteSpace(user.PhoneNumber)||string.IsNullOrWhiteSpace(user.Email))return;
         model.CustomerName=name;model.CustomerPhone=user.PhoneNumber;model.CustomerEmail=user.Email;
         foreach(var key in new[]{nameof(model.CustomerName),nameof(model.CustomerPhone),nameof(model.CustomerEmail)})ModelState.Remove(key);

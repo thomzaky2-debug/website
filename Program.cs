@@ -87,7 +87,21 @@ app.UseExceptionHandler(error => error.Run(async context => {
     context.Response.Redirect("/Home/Error");
 }));
 if (!app.Environment.IsDevelopment()) app.UseHsts();
-app.UseStatusCodePagesWithReExecute("/Home/NotFound");
+app.UseStatusCodePages(async statusCodeContext => {
+    var ctx = statusCodeContext.HttpContext;
+    if (ctx.Response.StatusCode == StatusCodes.Status404NotFound && HttpMethods.IsGet(ctx.Request.Method)) {
+        var originalPath = ctx.Request.Path;
+        var originalQuery = ctx.Request.QueryString;
+        try {
+            ctx.Request.Path = "/Home/NotFound";
+            ctx.Request.QueryString = QueryString.Empty;
+            await statusCodeContext.Next(ctx);
+        } finally {
+            ctx.Request.Path = originalPath;
+            ctx.Request.QueryString = originalQuery;
+        }
+    }
+});
 app.UseHttpsRedirection();
 app.Use(async (context, next) => {
     context.Response.Headers["X-Content-Type-Options"] = "nosniff";
