@@ -13,10 +13,10 @@ public class LoginModel(SignInManager<IdentityUser> signIn, UserManager<Identity
     public async Task<IActionResult> OnPostAsync()
     {
         if (!ModelState.IsValid) return Page();
-        var user = await users.FindByEmailAsync(Email);
+        var user = await users.FindByEmailAsync(Email.Trim());
         if(user is not null && await users.IsInRoleAsync(user,"Admin")) {
             var result=await signIn.PasswordSignInAsync(user,Password,false,lockoutOnFailure:true);
-            if(result.Succeeded){HttpContext.User = await signIn.CreateUserPrincipalAsync(user);await audit.LogAsync("ADMIN_LOGIN","Identity",$"Admin {user.Email} signed in");return LocalRedirect(Url.IsLocalUrl(ReturnUrl)? ReturnUrl! : "/Admin/Dashboard");}
+            if(result.Succeeded){HttpContext.User = await signIn.CreateUserPrincipalAsync(user);await audit.LogAsync("ADMIN_LOGIN","Identity",$"Admin {user.Email} signed in");return LocalRedirect(!string.IsNullOrWhiteSpace(ReturnUrl) && Url.IsLocalUrl(ReturnUrl)? ReturnUrl! : "/Admin/Dashboard");}
         }
         ModelState.AddModelError("",localizer["InvalidLogin"]);return Page();
     }

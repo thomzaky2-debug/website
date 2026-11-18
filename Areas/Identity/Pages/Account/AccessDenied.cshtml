@@ -1,0 +1,17 @@
+@page
+@model NileShop.Areas.Identity.Pages.Account.AccessDeniedModel
+@{
+    ViewData["Title"] = Localizer["Nav_Login"];
+    var safeReturn = !string.IsNullOrWhiteSpace(Model.ReturnUrl) && Url.IsLocalUrl(Model.ReturnUrl) ? Model.ReturnUrl : "/Admin/Dashboard";
+}
+<div class="login-page">
+    <span class="eyebrow">NileShop · @Localizer["Admin_Navigation"]</span>
+    <section class="login panel" style="text-align:center">
+        <h1>@Localizer["Nav_Login"]</h1>
+        <p class="muted">@Localizer["Admin_Login_Intro"]</p>
+        <div class="status-actions" style="margin-top:20px">
+            <a class="primary-button" asp-area="Identity" asp-page="/Account/Login" asp-route-returnUrl="@safeReturn">@Localizer["Nav_Login"] →</a>
+            <a class="btn-account-secondary" href="/">@Localizer["Nav_Home"]</a>
+        </div>
+    </section>
+</div>

@@ -10,7 +10,7 @@ using NileShop.Services;
 using NileShop.ViewModels;
 namespace NileShop.Controllers;
 [ResponseCache(Duration=0,Location=ResponseCacheLocation.None,NoStore=true)]
-public class AccountController(UserManager<IdentityUser> users, SignInManager<IdentityUser> signIn, IStringLocalizer<SharedResource> localizer, ApplicationDbContext db, WalletService wallet) : Controller
+public class AccountController(UserManager<IdentityUser> users, SignInManager<IdentityUser> signIn, IStringLocalizer<SharedResource> localizer, ApplicationDbContext db, WalletService wallet, AuditService audit) : Controller
 {
     async Task<CustomerProfileViewModel> BuildProfileAsync(IdentityUser user, CustomerProfileViewModel? form = null)
     {
@@ -50,6 +50,7 @@ public class AccountController(UserManager<IdentityUser> users, SignInManager<Id
     public async Task<IActionResult> Index()
     {
         var user=await users.GetUserAsync(User);if(user is null)return RedirectToAction(nameof(Login));
+        if(await users.IsInRoleAsync(user,"Admin"))return RedirectToAction("Dashboard","Admin");
         return View(await BuildProfileAsync(user));
     }
     [Authorize, HttpGet("/Account/Wallet")]
@@ -132,15 +133,23 @@ public class AccountController(UserManager<IdentityUser> users, SignInManager<Id
         return RedirectToAction(nameof(Index));
     }
     [AllowAnonymous,HttpGet]
-    public IActionResult Login(string? returnUrl)=>User.Identity?.IsAuthenticated==true ? LocalRedirect(SafeReturn(returnUrl)) : View(new CustomerLoginViewModel {ReturnUrl=returnUrl});
+    public IActionResult Login(string? returnUrl)=>User.Identity?.IsAuthenticated==true ? (User.IsInRole("Admin") ? LocalRedirect("/Admin/Dashboard") : LocalRedirect(SafeReturn(returnUrl))) : View(new CustomerLoginViewModel {ReturnUrl=returnUrl});
     [AllowAnonymous,HttpPost,ValidateAntiForgeryToken,EnableRateLimiting("customer-auth")]
     public async Task<IActionResult> Login(CustomerLoginViewModel model)
     {
         if(!ModelState.IsValid)return View(model);
         var user=await users.FindByEmailAsync(model.Email.Trim());
-        if(user is not null && !await users.IsInRoleAsync(user,"Admin")) {
-            var result=await signIn.PasswordSignInAsync(user,model.Password,false,lockoutOnFailure:true);
-            if(result.Succeeded)return LocalRedirect(SafeReturn(model.ReturnUrl));
+        if(user is not null) {
+            var isAdmin = await users.IsInRoleAsync(user,"Admin");
+            var result = await signIn.PasswordSignInAsync(user,model.Password,false,lockoutOnFailure:true);
+            if(result.Succeeded) {
+                if(isAdmin) {
+                    HttpContext.User = await signIn.CreateUserPrincipalAsync(user);
+                    await audit.LogAsync("ADMIN_LOGIN","Identity",$"Admin {user.Email} signed in");
+                    return LocalRedirect(!string.IsNullOrWhiteSpace(model.ReturnUrl) && Url.IsLocalUrl(model.ReturnUrl) ? model.ReturnUrl! : "/Admin/Dashboard");
+                }
+                return LocalRedirect(SafeReturn(model.ReturnUrl));
+            }
         }
         ModelState.AddModelError("",localizer["InvalidLogin"]);return View(model);
     }
