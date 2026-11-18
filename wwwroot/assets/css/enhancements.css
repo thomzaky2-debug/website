@@ -2265,3 +2265,269 @@ html.dark-mode .btn-use-saved-address {
   border-color: var(--border);
   color: var(--teal);
 }
+
+/* ---------- Checkout Width, Field Sizing & Saved Contact Polish ---------- */
+.checkout-page {
+  max-width: 940px;
+  margin-inline: auto;
+}
+
+.checkout-page .checkout-layout {
+  grid-template-columns: minmax(0, 540px) minmax(290px, 360px);
+  justify-content: space-between;
+  gap: 24px;
+  align-items: start;
+}
+
+.checkout-page .checkout-form {
+  padding: 26px 28px;
+}
+
+.checkout-page .checkout-form h2 {
+  font-size: 1.05rem;
+  padding-top: 20px;
+  margin: 20px 0 14px;
+}
+
+.checkout-page .checkout-form h2:first-of-type {
+  padding-top: 0;
+  margin-top: 0;
+}
+
+/* Clean sentence-case labels across checkout */
+.checkout-page .checkout-form .field label {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: .82rem;
+  font-weight: 700;
+  color: var(--ink, #073349);
+  margin: 0 0 7px;
+}
+
+/* Enhanced Saved Contact Card (Screenshot 1) */
+.checkout-page .saved-checkout-contact {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 15px 17px;
+  border-radius: 12px;
+  background: var(--wash, #f4f8f8);
+  border: 1px solid var(--line, #dce8e7);
+  flex-wrap: wrap;
+}
+
+.saved-contact-main {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  min-width: 0;
+  flex: 1 1 240px;
+}
+
+.saved-contact-avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(8, 125, 129, .15), rgba(55, 199, 186, .26));
+  border: 1px solid rgba(8, 125, 129, .26);
+  color: var(--teal, #087d81);
+  font-size: .92rem;
+  font-weight: 800;
+  letter-spacing: .02em;
+}
+
+.saved-contact-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.saved-contact-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.saved-contact-title-row strong {
+  font-size: .96rem;
+  line-height: 1.3;
+  color: var(--ink, #073349);
+}
+
+.saved-contact-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+
+.saved-contact-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: .8rem;
+  color: var(--muted, #5f7480);
+  overflow-wrap: anywhere;
+}
+
+.saved-contact-chip svg {
+  flex: none;
+  color: var(--teal, #087d81);
+  opacity: .85;
+}
+
+/* Fit fields & selects to sensible max values (Screenshot 2) */
+.checkout-page .checkout-form input:not([type="checkbox"]),
+.checkout-page .checkout-form select {
+  height: 44px;
+  border-radius: 9px;
+  font-size: .88rem;
+}
+
+.checkout-page #shipping-method {
+  width: 100%;
+  max-width: 400px;
+}
+
+.checkout-page input[name="CustomerName"] {
+  max-width: 280px;
+}
+
+.checkout-page input[name="CustomerPhone"] {
+  max-width: 210px;
+}
+
+.checkout-page input[name="CustomerEmail"] {
+  max-width: 340px;
+}
+
+.checkout-page input[name="ShippingAddress"] {
+  max-width: 480px;
+}
+
+/* Seamless, properly proportioned InstaPay input group */
+.checkout-page .checkout-instapay-field {
+  max-width: 350px;
+}
+
+.checkout-page .checkout-form .instapay-input {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  max-width: 330px;
+  height: 44px;
+  margin-bottom: 6px;
+  border: 1px solid var(--line, #dce8e7);
+  border-radius: 9px;
+  overflow: hidden;
+  background: var(--surface, #fff);
+}
+
+.checkout-page .checkout-form .instapay-input input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0 13px;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  outline-offset: -2px;
+}
+
+.checkout-page .checkout-form .instapay-input > span {
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+  margin: 0;
+  padding: 0 13px;
+  border: 0 !important;
+  border-inline-start: 1px solid var(--line, #dce8e7) !important;
+  border-radius: 0 !important;
+  background: var(--wash, #f4f8f8);
+  color: var(--muted, #5f7480);
+  font-size: .83rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Fit buttons to content instead of stretching full width */
+.btn-change-address {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  flex: none;
+  text-decoration: none;
+}
+
+.checkout-actions-row {
+  display: flex;
+  align-items: center;
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line, #dce8e7);
+}
+
+.checkout-page .checkout-form .checkout-submit {
+  width: fit-content !important;
+  min-width: 205px;
+  padding: 11px 24px;
+  margin: 0 !important;
+  border-radius: 9px;
+  font-size: .9rem;
+}
+
+/* Dark mode overrides for Checkout refinements */
+html.dark-mode .checkout-page .saved-checkout-contact {
+  background: #131e2c;
+  border-color: var(--border);
+}
+
+html.dark-mode .saved-contact-avatar {
+  background: linear-gradient(135deg, rgba(56, 201, 188, .18), rgba(13, 138, 142, .3));
+  border-color: rgba(56, 201, 188, .35);
+  color: var(--teal);
+}
+
+html.dark-mode .checkout-page .checkout-form .instapay-input {
+  background: #1f2e41;
+  border-color: var(--border);
+}
+
+html.dark-mode .checkout-page .checkout-form .instapay-input > span {
+  background: #131d2a;
+  border-color: var(--border) !important;
+  color: var(--muted);
+}
+
+@media (max-width: 900px) {
+  .checkout-page .checkout-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .checkout-page .checkout-form {
+    padding: 20px 18px;
+  }
+
+  .checkout-page #shipping-method,
+  .checkout-page input[name="CustomerName"],
+  .checkout-page input[name="CustomerPhone"],
+  .checkout-page input[name="CustomerEmail"],
+  .checkout-page input[name="ShippingAddress"],
+  .checkout-page .checkout-instapay-field,
+  .checkout-page .checkout-form .instapay-input {
+    max-width: 100%;
+  }
+
+  .checkout-page .checkout-form .checkout-submit {
+    width: 100% !important;
+  }
+}
