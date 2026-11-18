@@ -152,3 +152,245 @@ document.addEventListener('keydown',event=>{if(event.key==='Escape'&&menuToggle?
 document.addEventListener('click',event=>{if(menuToggle?.getAttribute('aria-expanded')==='true'&&!event.target.closest('.site-header'))closeSiteMenu();});
 
 document.querySelector('.site-header')?.addEventListener('focusout',()=>setTimeout(()=>{if(!document.activeElement?.closest('.site-header'))closeSiteMenu();},0));
+
+/* ==========================================================================
+   Enhancement JS — Toast, AJAX Cart, Mini-Cart, Dark Mode, Recently Viewed,
+   Scroll Animations, Cookie Consent, Checkout Spinner, Copy Link
+   ========================================================================== */
+
+// --- A1. Toast Notification System ---
+function showToast(message, type = 'success') {
+  let container = document.querySelector('.toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.className = 'toast-container';
+    container.setAttribute('aria-live', 'polite');
+    document.body.appendChild(container);
+  }
+  const toast = document.createElement('div');
+  toast.className = 'toast-notification' + (type === 'error' ? ' error' : '');
+  toast.innerHTML =
+    '<span class="toast-icon">' + (type === 'error' ? '✕' : '✓') + '</span>' +
+    '<span class="toast-message">' + message + '</span>';
+  container.appendChild(toast);
+  requestAnimationFrame(() => requestAnimationFrame(() => toast.classList.add('show')));
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 400);
+  }, 3000);
+}
+
+// --- A1. AJAX Add-to-Cart Interception ---
+document.querySelectorAll('form[data-ajax-cart]').forEach(form => {
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = form.querySelector('button[type="submit"]');
+    if (btn) btn.disabled = true;
+    try {
+      const response = await fetch('/Cart/AddAjax', {
+        method: 'POST',
+        body: new FormData(form),
+        headers: { 'Accept': 'application/json' },
+        credentials: 'same-origin'
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        showToast(data.message || 'Added to cart');
+        document.querySelectorAll('.cart-count').forEach(el => { el.textContent = data.cartCount; });
+        refreshMiniCart();
+      } else {
+        showToast(data.message || 'Error adding to cart', 'error');
+      }
+    } catch {
+      showToast('Something went wrong', 'error');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  });
+});
+
+// --- A2. Mini-Cart Drawer ---
+const miniCartOverlay = document.querySelector('#miniCartOverlay');
+const miniCartDrawer = document.querySelector('#miniCartDrawer');
+
+function openMiniCart() {
+  if (!miniCartOverlay) return;
+  miniCartOverlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  refreshMiniCart();
+}
+
+function closeMiniCart() {
+  if (!miniCartOverlay) return;
+  miniCartOverlay.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+async function refreshMiniCart() {
+  if (!miniCartOverlay) return;
+  const itemsEl = document.querySelector('#miniCartItems');
+  const footerEl = document.querySelector('#miniCartFooter');
+  const totalEl = document.querySelector('#miniCartTotal');
+  try {
+    const res = await fetch('/Cart/MiniCart', { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data.items || data.items.length === 0) {
+      itemsEl.innerHTML = '<div class="mini-cart-empty"><p>Your cart is empty</p><a href="/shop">Browse Shop →</a></div>';
+      footerEl.style.display = 'none';
+    } else {
+      itemsEl.innerHTML = data.items.map(item =>
+        '<div class="mini-cart-item">' +
+        '<img class="mini-cart-item-image" src="' + item.image + '" alt="" loading="lazy"/>' +
+        '<div class="mini-cart-item-details">' +
+        '<strong>' + item.name + '</strong>' +
+        (item.size || item.color ? '<small>' + (item.size || '') + ' ' + (item.color || '') + '</small>' : '') +
+        '<small>Qty: ' + item.quantity + '</small>' +
+        '</div>' +
+        '<span class="mini-cart-item-price">EGP ' + item.lineTotal.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) + '</span>' +
+        '</div>'
+      ).join('');
+      footerEl.style.display = '';
+      totalEl.textContent = 'EGP ' + data.total.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+    }
+    // Also update header cart count
+    document.querySelectorAll('.cart-count').forEach(el => { el.textContent = data.count; });
+  } catch { /* silent */ }
+}
+
+// Cart icon click → open mini-cart instead of navigating
+const cartLink = document.querySelector('.cart-link');
+if (cartLink) {
+  cartLink.addEventListener('click', e => {
+    e.preventDefault();
+    openMiniCart();
+  });
+}
+
+// Close mini-cart
+document.querySelector('.mini-cart-close')?.addEventListener('click', closeMiniCart);
+miniCartOverlay?.addEventListener('click', e => {
+  if (e.target === miniCartOverlay) closeMiniCart();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && miniCartOverlay?.classList.contains('open')) closeMiniCart();
+});
+
+// --- A3. Scroll Animations ---
+if ('IntersectionObserver' in window) {
+  const scrollObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        scrollObserver.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.1 });
+  document.querySelectorAll('.animate-on-scroll').forEach(el => scrollObserver.observe(el));
+}
+
+// --- A5. Checkout Spinner ---
+const checkoutForm = document.querySelector('.checkout-form');
+const checkoutOverlayEl = document.querySelector('.checkout-overlay');
+if (checkoutForm && checkoutOverlayEl) {
+  checkoutForm.addEventListener('submit', () => {
+    checkoutOverlayEl.classList.add('active');
+    const submitBtn = checkoutForm.querySelector('.checkout-submit');
+    if (submitBtn) submitBtn.disabled = true;
+  });
+}
+
+// --- B3. Recently Viewed Products ---
+(function() {
+  // Save current product to recently viewed
+  const detailPage = document.querySelector('.product-detail-page');
+  if (detailPage) {
+    const productData = detailPage.dataset;
+    if (productData.productId) {
+      const item = {
+        id: Number(productData.productId),
+        name: productData.productName || '',
+        slug: productData.productSlug || '',
+        image: productData.productImage || '',
+        price: productData.productPrice || ''
+      };
+      let recent = [];
+      try { recent = JSON.parse(localStorage.getItem('recentlyViewed') || '[]'); } catch {}
+      recent = recent.filter(r => r.id !== item.id);
+      recent.unshift(item);
+      recent = recent.slice(0, 8);
+      try { localStorage.setItem('recentlyViewed', JSON.stringify(recent)); } catch {}
+    }
+  }
+
+  // Render recently viewed section on home and shop pages
+  const rvContainer = document.querySelector('#recentlyViewed');
+  if (rvContainer) {
+    let recent = [];
+    try { recent = JSON.parse(localStorage.getItem('recentlyViewed') || '[]'); } catch {}
+    if (recent.length > 0) {
+      rvContainer.style.display = '';
+      const money = new Intl.NumberFormat(document.documentElement.lang, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      rvContainer.innerHTML =
+        '<h2>Recently Viewed</h2>' +
+        '<div class="recently-viewed-scroll">' +
+        recent.map(item =>
+          '<a class="recently-viewed-card" href="/products/' + item.slug + '">' +
+          '<img src="' + item.image + '" alt="" loading="lazy"/>' +
+          '<div class="rv-info">' +
+          '<div class="rv-name">' + item.name + '</div>' +
+          '<div class="rv-price">' + money.format(Number(item.price)) + ' EGP</div>' +
+          '</div></a>'
+        ).join('') +
+        '</div>';
+    }
+  }
+})();
+
+// --- B4. Copy Link ---
+document.querySelector('.copy-link')?.addEventListener('click', function() {
+  const url = this.dataset.url || window.location.href;
+  navigator.clipboard.writeText(url).then(() => showToast('Link copied!')).catch(() => showToast('Could not copy link', 'error'));
+});
+
+// --- D1. Dark Mode ---
+(function() {
+  const html = document.documentElement;
+  const toggle = document.querySelector('.dark-mode-toggle');
+  const sunSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>';
+  const moonSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+
+  function applyDark(isDark) {
+    html.classList.toggle('dark-mode', isDark);
+    if (toggle) toggle.innerHTML = isDark ? sunSvg : moonSvg;
+  }
+
+  // Check preference
+  const stored = localStorage.getItem('darkMode');
+  if (stored !== null) {
+    applyDark(stored === 'true');
+  } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    applyDark(true);
+  }
+
+  toggle?.addEventListener('click', () => {
+    const isDark = !html.classList.contains('dark-mode');
+    applyDark(isDark);
+    localStorage.setItem('darkMode', String(isDark));
+  });
+})();
+
+// --- E1. Cookie Consent ---
+(function() {
+  const banner = document.querySelector('#cookieConsent');
+  if (!banner) return;
+  if (localStorage.getItem('cookieConsent')) {
+    banner.classList.add('dismissed');
+    return;
+  }
+  const btn = document.querySelector('#acceptCookies');
+  btn?.addEventListener('click', () => {
+    localStorage.setItem('cookieConsent', 'accepted');
+    banner.classList.add('dismissed');
+  });
+})();
