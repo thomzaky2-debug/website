@@ -140,6 +140,8 @@ imageDialog?.addEventListener('click',event=>{if(event.target===imageDialog){con
 
 function submitCatalogFilters(){
  if(!catalogFilters)return;
+ const skel=document.querySelector('#shopSkeletons');
+ if(skel)skel.hidden=false;
  if(typeof catalogFilters.requestSubmit==='function')catalogFilters.requestSubmit();
  else if(catalogFilters.reportValidity())HTMLFormElement.prototype.submit.call(catalogFilters);
 }
@@ -158,6 +160,13 @@ document.querySelector('.site-header')?.addEventListener('focusout',()=>setTimeo
    Scroll Animations, Cookie Consent, Checkout Spinner, Copy Link
    ========================================================================== */
 
+// --- HTML Escaping Helper ---
+function escapeHtml(value) {
+  const div = document.createElement('div');
+  div.textContent = String(value ?? '');
+  return div.innerHTML;
+}
+
 // --- A1. Toast Notification System ---
 function showToast(message, type = 'success') {
   let container = document.querySelector('.toast-container');
@@ -171,7 +180,7 @@ function showToast(message, type = 'success') {
   toast.className = 'toast-notification' + (type === 'error' ? ' error' : '');
   toast.innerHTML =
     '<span class="toast-icon">' + (type === 'error' ? '✕' : '✓') + '</span>' +
-    '<span class="toast-message">' + message + '</span>';
+    '<span class="toast-message">' + escapeHtml(message) + '</span>';
   container.appendChild(toast);
   requestAnimationFrame(() => requestAnimationFrame(() => toast.classList.add('show')));
   setTimeout(() => {
@@ -184,7 +193,8 @@ function showToast(message, type = 'success') {
 document.querySelectorAll('form[data-ajax-cart]').forEach(form => {
   form.addEventListener('submit', async e => {
     e.preventDefault();
-    const btn = form.querySelector('button[type="submit"]');
+    if (!form.reportValidity()) return;
+    const btn = form.querySelector('button[type="submit"], button:not([type])');
     if (btn) btn.disabled = true;
     try {
       const response = await fetch('/Cart/AddAjax', {
@@ -241,13 +251,13 @@ async function refreshMiniCart() {
     } else {
       itemsEl.innerHTML = data.items.map(item =>
         '<div class="mini-cart-item">' +
-        '<img class="mini-cart-item-image" src="' + item.image + '" alt="" loading="lazy"/>' +
+        '<img class="mini-cart-item-image" src="' + escapeHtml(item.image) + '" alt="" loading="lazy"/>' +
         '<div class="mini-cart-item-details">' +
-        '<strong>' + item.name + '</strong>' +
-        (item.size || item.color ? '<small>' + (item.size || '') + ' ' + (item.color || '') + '</small>' : '') +
-        '<small>Qty: ' + item.quantity + '</small>' +
+        '<strong>' + escapeHtml(item.name) + '</strong>' +
+        (item.size || item.color ? '<small>' + escapeHtml(((item.size || '') + ' ' + (item.color || '')).trim()) + '</small>' : '') +
+        '<small>Qty: ' + Number(item.quantity) + '</small>' +
         '</div>' +
-        '<span class="mini-cart-item-price">EGP ' + item.lineTotal.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) + '</span>' +
+        '<span class="mini-cart-item-price">EGP ' + Number(item.lineTotal).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) + '</span>' +
         '</div>'
       ).join('');
       footerEl.style.display = '';
@@ -335,10 +345,10 @@ if (checkoutForm && checkoutOverlayEl) {
         '<h2>Recently Viewed</h2>' +
         '<div class="recently-viewed-scroll">' +
         recent.map(item =>
-          '<a class="recently-viewed-card" href="/products/' + item.slug + '">' +
-          '<img src="' + item.image + '" alt="" loading="lazy"/>' +
+          '<a class="recently-viewed-card" href="/products/' + encodeURIComponent(item.slug) + '">' +
+          '<img src="' + escapeHtml(item.image) + '" alt="" loading="lazy"/>' +
           '<div class="rv-info">' +
-          '<div class="rv-name">' + item.name + '</div>' +
+          '<div class="rv-name">' + escapeHtml(item.name) + '</div>' +
           '<div class="rv-price">' + money.format(Number(item.price)) + ' EGP</div>' +
           '</div></a>'
         ).join('') +
@@ -392,5 +402,31 @@ document.querySelector('.copy-link')?.addEventListener('click', function() {
   btn?.addEventListener('click', () => {
     localStorage.setItem('cookieConsent', 'accepted');
     banner.classList.add('dismissed');
+  });
+})();
+
+// --- D2. Newsletter Subscription ---
+(function() {
+  const subscribeBtn = document.querySelector('#newsletterSubscribe');
+  const emailInput = subscribeBtn?.closest('.footer-newsletter')?.querySelector('input[type="email"]');
+  if (!subscribeBtn || !emailInput) return;
+  const handleSubscribe = () => {
+    const email = emailInput.value.trim();
+    if (!email || !emailInput.checkValidity()) {
+      showToast('Please enter a valid email address', 'error');
+      emailInput.focus();
+      return;
+    }
+    try {
+      const list = JSON.parse(localStorage.getItem('newsletterSubscribers') || '[]');
+      if (!list.includes(email)) list.push(email);
+      localStorage.setItem('newsletterSubscribers', JSON.stringify(list));
+    } catch {}
+    emailInput.value = '';
+    showToast('Subscribed! Thank you for joining.');
+  };
+  subscribeBtn.addEventListener('click', handleSubscribe);
+  emailInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); handleSubscribe(); }
   });
 })();

@@ -96,34 +96,36 @@ public class CartController(CartService cart, ApplicationDbContext db, CheckoutS
     }
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> AddAjax(int productId, int quantity = 1, string? selectedSize = null, string? selectedColor = null)
+    public async Task<IActionResult> AddAjax(int productId, int quantity = 1, string? size = null, string? color = null, string? selectedSize = null, string? selectedColor = null)
     {
+        size ??= selectedSize;
+        color ??= selectedColor;
         var p = await db.Products.AsNoTracking().SingleOrDefaultAsync(p => p.Id == productId && p.IsActive);
         if (p is null)
-            return BadRequest(Json(new { success = false, message = localizer["Error_StockChanged"].Value }));
+            return BadRequest(new { success = false, message = localizer["Error_StockChanged"].Value });
         var items = cart.Read();
-        var selection = new CartSelection(productId, quantity, selectedSize, selectedColor);
+        var selection = new CartSelection(productId, quantity, size, color);
         if (quantity is < 1 or > 99
             || items.Values.Where(x => x.ProductId == productId).Sum(x => x.Quantity) + quantity > Math.Min(99, p.StockQuantity)
             || (items.Count >= 50 && !items.ContainsKey(selection.Key)))
-            return BadRequest(Json(new { success = false, message = localizer["Error_StockChanged"].Value }));
-        if (!ProductOptions.Valid(p.Sizes, selectedSize) || !ProductOptions.Valid(p.Colors, selectedColor))
-            return BadRequest(Json(new { success = false, message = localizer["Options_Choose"].Value }));
+            return BadRequest(new { success = false, message = localizer["Error_StockChanged"].Value });
+        if (!ProductOptions.Valid(p.Sizes, size) || !ProductOptions.Valid(p.Colors, color))
+            return BadRequest(new { success = false, message = localizer["Options_Choose"].Value });
         items[selection.Key] = selection with { Quantity = items.GetValueOrDefault(selection.Key)?.Quantity + quantity ?? quantity };
         cart.Save(items);
         var cartCount = items.Values.Sum(x => x.Quantity);
-        return Json(new { success = true, cartCount, message = localizer["Added to cart"].Value });
+        return Json(new { success = true, cartCount, message = localizer["Cart_Added"].Value });
     }
     [HttpGet]
-    public IActionResult MiniCart()
+    public async Task<IActionResult> MiniCart()
     {
         var items = cart.Read();
         if (items.Count == 0)
             return Json(new { items = Array.Empty<object>(), count = 0, total = 0m });
         var productIds = items.Values.Select(x => x.ProductId).Distinct().ToArray();
-        var products = db.Products.AsNoTracking()
+        var products = await db.Products.AsNoTracking()
             .Include(p => p.Translations).Include(p => p.Category).ThenInclude(c => c.Translations)
-            .Where(p => productIds.Contains(p.Id) && p.IsActive).ToList();
+            .Where(p => productIds.Contains(p.Id) && p.IsActive).ToListAsync();
         var cartItems = items.Values
             .Where(x => products.Any(p => p.Id == x.ProductId))
             .Select(x =>

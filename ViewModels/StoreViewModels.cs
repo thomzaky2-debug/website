@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using NileShop.Models;
 using NileShop.Services;
 namespace NileShop.ViewModels;
-public record ProductCard(int Id, string Slug, string Name, string Category, string ImageUrl, decimal Price, decimal? OldPrice, int StockQuantity, bool IsFeatured, bool HasOptions = false);
+public record ProductCard(int Id, string Slug, string Name, string Category, string ImageUrl, decimal Price, decimal? OldPrice, int StockQuantity, bool IsFeatured, bool HasOptions = false, bool IsNew = false);
 public record CategoryLink(int Id, string Slug, string Name);
 public record CategoryProductGroup(CategoryLink Category, int Count, IReadOnlyList<ProductCard> Products);
 public class CatalogViewModel

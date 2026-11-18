@@ -14,11 +14,12 @@ public class HomeController(CatalogService catalog, ApplicationDbContext db) : C
         var latest=await catalog.Active().OrderByDescending(p=>p.CreatedAt).ThenByDescending(p=>p.Id).Take(4).ToListAsync();
         var featured=await catalog.Active().Where(p=>p.IsFeatured).OrderByDescending(p=>p.Id).Take(4).ToListAsync();
         var categories=await catalog.CategoriesAsync();
-        var allProducts = (featured.Count > 0 ? featured : latest).Concat(latest).Distinct().ToList();
-        var productIds = allProducts.Select(p => p.Id).Distinct();
-        ViewBag.Ratings = await catalog.GetProductRatingsAsync(db, productIds);
+        var categoryGroups=await catalog.CategoryGroupsAsync(categories);
+        var allProductIds = (featured.Count > 0 ? featured : latest).Concat(latest).Select(p => p.Id)
+            .Concat(categoryGroups.SelectMany(g => g.Products).Select(p => p.Id)).Distinct();
+        ViewBag.Ratings = await catalog.GetProductRatingsAsync(db, allProductIds);
         ViewBag.BestsellerIds = await catalog.GetBestsellerIdsAsync(db);
-        return View(new LandingViewModel {Categories=await catalog.CategoryGroupsAsync(categories),Featured=(featured.Count>0?featured:latest).Select(CatalogService.Card).ToList(),Latest=latest.Select(CatalogService.Card).ToList()});
+        return View(new LandingViewModel {Categories=categoryGroups,Featured=(featured.Count>0?featured:latest).Select(CatalogService.Card).ToList(),Latest=latest.Select(CatalogService.Card).ToList()});
     }
     [HttpGet("/shop")]
     public async Task<IActionResult> Shop(string? q, string? category, int page = 1, decimal? minPrice = null, decimal? maxPrice = null, string sort = "relevance", bool inStock = false)
@@ -41,7 +42,7 @@ public class HomeController(CatalogService catalog, ApplicationDbContext db) : C
         var categories=await catalog.CategoriesAsync();
         var grouped=string.IsNullOrWhiteSpace(q) && string.IsNullOrWhiteSpace(category) && !minPrice.HasValue && !maxPrice.HasValue && !inStock && (sort is "latest" or "relevance") && page==1;
         var groups=grouped ? await catalog.CategoryGroupsAsync(categories) : [];
-        var shopProductIds = products.Select(p => p.Id);
+        var shopProductIds = products.Select(p => p.Id).Concat(groups.SelectMany(g => g.Products).Select(p => p.Id)).Distinct();
         ViewBag.Ratings = await catalog.GetProductRatingsAsync(db, shopProductIds);
         ViewBag.BestsellerIds = await catalog.GetBestsellerIdsAsync(db);
         return View(new CatalogViewModel { TotalMatches=count,GroupByCategory=grouped,CategoryGroups=groups, MinPrice = minPrice, MaxPrice = maxPrice, Sort = sort, InStock = inStock, Products = products.Select(CatalogService.Card).ToList(), Categories = categories, Search = q, Category = category, Page = page, TotalPages = (int)Math.Ceiling(count / 12d) });

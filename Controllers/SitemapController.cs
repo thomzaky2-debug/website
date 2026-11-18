@@ -19,14 +19,23 @@ public class SitemapController(ApplicationDbContext db) : Controller
             urlSet.Add(new XElement(ns + "url",
                 new XElement(ns + "loc", baseUrl + page)));
         }
-        var slugs = await db.Products.AsNoTracking()
-            .Where(p => p.IsActive)
-            .Select(p => p.Slug)
+        var categorySlugs = await db.Categories.AsNoTracking()
+            .Select(c => c.Slug)
             .ToListAsync();
-        foreach (var slug in slugs)
+        foreach (var catSlug in categorySlugs)
         {
             urlSet.Add(new XElement(ns + "url",
-                new XElement(ns + "loc", baseUrl + "/products/" + slug)));
+                new XElement(ns + "loc", baseUrl + "/shop?category=" + Uri.EscapeDataString(catSlug))));
+        }
+        var products = await db.Products.AsNoTracking()
+            .Where(p => p.IsActive)
+            .Select(p => new { p.Slug, p.CreatedAt })
+            .ToListAsync();
+        foreach (var p in products)
+        {
+            urlSet.Add(new XElement(ns + "url",
+                new XElement(ns + "loc", baseUrl + "/products/" + p.Slug),
+                new XElement(ns + "lastmod", p.CreatedAt.ToString("yyyy-MM-dd"))));
         }
         var doc = new XDocument(new XDeclaration("1.0", "UTF-8", null), urlSet);
         return Content(doc.Declaration + "\n" + doc.ToString(), "application/xml");
