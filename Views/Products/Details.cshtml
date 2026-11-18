@@ -30,5 +30,5 @@ var productUrl = $"{Context.Request.Scheme}://{Context.Request.Host}/products/{p
 @{ await Html.RenderPartialAsync("_Reviews", Model); }
 </section>
 @if(Model.Related.Any()){<section class="product-related"><div class="section-head"><div><span class="eyebrow">@Model.Product.Category</span><h2>@Localizer["Related"]</h2></div><a asp-controller="Home" asp-action="Shop" asp-route-category="@Model.CategorySlug">@Localizer["View_Category"] →</a></div><div class="product-grid">@foreach(var p in Model.Related){<partial name="_ProductCard" model="p"/>}</div></section>}
-<dialog class="product-image-dialog" aria-label="@Localizer["View_Product_Image"]"><button type="button" data-close-zoom aria-label="@Localizer["Close"]">×</button><img alt="@Model.Product.Name"/></dialog>
+<dialog class="product-image-dialog" aria-label="@Localizer["View_Product_Image"]"><button type="button" data-close-zoom aria-label="@Localizer["Close"]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button><img alt="@Model.Product.Name"/></dialog>
 </div>

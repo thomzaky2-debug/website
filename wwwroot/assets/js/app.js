@@ -141,7 +141,10 @@ imageDialog?.addEventListener('click',event=>{if(event.target===imageDialog){con
 function submitCatalogFilters(){
  if(!catalogFilters)return;
  const skel=document.querySelector('#shopSkeletons');
- if(skel)skel.hidden=false;
+ if(skel){
+  skel.hidden=false;
+  document.querySelectorAll('#collection > .category-product-groups, #collection > .product-grid').forEach(el=>{el.style.display='none';});
+ }
  if(typeof catalogFilters.requestSubmit==='function')catalogFilters.requestSubmit();
  else if(catalogFilters.reportValidity())HTMLFormElement.prototype.submit.call(catalogFilters);
 }
@@ -245,8 +248,12 @@ async function refreshMiniCart() {
     const res = await fetch('/Cart/MiniCart', { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
     if (!res.ok) return;
     const data = await res.json();
+    const emptyText = miniCartOverlay.dataset.emptyText || 'Your cart is empty';
+    const shopText = miniCartOverlay.dataset.shopText || 'Browse Shop';
+    const qtyText = miniCartOverlay.dataset.qtyText || 'Qty';
+    const money = new Intl.NumberFormat(document.documentElement.lang, {minimumFractionDigits:2, maximumFractionDigits:2});
     if (!data.items || data.items.length === 0) {
-      itemsEl.innerHTML = '<div class="mini-cart-empty"><p>Your cart is empty</p><a href="/shop">Browse Shop →</a></div>';
+      itemsEl.innerHTML = '<div class="mini-cart-empty"><p>' + escapeHtml(emptyText) + '</p><a href="/shop">' + escapeHtml(shopText) + ' →</a></div>';
       footerEl.style.display = 'none';
     } else {
       itemsEl.innerHTML = data.items.map(item =>
@@ -255,13 +262,13 @@ async function refreshMiniCart() {
         '<div class="mini-cart-item-details">' +
         '<strong>' + escapeHtml(item.name) + '</strong>' +
         (item.size || item.color ? '<small>' + escapeHtml(((item.size || '') + ' ' + (item.color || '')).trim()) + '</small>' : '') +
-        '<small>Qty: ' + Number(item.quantity) + '</small>' +
+        '<small>' + escapeHtml(qtyText) + ': ' + Number(item.quantity) + '</small>' +
         '</div>' +
-        '<span class="mini-cart-item-price">EGP ' + Number(item.lineTotal).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2}) + '</span>' +
+        '<span class="mini-cart-item-price">' + money.format(Number(item.lineTotal)) + ' EGP</span>' +
         '</div>'
       ).join('');
       footerEl.style.display = '';
-      totalEl.textContent = 'EGP ' + data.total.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2});
+      totalEl.textContent = money.format(Number(data.total)) + ' EGP';
     }
     // Also update header cart count
     document.querySelectorAll('.cart-count').forEach(el => { el.textContent = data.count; });
@@ -295,8 +302,17 @@ if ('IntersectionObserver' in window) {
         scrollObserver.unobserve(entry.target);
       }
     });
-  }, { threshold: 0.1 });
-  document.querySelectorAll('.animate-on-scroll').forEach(el => scrollObserver.observe(el));
+  }, { threshold: 0.01 });
+  document.querySelectorAll('.animate-on-scroll').forEach(el => {
+    const rect = el.getBoundingClientRect();
+    if (rect.top < window.innerHeight && rect.bottom > 0) {
+      el.classList.add('visible');
+    } else {
+      scrollObserver.observe(el);
+    }
+  });
+} else {
+  document.querySelectorAll('.animate-on-scroll').forEach(el => el.classList.add('visible'));
 }
 
 // --- A5. Checkout Spinner ---
