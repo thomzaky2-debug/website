@@ -749,13 +749,25 @@ html.dark-mode .site-header {
   }
 }
 
+.brand-logo-img {
+  height: 42px;
+  width: auto;
+  max-width: 150px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #000;
+  display: inline-block;
+  vertical-align: middle;
+}
 html.dark-mode .brand {
   color: var(--ink);
 }
 
-html.dark-mode .brand img {
-  box-shadow: 0 0 0 1px rgba(56, 201, 188, .28);
-  border-radius: 9px;
+html.dark-mode .brand img,
+html.dark-mode .brand-logo-img {
+  background: transparent;
+  box-shadow: 0 0 0 1px rgba(212, 175, 55, .35);
+  border-radius: 8px;
 }
 
 html.dark-mode .site-nav > a {

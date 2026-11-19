@@ -130,3 +130,4 @@ public class SubdomainMiddleware(RequestDelegate next, IOptions<SubdomainOptions
         await next(context);
     }
 }
+

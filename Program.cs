@@ -22,6 +22,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options => {
 builder.Services.AddDefaultIdentity<IdentityUser>(options => {
     options.Password.RequiredLength = 12;
     options.Password.RequireNonAlphanumeric = true;
+    options.Password.RequireUppercase = false;
     options.Lockout.MaxFailedAccessAttempts = 5;
     options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
     options.User.RequireUniqueEmail = true;
