@@ -76,7 +76,7 @@ public static class DbInitializer
 
                 Inspection & Refunds
                 • Once the returned item is received and inspected, approved refunds are processed back via your agreed refund method (such as InstaPay transfer or store wallet credit).
-                • Original delivery fees are non-refundable unless the return is due to a defective, damaged, or wrong item sent by NileShop.
+                • Original delivery fees are non-refundable unless the return is due to a defective, damaged, or wrong item sent by Chic & Unique.
                 """,
             ReturnsPolicyAr = """
                 مدة الاسترجاع والاستبدال
@@ -93,7 +93,7 @@ public static class DbInitializer
 
                 الفحص واسترداد المبلغ
                 • بعد استلام المنتج المرتجع وفحصه والتأكد من مطابقته للشروط، يتم رد المبلغ وفق وسيلة الاسترداد المتفق عليها (مثل التحويل عبر إنستاباي أو إضافته لرصيد المحفظة).
-                • رسوم التوصيل الأصلية غير قابلة للاسترداد إلا في حال كان الاسترجاع بسبب عيب أو تلف أو خطأ في الطلب من قِبل نايل شوب.
+                • رسوم التوصيل الأصلية غير قابلة للاسترداد إلا في حال كان الاسترجاع بسبب عيب أو تلف أو خطأ في الطلب من قِبل شيك آند يونيك (Chic & Unique).
                 """
         });
         if (!await db.ShippingMethods.AnyAsync()) db.ShippingMethods.AddRange(

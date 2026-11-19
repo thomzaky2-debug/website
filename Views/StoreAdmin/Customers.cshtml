@@ -1,6 +1,6 @@
 @model CustomersAdminViewModel
 @{ViewData["Title"]=Localizer["Customers"];}
-<div class="section-head"><div><span class="eyebrow">NileShop · @Localizer["Admin_Navigation"]</span><h1>@Localizer["Customers"]</h1><p class="muted">@Localizer["Customer_Directory_Help"]</p></div></div>
+<div class="section-head"><div><span class="eyebrow">Chic & Unique · @Localizer["Admin_Navigation"]</span><h1>@Localizer["Customers"]</h1><p class="muted">@Localizer["Customer_Directory_Help"]</p></div></div>
 <form method="get" class="panel operation-filters" data-async-form>
     <div class="field"><label for="customer-search">@Localizer["Customer_Search"]</label><input id="customer-search" name="q" value="@Model.Search" maxlength="100" placeholder="@Localizer["Customer_Search_Placeholder"]"/></div>
     <div class="field"><label for="customer-segment">@Localizer["Customer_Order_Activity"]</label><select id="customer-segment" name="segment"><option value="all" selected="@(Model.Segment=="all")">@Localizer["Customer_All"]</option><option value="with-orders" selected="@(Model.Segment=="with-orders")">@Localizer["Customer_With_Orders"]</option><option value="without-orders" selected="@(Model.Segment=="without-orders")">@Localizer["Customer_Without_Orders"]</option></select></div>

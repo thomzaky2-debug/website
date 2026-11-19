@@ -73,7 +73,7 @@ try:
     # 1. Client host serves storefront home
     status, body, _, _ = req('/', host='client.testshop.local', follow=False)
     assert status == 200, f'Expected 200 for client host root, got {status}'
-    assert 'NileShop' in body, 'Expected NileShop in client homepage'
+    assert 'Chic & Unique' in body or 'Chic &amp; Unique' in body, 'Expected Chic & Unique in client homepage'
     print('PASS client host serves storefront')
 
     # 2. Client host visiting admin path redirects to admin host

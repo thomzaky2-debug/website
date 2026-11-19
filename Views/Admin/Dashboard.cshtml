@@ -1,6 +1,6 @@
 @model DashboardViewModel
 @{ViewData["Title"]=Localizer["Nav_Dashboard"];}
-<div class="section-head"><div><span class="eyebrow">NileShop · @Localizer["Admin_Navigation"]</span><h1>@Localizer["Nav_Dashboard"]</h1><p class="muted">@Localizer["Dashboard_Intro"]</p></div></div>
+<div class="section-head"><div><span class="eyebrow">Chic & Unique · @Localizer["Admin_Navigation"]</span><h1>@Localizer["Nav_Dashboard"]</h1><p class="muted">@Localizer["Dashboard_Intro"]</p></div></div>
 <div class="kpis">@foreach(var k in new[]{("Revenue",Model.Revenue.ToString("N2")+" EGP"),("Orders",Model.TotalOrders.ToString()),("Products",Model.ActiveProducts.ToString()),("LowStock",Model.LowStock.ToString()),("Logs",Model.TotalLogs.ToString())}){<div class="panel"><small>@Localizer[k.Item1]</small><h2>@k.Item2</h2></div>}</div>
 <div class="admin-section-directory">
 @foreach(var destination in new[]{

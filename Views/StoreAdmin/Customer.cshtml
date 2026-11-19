@@ -1,6 +1,6 @@
 @model CustomerDetailAdminViewModel
 @{var customer=Model.Customer;var name=string.IsNullOrWhiteSpace(customer.Name)?customer.Email:customer.Name;ViewData["Title"]=name;}
-<div class="section-head"><div><span class="eyebrow">NileShop · @Localizer["Customers"]</span><h1>@name</h1><p class="muted" dir="auto">@customer.Email</p></div><a class="action-link" asp-action="Customers">← @Localizer["Customers"]</a></div>
+<div class="section-head"><div><span class="eyebrow">Chic & Unique · @Localizer["Customers"]</span><h1>@name</h1><p class="muted" dir="auto">@customer.Email</p></div><a class="action-link" asp-action="Customers">← @Localizer["Customers"]</a></div>
 <div class="kpis customer-summary">
     <div class="panel"><small>@Localizer["Orders"]</small><h2>@customer.Orders</h2></div>
     <div class="panel"><small>@Localizer["Customer_Paid_Orders"]</small><h2>@customer.PaidOrders</h2></div>
