@@ -31,7 +31,7 @@ builder.Services.AddDefaultIdentity<IdentityUser>(options => {
     options.User.RequireUniqueEmail = true;
 }).AddRoles<IdentityRole>().AddEntityFrameworkStores<ApplicationDbContext>();
 builder.Services.ConfigureApplicationCookie(o => {
-    o.Cookie.HttpOnly = true; o.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    o.Cookie.HttpOnly = true; o.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
     o.Cookie.SameSite = SameSiteMode.Lax; o.ExpireTimeSpan = TimeSpan.FromHours(2);
     o.LoginPath = "/Account/Login";
     o.Events.OnRedirectToLogin = context => {
@@ -62,9 +62,9 @@ builder.Services.Configure<RequestLocalizationOptions>(o => {
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(o => {
     o.IdleTimeout = TimeSpan.FromMinutes(30); o.Cookie.HttpOnly = true;
-    o.Cookie.IsEssential = true; o.Cookie.SecurePolicy = CookieSecurePolicy.Always; o.Cookie.SameSite = SameSiteMode.Lax;
+    o.Cookie.IsEssential = true; o.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest; o.Cookie.SameSite = SameSiteMode.Lax;
 });
-builder.Services.AddAntiforgery(o => o.Cookie.SecurePolicy = CookieSecurePolicy.Always);
+builder.Services.AddAntiforgery(o => o.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddDataProtection().SetApplicationName("NileShop");
 builder.Services.AddScoped<AuditService>();
