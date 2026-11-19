@@ -18,6 +18,30 @@ public static class DevelopmentSqlite
         if (shouldClose) await conn.OpenAsync();
         try
         {
+            var categoryColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            await using (var cmd = conn.CreateCommand()) {
+                cmd.CommandText = "PRAGMA table_info('Categories');";
+                await using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync()) categoryColumns.Add(reader.GetString(1));
+            }
+            if (!categoryColumns.Contains("IsHidden"))
+                await db.Database.ExecuteSqlRawAsync("ALTER TABLE Categories ADD COLUMN IsHidden INTEGER NOT NULL DEFAULT 0;");
+            var settingsColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            await using (var cmd = conn.CreateCommand()) {
+                cmd.CommandText = "PRAGMA table_info('StoreSettings');";
+                await using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync()) settingsColumns.Add(reader.GetString(1));
+            }
+            if (!settingsColumns.Contains("HeroImageUrl"))
+                await db.Database.ExecuteSqlRawAsync("ALTER TABLE StoreSettings ADD COLUMN HeroImageUrl TEXT NULL;");
+            if (!settingsColumns.Contains("FacebookUrl"))
+                await db.Database.ExecuteSqlRawAsync("ALTER TABLE StoreSettings ADD COLUMN FacebookUrl TEXT NULL;");
+            if (!settingsColumns.Contains("InstagramUrl"))
+                await db.Database.ExecuteSqlRawAsync("ALTER TABLE StoreSettings ADD COLUMN InstagramUrl TEXT NULL;");
+            if (!settingsColumns.Contains("TwitterUrl"))
+                await db.Database.ExecuteSqlRawAsync("ALTER TABLE StoreSettings ADD COLUMN TwitterUrl TEXT NULL;");
+            if (!settingsColumns.Contains("WhatsAppUrl"))
+                await db.Database.ExecuteSqlRawAsync("ALTER TABLE StoreSettings ADD COLUMN WhatsAppUrl TEXT NULL;");
             var orderColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             await using (var cmd = conn.CreateCommand())
             {

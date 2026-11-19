@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 namespace NileShop.Models;
 public class StoreSettings
 {
+    [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever, MaxLength(500)] public string? HeroImageUrl { get; set; }
     public int Id { get; set; } = 1;
     [EmailAddress, MaxLength(254)] public string? ContactEmail { get; set; }
     [Phone, MaxLength(30)] public string? ContactPhone { get; set; }
@@ -12,6 +13,10 @@ public class StoreSettings
     [MaxLength(6000)] public string? DeliveryPolicyAr { get; set; }
     [MaxLength(6000)] public string? ReturnsPolicyEn { get; set; }
     [MaxLength(6000)] public string? ReturnsPolicyAr { get; set; }
+    [MaxLength(500)] public string? FacebookUrl { get; set; }
+    [MaxLength(500)] public string? InstagramUrl { get; set; }
+    [MaxLength(500)] public string? TwitterUrl { get; set; }
+    [MaxLength(500)] public string? WhatsAppUrl { get; set; }
 }
 public class ShippingMethod
 {

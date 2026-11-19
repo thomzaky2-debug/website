@@ -11,16 +11,40 @@ using Microsoft.Extensions.Options;
 namespace NileShop.Controllers;
 [Authorize(Roles = "Admin")]
 [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-public class StoreAdminController(ApplicationDbContext db, OrderOperations operations, NilePayService payments, AuditService audit, IDataProtectionProvider protection, NilePayClient gateway, IOptions<NilePayOptions> gatewayOptions) : Controller
+public class StoreAdminController(ApplicationDbContext db, CustomerAdminService customers, WalletService wallet, ProductImageService images, OrderOperations operations, NilePayService payments, AuditService audit, IDataProtectionProvider protection, NilePayClient gateway, IOptions<NilePayOptions> gatewayOptions) : Controller
 {
-    public async Task<IActionResult> Customers(string? q,int page=1)
+    public async Task<IActionResult> Customers(string? q, string segment = "all", int page = 1)
     {
-        q=q?.Trim();if(q?.Length>100)q=q[..100];page=Math.Clamp(page,1,100000);
-        var query=db.Users.AsNoTracking().Where(u=>!db.UserRoles.Any(ur=>ur.UserId==u.Id&&db.Roles.Any(r=>r.Id==ur.RoleId&&r.Name=="Admin")));
-        if(!string.IsNullOrWhiteSpace(q))query=query.Where(u=>(u.Email!=null&&u.Email.Contains(q))||(u.PhoneNumber!=null&&u.PhoneNumber.Contains(q))||db.UserClaims.Any(c=>c.UserId==u.Id&&(c.ClaimType==CustomerProfileViewModel.FullNameClaim||c.ClaimType==CustomerProfileViewModel.WhatsAppClaim)&&c.ClaimValue!=null&&c.ClaimValue.Contains(q)));
-        var count=await query.CountAsync();
-        var rows=await query.OrderBy(u=>u.Email).Skip((page-1)*30).Take(30).Select(u=>new CustomerAdminRow(u.Id,u.Email??"",u.PhoneNumber??"",db.UserClaims.Where(c=>c.UserId==u.Id&&c.ClaimType==CustomerProfileViewModel.FullNameClaim).Select(c=>c.ClaimValue).FirstOrDefault()??"",db.Orders.Count(o=>o.CustomerUserId==u.Id))).ToListAsync();
-        return View(new CustomersAdminViewModel(rows,q,page,(int)Math.Ceiling(count/30d)));
+        q = q?.Trim(); if (q?.Length > 100) q = q[..100];
+        page = Math.Clamp(page, 1, 100000);
+        if (segment is not ("all" or "with-orders" or "without-orders")) segment = "all";
+        var query = customers.Customers();
+        if (!string.IsNullOrWhiteSpace(q)) query = query.Where(user => (user.Email != null && user.Email.Contains(q))
+            || (user.PhoneNumber != null && user.PhoneNumber.Contains(q))
+            || db.UserClaims.Any(claim => claim.UserId == user.Id && (claim.ClaimType == CustomerProfileViewModel.FullNameClaim || claim.ClaimType == CustomerProfileViewModel.WhatsAppClaim || claim.ClaimType == CustomerProfileViewModel.AddressClaim) && claim.ClaimValue != null && claim.ClaimValue.Contains(q)));
+        if (segment == "with-orders") query = query.Where(user => db.Orders.Any(order => order.CustomerUserId == user.Id));
+        if (segment == "without-orders") query = query.Where(user => !db.Orders.Any(order => order.CustomerUserId == user.Id));
+        var count = await query.CountAsync();
+        page = Math.Min(page, Math.Max(1, (int)Math.Ceiling(count / 30d)));
+        var users = await query.OrderBy(user => user.Email).ThenBy(user => user.Id).Skip((page - 1) * 30).Take(30).ToListAsync();
+        return View(new CustomersAdminViewModel(await customers.RowsAsync(users), q, page, (int)Math.Ceiling(count / 30d), count, segment));
+    }
+    [HttpGet]
+    public async Task<IActionResult> Customer(string id, int page = 1)
+    {
+        if (string.IsNullOrWhiteSpace(id)) return NotFound();
+        var user = await customers.Customers().SingleOrDefaultAsync(user => user.Id == id);
+        if (user is null) return NotFound();
+        var customer = (await customers.RowsAsync(new[] { user })).Single();
+        page = Math.Clamp(page, 1, Math.Max(1, (int)Math.Ceiling(customer.Orders / 20d)));
+        var orders = await db.Orders.AsNoTracking().Where(order => order.CustomerUserId == id)
+            .OrderByDescending(order => order.Id).Skip((page - 1) * 20).Take(20).ToListAsync();
+        await OrderStatusPresentation.LoadAsync(db, orders);
+        var reviews = await db.ProductReviews.AsNoTracking().Where(review => review.UserId == id)
+            .Include(review => review.Product).ThenInclude(product => product.Translations).OrderByDescending(review => review.Id).Take(5).ToListAsync();
+        return View(new CustomerDetailAdminViewModel(customer, await wallet.GetBalanceAsync(id),
+            await db.SavedProducts.CountAsync(saved => saved.UserId == id), await db.ProductReviews.CountAsync(review => review.UserId == id),
+            orders, page, (int)Math.Ceiling(customer.Orders / 20d), await wallet.GetTransactionsAsync(id, 10), reviews));
     }
     public async Task<IActionResult> Reviews(int page=1)
     {
@@ -39,11 +63,18 @@ public class StoreAdminController(ApplicationDbContext db, OrderOperations opera
         q = q?.Trim(); if (q?.Length > 100) q = q[..100]; page = Math.Clamp(page,1,100000);
         var query = db.Orders.AsNoTracking();
         if (!string.IsNullOrEmpty(q)) query = query.Where(o => o.OrderNumber.Contains(q) || o.CustomerName.Contains(q) || o.CustomerEmail.Contains(q));
-        if (status == "review") query = query.Where(o => o.NeedsPaymentReview);
-        else if (status is "Paid" or "Overpaid" or "Underpaid" or "Unpaid" or "Refunded") query = query.Where(o => o.PaymentStatus == status);
+        if (status is "Expired" or "PaymentCancelled" or "PaymentFailed" or "Incomplete" or "AwaitingPayment") query = OrderStatusPresentation.Filter(db, query, status);
+        else if (status == "review") query = query.Where(o => o.NeedsPaymentReview);
+        else if (status is "Overpaid" or "Underpaid") {
+            var gatewayState = status == "Overpaid" ? "OVERPAID" : "UNDERPAID";
+            query = query.Where(o => o.PaymentStatus == status || (o.Status == OrderStatuses.Pending && o.PaymentStatus == "Unpaid" && !o.NeedsPaymentReview && db.PaymentAttempts.Any(p => p.OrderId == o.Id && p.SessionId != null && p.GatewayStatus == gatewayState)));
+        }
+        else if (status is "Paid" or "Unpaid" or "Refunded") query = query.Where(o => o.PaymentStatus == status);
         else if (OrderStatuses.All.Contains(status)) query = query.Where(o => o.Status == status);
         var count = await query.CountAsync();
-        return View(new OperationsViewModel { Orders = await query.OrderByDescending(o => o.Id).Skip((page-1)*30).Take(30).ToListAsync(), Page=page, TotalPages=(int)Math.Ceiling(count/30d), Search=q, Status=status,
+        var orders = await query.OrderByDescending(o => o.Id).Skip((page-1)*30).Take(30).ToListAsync();
+        await OrderStatusPresentation.LoadAsync(db, orders);
+        return View(new OperationsViewModel { Orders = orders, Page=page, TotalPages=(int)Math.Ceiling(count/30d), Search=q, Status=status,
             LowStock=await db.Products.AsNoTracking().Include(p=>p.Translations).Where(p=>p.IsActive && p.StockQuantity<=5).OrderBy(p=>p.StockQuantity).Take(50).ToListAsync(),
             PendingEmails=await db.OrderEmails.CountAsync(e=>e.SentAt==null), FailedEmails=await db.OrderEmails.CountAsync(e=>e.SentAt==null && e.Attempts>=8), EmailConfigured=await db.StoreMailSettings.AnyAsync(s=>s.Enabled && s.Host!="" && s.From!="") });
     }
@@ -51,6 +82,7 @@ public class StoreAdminController(ApplicationDbContext db, OrderOperations opera
     {
         var order=await db.Orders.AsNoTracking().Include(o=>o.Items).Include(o=>o.Updates).AsSplitQuery().SingleOrDefaultAsync(o=>o.Id==id);
         if(order is null)return NotFound();
+        await OrderStatusPresentation.LoadAsync(db, new[] { order });
         ViewData["Attempt"]=await db.PaymentAttempts.AsNoTracking().SingleOrDefaultAsync(p=>p.OrderId==id);
         ViewData["Emails"]=await db.OrderEmails.AsNoTracking().Where(e=>e.OrderId==id).ToListAsync();
         return View(order);
@@ -118,9 +150,51 @@ public class StoreAdminController(ApplicationDbContext db, OrderOperations opera
     [HttpPost,ValidateAntiForgeryToken]
     public async Task<IActionResult> Settings(StoreSettings model)
     {
+        model.FacebookUrl = NormalizeSocialUrl(model.FacebookUrl, nameof(model.FacebookUrl));
+        model.InstagramUrl = NormalizeSocialUrl(model.InstagramUrl, nameof(model.InstagramUrl));
+        model.TwitterUrl = NormalizeSocialUrl(model.TwitterUrl, nameof(model.TwitterUrl));
+        model.WhatsAppUrl = NormalizeSocialUrl(model.WhatsAppUrl, nameof(model.WhatsAppUrl), allowPhone: true);
         if(!ModelState.IsValid){await SettingsData();return View(model);}
-        var settings=await db.StoreSettings.FirstAsync();model.Id=settings.Id;db.Entry(settings).CurrentValues.SetValues(model);
-        await audit.LogAsync("STORE_SETTINGS","Store","Updated contact and policy settings");TempData["Success"]="Admin_Saved";return RedirectToAction(nameof(Settings));
+        var settings=await db.StoreSettings.FirstAsync();model.Id=settings.Id;model.HeroImageUrl=settings.HeroImageUrl;db.Entry(settings).CurrentValues.SetValues(model);
+        await audit.LogAsync("STORE_SETTINGS","Store","Updated contact, social and policy settings");TempData["Success"]="Admin_Saved";return RedirectToAction(nameof(Settings));
+    }
+    string? NormalizeSocialUrl(string? raw, string field, bool allowPhone = false)
+    {
+        var value = raw?.Trim();
+        if (string.IsNullOrEmpty(value)) return null;
+        if (allowPhone && !value.Contains("://", StringComparison.Ordinal))
+        {
+            var digits = new string(value.Where(char.IsDigit).ToArray());
+            if (digits.Length >= 8 && digits.Length <= 15 && value.All(c => char.IsDigit(c) || c is '+' or ' ' or '-' or '(' or ')'))
+            {
+                if (digits.StartsWith("01") && digits.Length == 11) digits = "2" + digits;
+                return "https://wa.me/" + digits;
+            }
+        }
+        if (Uri.TryCreate(value, UriKind.Absolute, out var uri) && uri.Scheme is "https" or "http" && string.IsNullOrEmpty(uri.UserInfo))
+            return uri.AbsoluteUri;
+        ModelState.AddModelError(field, "Validation_SocialUrl");
+        return value;
+    }
+    [HttpPost, ValidateAntiForgeryToken, RequestSizeLimit(5 * 1024 * 1024)]
+    public async Task<IActionResult> HeroImage(IFormFile? heroImage, bool reset = false)
+    {
+        var settings = await db.StoreSettings.FirstAsync();
+        if (reset) settings.HeroImageUrl = null;
+        else {
+            if (heroImage is null || heroImage.Length == 0) {
+                TempData["Error"] = "Hero_Image_Required";
+                return RedirectToAction(nameof(Settings), new { anchor = "appearance" });
+            }
+            try { settings.HeroImageUrl = (await images.SaveAsync(new[] { heroImage })).Single(); }
+            catch (InvalidDataException) {
+                TempData["Error"] = "Images_Invalid";
+                return RedirectToAction(nameof(Settings), new { anchor = "appearance" });
+            }
+        }
+        await audit.LogAsync("HERO_IMAGE_UPDATED", "Store", reset ? "Restored default homepage image" : "Updated homepage image");
+        TempData["Success"] = "Admin_Saved";
+        return RedirectToAction(nameof(Settings), new { anchor = "appearance" });
     }
     [HttpPost,ValidateAntiForgeryToken]
     public async Task<IActionResult> Mail(MailSettingsViewModel model)

@@ -13,7 +13,7 @@ public class SavedController(ApplicationDbContext db,UserManager<IdentityUser> u
     public async Task<IActionResult> Index()
     {
         var id=users.GetUserId(User)!;
-        var products=await db.Products.AsNoTracking().Where(p=>p.IsActive&&db.SavedProducts.Any(s=>s.UserId==id&&s.ProductId==p.Id)).Include(p=>p.Translations).Include(p=>p.Category).ThenInclude(c=>c.Translations).ToListAsync();
+        var products=await db.Products.AsNoTracking().Where(p=>p.IsActive && !p.Category.IsHidden&&db.SavedProducts.Any(s=>s.UserId==id&&s.ProductId==p.Id)).Include(p=>p.Translations).Include(p=>p.Category).ThenInclude(c=>c.Translations).ToListAsync();
         ViewBag.AccountSavedCount=products.Count;
         ViewBag.AccountOrdersCount=await db.Orders.AsNoTracking().CountAsync(o=>o.CustomerUserId==id);
         ViewBag.AccountWalletBalance=await wallet.GetBalanceAsync(id);
@@ -25,7 +25,7 @@ public class SavedController(ApplicationDbContext db,UserManager<IdentityUser> u
     public async Task<IActionResult> Save(int productId,string? returnUrl)
     {
         var id=users.GetUserId(User)!;
-        if(!await db.Products.AnyAsync(p=>p.Id==productId&&p.IsActive))return NotFound();
+        if(!await db.Products.AnyAsync(p=>p.Id==productId&&p.IsActive && !p.Category.IsHidden))return NotFound();
         if(!await db.SavedProducts.AnyAsync(s=>s.UserId==id&&s.ProductId==productId)){
             db.SavedProducts.Add(new SavedProduct{UserId=id,ProductId=productId});
             try{await db.SaveChangesAsync();}catch(DbUpdateException){if(!await db.SavedProducts.AsNoTracking().AnyAsync(s=>s.UserId==id&&s.ProductId==productId))throw;}

@@ -295,6 +295,9 @@ namespace NileShop.Migrations
 
             modelBuilder.Entity("NileShop.Models.Category", b =>
                 {
+                    b.Property<bool>("IsHidden")
+                        .HasColumnType("bit");
+
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
@@ -983,6 +986,10 @@ namespace NileShop.Migrations
 
             modelBuilder.Entity("NileShop.Models.StoreSettings", b =>
                 {
+                    b.Property<string>("HeroImageUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");

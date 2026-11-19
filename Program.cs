@@ -53,7 +53,7 @@ builder.Services.AddRateLimiter(options => {
 builder.Services.Configure<RequestLocalizationOptions>(o => {
     o.DefaultRequestCulture = new RequestCulture("en");
     o.SupportedCultures = o.SupportedUICultures = new[] { new CultureInfo("en"), new CultureInfo("ar") };
-    o.RequestCultureProviders = [new CookieRequestCultureProvider()];
+    o.RequestCultureProviders = [new ScopedLanguageProvider(), new AcceptLanguageHeaderRequestCultureProvider()];
 });
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(o => {
@@ -73,6 +73,7 @@ builder.Services.AddHttpClient<NilePayClient>(http => http.Timeout = TimeSpan.Fr
 builder.Services.AddScoped<NilePayService>();
 builder.Services.AddScoped<OrderOperations>();
 builder.Services.AddScoped<WalletService>();
+builder.Services.AddScoped<CustomerAdminService>();
 builder.Services.AddScoped<ProductImageService>();
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("Smtp"));
 builder.Services.AddHostedService<StoreWorker>();
@@ -116,9 +117,9 @@ app.Use(async (context, next) => {
 app.UseStaticFiles();
 app.UseRouting();
 app.UseRateLimiter();
-app.UseRequestLocalization();
 app.UseSession();
 app.UseAuthentication();
+app.UseRequestLocalization();
 app.UseAuthorization();
 app.MapControllerRoute("default", "{controller=Home}/{action=Index}/{id?}");
 app.MapRazorPages();

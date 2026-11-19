@@ -108,17 +108,18 @@ public class DashboardViewModel
     public int ActiveProducts { get; set; }
     public int LowStock { get; set; }
     public int TotalLogs { get; set; }
-    public IReadOnlyList<Product> Products { get; set; } = [];
-    public IReadOnlyList<Category> Categories { get; set; } = [];
-    public IReadOnlyList<Order> Orders { get; set; } = [];
-    public IReadOnlyList<AuditLog> Logs { get; set; } = [];
-    public int Page { get; set; }
-    public int TotalPages { get; set; }
+
 }
 
 public class LandingViewModel
 {
+    public string HeroImageUrl { get; set; } = "/assets/img/slider/slider0.jpg";
     public IReadOnlyList<CategoryProductGroup> Categories { get; set; } = [];
     public IReadOnlyList<ProductCard> Featured { get; set; } = [];
     public IReadOnlyList<ProductCard> Latest { get; set; } = [];
 }
+
+public record AdminCategorySummary(Category Category, int ProductCount);
+public record AdminProductsViewModel(IReadOnlyList<Product> Products, int Page, int TotalPages, IReadOnlyList<AdminCategorySummary> Categories, int? CategoryId);
+public record AdminCategoriesViewModel(IReadOnlyList<Category> Categories);
+public record AdminAuditViewModel(IReadOnlyList<AuditLog> Logs, string? Search, int Page, int TotalPages);

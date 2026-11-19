@@ -25,10 +25,11 @@ public class AccountController(UserManager<IdentityUser> users, SignInManager<Id
             : (claims.FirstOrDefault(c => c.Type == CustomerProfileViewModel.AddressClaim)?.Value ?? "");
         var ordersQuery = db.Orders.AsNoTracking().Where(o => o.CustomerUserId == user.Id);
         var ordersCount = await ordersQuery.CountAsync();
-        var savedCount = await db.SavedProducts.AsNoTracking().CountAsync(s => s.UserId == user.Id && s.Product.IsActive);
+        var savedCount = await db.SavedProducts.AsNoTracking().CountAsync(s => s.UserId == user.Id && s.Product.IsActive && !s.Product.Category.IsHidden);
         var reviewsCount = await db.ProductReviews.AsNoTracking().CountAsync(r => r.UserId == user.Id);
         var walletBalance = await wallet.GetBalanceAsync(user.Id);
         var recentOrders = await ordersQuery.OrderByDescending(o => o.Id).Take(3).ToListAsync();
+        await OrderStatusPresentation.LoadAsync(db, recentOrders);
         ViewBag.AccountOrdersCount = ordersCount;
         ViewBag.AccountSavedCount = savedCount;
         ViewBag.AccountWalletBalance = walletBalance;
@@ -63,7 +64,7 @@ public class AccountController(UserManager<IdentityUser> users, SignInManager<Id
         var balance = await wallet.GetBalanceAsync(user.Id);
         var txList = await wallet.GetTransactionsAsync(user.Id, 100);
         ViewBag.AccountOrdersCount = await db.Orders.AsNoTracking().CountAsync(o => o.CustomerUserId == user.Id);
-        ViewBag.AccountSavedCount = await db.SavedProducts.AsNoTracking().CountAsync(s => s.UserId == user.Id && s.Product.IsActive);
+        ViewBag.AccountSavedCount = await db.SavedProducts.AsNoTracking().CountAsync(s => s.UserId == user.Id && s.Product.IsActive && !s.Product.Category.IsHidden);
         ViewBag.AccountWalletBalance = balance;
         return View(new CustomerWalletViewModel
         {
@@ -80,10 +81,12 @@ public class AccountController(UserManager<IdentityUser> users, SignInManager<Id
         var query=db.Orders.AsNoTracking().Where(o=>o.CustomerUserId==id);
         var total=await query.CountAsync();
         ViewBag.AccountOrdersCount=total;
-        ViewBag.AccountSavedCount=await db.SavedProducts.AsNoTracking().CountAsync(s=>s.UserId==id&&s.Product.IsActive);
+        ViewBag.AccountSavedCount=await db.SavedProducts.AsNoTracking().CountAsync(s=>s.UserId==id&&s.Product.IsActive && !s.Product.Category.IsHidden);
         ViewBag.AccountWalletBalance=await wallet.GetBalanceAsync(id);
         ViewData["Page"]=page;ViewData["Pages"]=(int)Math.Ceiling(total/20d);
-        return View(await query.OrderByDescending(o=>o.Id).Skip((page-1)*20).Take(20).ToListAsync());
+        var orders=await query.OrderByDescending(o=>o.Id).Skip((page-1)*20).Take(20).ToListAsync();
+        await OrderStatusPresentation.LoadAsync(db,orders);
+        return View(orders);
     }
     [Authorize,HttpPost,ValidateAntiForgeryToken]
     public async Task<IActionResult> Profile(CustomerProfileViewModel model, bool stay = false)
@@ -113,7 +116,7 @@ public class AccountController(UserManager<IdentityUser> users, SignInManager<Id
         }
         if(!result.Succeeded){await tx.RollbackAsync();ModelState.AddModelError("",localizer["Error"]);return View("Index",await BuildProfileAsync(user,model));}
         await tx.CommitAsync();await signIn.RefreshSignInAsync(user);TempData["Success"]="Profile_Saved";
-        return stay ? RedirectToAction(nameof(Index)) : RedirectToAction("Index","Home");
+        return (stay || Request.Headers["X-NileShop-Async"] == "true") ? RedirectToAction(nameof(Index)) : RedirectToAction("Index","Home");
     }
     [Authorize,HttpPost,ValidateAntiForgeryToken,EnableRateLimiting("customer-auth")]
     public async Task<IActionResult> ChangePassword(CustomerPasswordViewModel model)
@@ -166,7 +169,10 @@ public class AccountController(UserManager<IdentityUser> users, SignInManager<Id
         if(!result.Succeeded){ModelState.AddModelError("",localizer["Registration_Failed"]);return View(model);}
         result=await users.AddClaimAsync(user,new Claim(CustomerProfileViewModel.FullNameClaim,model.FullName.Trim()));
         if(!result.Succeeded){await tx.RollbackAsync();ModelState.AddModelError("",localizer["Registration_Failed"]);return View(model);}
+        result=await users.AddClaimAsync(user,new Claim(LanguagePreferences.ClaimType(false), model.PreferredLanguage));
+        if(!result.Succeeded){await tx.RollbackAsync();ModelState.AddModelError("",localizer["Registration_Failed"]);return View(model);}
         await tx.CommitAsync();
+        LanguagePreferences.WriteCookie(Response,false,model.PreferredLanguage);
         await signIn.SignInAsync(user,isPersistent:false);
         return LocalRedirect(SafeReturn(model.ReturnUrl));
     }

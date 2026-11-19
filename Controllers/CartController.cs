@@ -14,7 +14,7 @@ public class CartController(CartService cart, ApplicationDbContext db, CheckoutS
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Add(int productId, int quantity = 1, string? size = null, string? color = null, string? returnUrl = null)
     {
-        var p = await db.Products.AsNoTracking().SingleOrDefaultAsync(p => p.Id == productId && p.IsActive);
+        var p = await db.Products.AsNoTracking().SingleOrDefaultAsync(p => p.Id == productId && p.IsActive && !p.Category.IsHidden);
         var items = cart.Read(); var selection = new CartSelection(productId, quantity, size, color);
         if (p is null || quantity is < 1 or > 99 || items.Values.Where(x => x.ProductId == productId).Sum(x => x.Quantity) + quantity > Math.Min(99, p.StockQuantity) || (items.Count >= 50 && !items.ContainsKey(selection.Key)))
             TempData["Error"] = "Error_StockChanged";
@@ -28,7 +28,7 @@ public class CartController(CartService cart, ApplicationDbContext db, CheckoutS
     {
         if (!ModelState.IsValid) return BadRequest();
         var items = cart.Read(); if (cartKey is null || !items.TryGetValue(cartKey, out var item)) return RedirectToAction(nameof(Index));
-        var stock = await db.Products.Where(p => p.Id == item.ProductId && p.IsActive).Select(p => (int?)p.StockQuantity).SingleOrDefaultAsync();
+        var stock = await db.Products.Where(p => p.Id == item.ProductId && p.IsActive && !p.Category.IsHidden).Select(p => (int?)p.StockQuantity).SingleOrDefaultAsync();
         var other = items.Values.Where(x => x.ProductId == item.ProductId && x.Key != cartKey).Sum(x => x.Quantity);
         if (quantity == 0) items.Remove(cartKey);
         else if (quantity is >= 1 and <= 99 && other + quantity <= Math.Min(stock ?? 0, 99)) items[cartKey] = item with { Quantity = quantity };
@@ -125,7 +125,7 @@ public class CartController(CartService cart, ApplicationDbContext db, CheckoutS
     {
         size ??= selectedSize;
         color ??= selectedColor;
-        var p = await db.Products.AsNoTracking().SingleOrDefaultAsync(p => p.Id == productId && p.IsActive);
+        var p = await db.Products.AsNoTracking().SingleOrDefaultAsync(p => p.Id == productId && p.IsActive && !p.Category.IsHidden);
         if (p is null)
             return BadRequest(new { success = false, message = localizer["Error_StockChanged"].Value });
         var items = cart.Read();
@@ -150,7 +150,7 @@ public class CartController(CartService cart, ApplicationDbContext db, CheckoutS
         var productIds = items.Values.Select(x => x.ProductId).Distinct().ToArray();
         var products = await db.Products.AsNoTracking()
             .Include(p => p.Translations).Include(p => p.Category).ThenInclude(c => c.Translations)
-            .Where(p => productIds.Contains(p.Id) && p.IsActive).ToListAsync();
+            .Where(p => productIds.Contains(p.Id) && p.IsActive && !p.Category.IsHidden).ToListAsync();
         var cartItems = items.Values
             .Where(x => products.Any(p => p.Id == x.ProductId))
             .Select(x =>

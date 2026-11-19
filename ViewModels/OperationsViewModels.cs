@@ -14,5 +14,9 @@ public class OperationsViewModel
 }
 public record SalesDay(DateTime Date, int Orders, decimal Collected);
 public record ReportViewModel(DateTime From, DateTime To, IReadOnlyList<SalesDay> Days, decimal Refunds);
-public record CustomerAdminRow(string Id,string Email,string Phone,string Name,int Orders);
-public record CustomersAdminViewModel(IReadOnlyList<CustomerAdminRow> Customers,string? Search,int Page,int Pages);
+public record CustomerAdminRow(string Id, string Email, string Phone, string Name, string WhatsApp,
+    string Address, string PreferredLanguage, bool EmailConfirmed, bool IsLocked, DateTimeOffset? LockoutEnd,
+    int Orders, int PaidOrders, decimal PaidOrderValue, DateTime? LastOrderAt);
+public record CustomersAdminViewModel(IReadOnlyList<CustomerAdminRow> Customers, string? Search, int Page, int Pages, int TotalMatches, string Segment);
+public record CustomerDetailAdminViewModel(CustomerAdminRow Customer, decimal WalletBalance, int SavedCount, int ReviewCount,
+    IReadOnlyList<Order> Orders, int Page, int Pages, IReadOnlyList<WalletTransaction> WalletTransactions, IReadOnlyList<ProductReview> Reviews);

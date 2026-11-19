@@ -2,4 +2,4 @@
 <input asp-for="Id" type="hidden"/><div asp-validation-summary="All" class="validation"></div>
 <div class="field"><label asp-for="Slug">@Localizer["Slug"]</label><input asp-for="Slug"/><span asp-validation-for="Slug"></span></div>
 <div class="bilingual"><fieldset dir="ltr"><legend>English</legend><div class="field"><label asp-for="NameEn">@Localizer["NameEn"]</label><input asp-for="NameEn"/><span asp-validation-for="NameEn"></span></div></fieldset><fieldset dir="rtl"><legend>العربية</legend><div class="field"><label asp-for="NameAr">@Localizer["NameAr"]</label><input asp-for="NameAr"/><span asp-validation-for="NameAr"></span></div></fieldset></div>
-<div class="editor-actions"><button class="primary-button">@Localizer["Save"]</button><a asp-action="Dashboard">@Localizer["Cancel"]</a></div>
+<div class="editor-actions"><button class="primary-button">@Localizer["Save"]</button><a asp-action="Categories">@Localizer["Cancel"]</a></div>

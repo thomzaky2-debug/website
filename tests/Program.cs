@@ -63,3 +63,16 @@ var mixed=await CatalogSearch.Match(active," LEATHER   RED ").Select(x=>x.Id).To
 Check(mixed.Contains(exact.Id),"search matches case-insensitive words in any order");
 Check(await CatalogSearch.Rank(CatalogSearch.Match(active,"red leather bag"),"red leather bag").Select(x=>x.Id).FirstAsync()==exact.Id,"exact product name outranks description-only match");
 Check(await CatalogSearch.Match(active,"حمراء حقيبة").AnyAsync(x=>x.Id==exact.Id),"Arabic multiword search works across translations");
+
+var displayOrder = new Order();
+Check(OrderStatusPresentation.Key(displayOrder)=="Order_Checkout_Incomplete","checkout without a session is labeled incomplete");
+foreach(var state in new[]{("EXPIRED","Order_Payment_Expired"),("FAILED","Order_Payment_Failed"),("CANCELLED","Order_Payment_Cancelled"),("PENDING","Order_Awaiting_Payment")}) {
+    displayOrder.PaymentSessionStatus=state.Item1;
+    Check(OrderStatusPresentation.Key(displayOrder)==state.Item2,"payment display state: "+state.Item1);
+}
+displayOrder.PaymentSessionStatus="EXPIRED";displayOrder.PaymentStatus="Paid";displayOrder.Status=OrderStatuses.Processing;
+Check(OrderStatusPresentation.Key(displayOrder)==OrderStatuses.Processing,"settled order cannot display a stale session expiry");
+displayOrder.PaymentStatus="Refunded";
+Check(OrderStatusPresentation.Key(displayOrder)=="Refunded","refund status wins over session and fulfilment state");
+displayOrder.NeedsPaymentReview=true;
+Check(OrderStatusPresentation.Key(displayOrder)=="Payment_Review","review flag remains prominent for late or mismatched payments");

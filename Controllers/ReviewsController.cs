@@ -14,7 +14,7 @@ public class ReviewsController(ApplicationDbContext db,UserManager<IdentityUser>
     {
         if(!ModelState.IsValid||rating is <1 or >5||string.IsNullOrWhiteSpace(text)||text.Length>1000)return BadRequest();
         var user=await users.GetUserAsync(User);if(user is null)return Challenge();
-        var product=await db.Products.AsNoTracking().SingleOrDefaultAsync(p=>p.Id==productId&&p.IsActive);if(product is null)return NotFound();
+        var product=await db.Products.AsNoTracking().SingleOrDefaultAsync(p=>p.Id==productId&&p.IsActive && !p.Category.IsHidden);if(product is null)return NotFound();
         if(!await db.Orders.AnyAsync(o=>o.CustomerUserId==user.Id&&(o.PaymentStatus=="Paid"||o.PaymentStatus=="Overpaid")&&!o.NeedsPaymentReview&&o.Status==OrderStatuses.Shipped&&o.Items.Any(i=>i.ProductId==productId)))return Forbid();
         if(await db.ProductReviews.AnyAsync(r=>r.UserId==user.Id&&r.ProductId==productId)){TempData["Error"]="Review_Exists";return RedirectToAction("Details","Products",new{slug=product.Slug});}
         var name=(await users.GetClaimsAsync(user)).FirstOrDefault(c=>c.Type==CustomerProfileViewModel.FullNameClaim)?.Value??"Customer";

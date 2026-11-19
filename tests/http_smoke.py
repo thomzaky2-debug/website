@@ -4,9 +4,9 @@ password=secrets.token_urlsafe(24)+'Aa1!'
 env=dict(os.environ,ASPNETCORE_ENVIRONMENT='Development',Database__UseDevelopmentSqlite='true',Database__DevelopmentSqlitePath='.dotnet/smoke-'+secrets.token_hex(6)+'.db',AdminSettings__Email='smoke@example.com',AdminSettings__Password=password,ASPNETCORE_URLS='https://localhost:5444')
 log=open('http-server.log','w');proc=subprocess.Popen(['.dotnet/dotnet','bin/Debug/net8.0/NileShop.dll'],env=env,stdout=log,stderr=log)
 jar=http.cookiejar.CookieJar();opener=urllib.request.build_opener(urllib.request.HTTPSHandler(context=ssl._create_unverified_context()),urllib.request.HTTPCookieProcessor(jar));base='https://localhost:5444'
-def req(path,data=None):
+def req(path,data=None,headers=None):
  try:
-  with opener.open(base+path,urllib.parse.urlencode(data).encode() if data is not None else None,timeout=10) as r:return r.status,r.read().decode(),r.url
+  with opener.open(urllib.request.Request(base+path,urllib.parse.urlencode(data).encode() if data is not None else None,headers or {}),timeout=10) as r:return r.status,r.read().decode(),r.url
  except urllib.error.HTTPError as e:return e.code,e.read().decode(),e.url
 def token(body):return re.search(r'name="__RequestVerificationToken"[^>]*value="([^"]+)"',body).group(1)
 def check(ok,name):
@@ -41,10 +41,35 @@ try:
  check('/Identity/Account/Login' in req('/Admin/Dashboard')[2],'anonymous admin access denied')
  s,ar,_=req('/Home/SetLanguage',{'culture':'ar','returnUrl':'/?q=runner','__RequestVerificationToken':token(home)})
  check(s==200 and 'dir="rtl"' in ar and 'lang="ar"' in ar,'Arabic cookie switch and RTL rendering')
+ check('lang="en"' in req('/Identity/Account/Login')[1],'storefront language does not affect admin login')
+ req('/Home/SetLanguage',{'culture':'en','returnUrl':'/','__RequestVerificationToken':token(ar)})
+
  _,login,_=req('/Identity/Account/Login')
  s,dashboard,url=req('/Identity/Account/Login',{'Email':'smoke@example.com','Password':password,'__RequestVerificationToken':token(login)})
- check(s==200 and '/Admin/Dashboard' in url and 'audit-table' in dashboard,'admin login and dashboard rendering')
+ check(s==200 and '/Admin/Dashboard' in url and 'admin-section-directory' in dashboard,'admin login and dashboard rendering')
+ check('id="products"' not in dashboard and 'id="categories"' not in dashboard and 'audit-table' not in dashboard,'dashboard is an overview without embedded management sections')
+ for route,marker in [('/Admin/Products','admin-products-table'),('/Admin/Categories','admin-category-grid'),('/Admin/AuditLogs','audit-table')]:
+  code,section,_=req(route)
+  check(code==200 and marker in section,'dedicated admin section renders: '+route)
+  nav=re.search(r'<nav id="site-nav".*?</nav>',section,re.S).group(0)
+  check(nav.count('aria-current="page"')==1,'dedicated section highlights one navigation link')
+ check('ADMIN_LOGIN' in req('/Admin/AuditLogs?q=ADMIN_LOGIN')[1] and 'ADMIN_LOGIN' not in req('/Admin/AuditLogs?q=does-not-exist-search')[1],'audit search filters all matching activity on the server')
+ _,grouped_products,_=req('/Admin/Products')
+ check(grouped_products.count('class="admin-product-category"')==5 and grouped_products.count('class="admin-product-identity"')==12,'admin products are grouped by category without duplicate products')
+ _,shoes_only,_=req('/Admin/Products?categoryId=1')
+ check(shoes_only.count('class="admin-product-category"')==1 and shoes_only.count('class="admin-product-identity"')==3 and 'Soft knit cardigan' not in shoes_only,'admin category selection lists only matching products')
+ check(req('/Admin/Products?categoryId=999999')[0]==404,'unknown admin category is rejected')
+ check(req('/Admin/Products?categoryId=1&page=999999')[1].count('class="admin-product-identity"')==3,'filtered pagination clamps to a valid category page')
+
+
  check(req('/Admin/CreateProduct')[0]==200 and req('/Admin/CreateCategory')[0]==200,'bilingual editor rendering')
+ _,category_editor,_=req('/Admin/CreateCategory')
+ async_headers={'X-NileShop-Async':'true','Accept':'text/html'}
+ code,invalid_category,_=req('/Admin/CreateCategory',{'Slug':'shoes','NameEn':'Duplicate','NameAr':'تكرار','__RequestVerificationToken':token(category_editor)},async_headers)
+ check(code==200 and 'validation-summary-errors' in invalid_category,'background editor validation returns form errors')
+ code,new_category,editor_url=req('/Admin/CreateCategory',{'Slug':'async-check','NameEn':'Async category','NameAr':'فئة تجريبية','__RequestVerificationToken':token(category_editor)},async_headers)
+ check(code==200 and '/Admin/EditCategory' in editor_url and 'Async category' in new_category,'background category creation stays in its editor')
+
  req('/Home/SetLanguage',{'culture':'en','returnUrl':'/StoreAdmin/Settings','__RequestVerificationToken':token(dashboard)})
  status,settings,_=req('/StoreAdmin/Settings')
  check(status==200 and 'SMTP host' in settings and 'Delivery area' in settings,'admin settings workspace renders')
@@ -81,7 +106,7 @@ try:
  parts.append(('--'+boundary+'\r\nContent-Disposition: form-data; name="Uploads"; filename="shoe1.jpg"\r\nContent-Type: image/jpeg\r\n\r\n').encode()+image+b'\r\n')
  parts.append(('--'+boundary+'--\r\n').encode())
  upload=urllib.request.Request(base+'/Admin/EditProduct',data=b''.join(parts),headers={'Content-Type':'multipart/form-data; boundary='+boundary})
- with opener.open(upload,timeout=20) as response:check(response.status==200 and '/Admin/Dashboard' in response.url,'product editor saves uploaded image')
+ with opener.open(upload,timeout=20) as response:check(response.status==200 and '/Admin/Products' in response.url,'product editor saves uploaded image')
  with sqlite3.connect(env['Database__DevelopmentSqlitePath']) as db:new_image=db.execute('SELECT ImageUrl FROM Products WHERE Id=1').fetchone()[0]
  check(new_image.startswith('/assets/uploads/') and new_image!=product[4],'first upload becomes main image')
  Path('wwwroot'+new_image).unlink(missing_ok=True)
@@ -98,7 +123,7 @@ try:
  for name,value in new_fields.items():parts.append(('--'+boundary+'\r\nContent-Disposition: form-data; name="'+name+'"\r\n\r\n'+value+'\r\n').encode())
  parts.append(('--'+boundary+'\r\nContent-Disposition: form-data; name="Uploads"; filename="perfume-test.jpg"\r\nContent-Type: image/jpeg\r\n\r\n').encode()+image+b'\r\n')
  parts.append(('--'+boundary+'--\r\n').encode())
- with opener.open(urllib.request.Request(base+'/Admin/CreateProduct',data=b''.join(parts),headers={'Content-Type':'multipart/form-data; boundary='+boundary}),timeout=20) as response:check('/Admin/Dashboard' in response.url,'product with upload saves under new perfume category')
+ with opener.open(urllib.request.Request(base+'/Admin/CreateProduct',data=b''.join(parts),headers={'Content-Type':'multipart/form-data; boundary='+boundary}),timeout=20) as response:check('/Admin/Products' in response.url,'product with upload saves under new perfume category')
  with sqlite3.connect(env['Database__DevelopmentSqlitePath']) as db:saved_image=db.execute("SELECT ImageUrl FROM Products WHERE Slug='tobacco-check'").fetchone()[0]
  check(saved_image.startswith('/assets/uploads/') and Path('wwwroot'+saved_image).read_bytes()==image,'new category product retains the exact uploaded image')
  Path('wwwroot'+saved_image).unlink(missing_ok=True)
@@ -120,6 +145,23 @@ try:
  with sqlite3.connect(env['Database__DevelopmentSqlitePath']) as db:db.execute('UPDATE Products SET IsActive=0 WHERE Id=2');db.commit()
  check('Your cart is empty.' in req('/Cart/Index')[1],'inactive product removed from stale customer cart')
  check(suggestions('/Home/Suggestions?q=cardigan')==[],'inactive products never appear in search suggestions')
+ _,visibility_dashboard,_=req('/Admin/Dashboard')
+ check(req('/Admin/SetProductVisibility',{'id':'2','hidden':'false'})[0]==400,'product visibility requires antiforgery')
+ visibility_fields={'id':'2','hidden':'false','categoryId':'2','__RequestVerificationToken':token(visibility_dashboard)}
+ code,shown,visibility_url= req('/Admin/SetProductVisibility',visibility_fields,async_headers)
+ check(urllib.parse.parse_qs(urllib.parse.urlparse(visibility_url).query).get('categoryId')==['2'],'background product actions retain the selected category')
+ check(code==200 and 'SetProductVisibility' in shown and req('/products/soft-knit-cardigan')[0]==200,'show product restores storefront visibility')
+ visibility_fields['hidden']='true'
+ req('/Admin/SetProductVisibility',visibility_fields,async_headers)
+ req('/Admin/SetProductVisibility',visibility_fields,async_headers)
+ check(req('/products/soft-knit-cardigan')[0]==404 and suggestions('/Home/Suggestions?q=cardigan')==[],'hide product is idempotent and removes direct access and search')
+ check(req('/Admin/EditProduct/2')[0]==200,'hidden product remains editable in admin')
+ unavailable_code,unavailable,_=req('/products/soft-knit-cardigan')
+ check(unavailable_code==404 and 'This product is not available right now' in unavailable and 'id="recentlyViewed"' in unavailable,'hidden product link renders helpful unavailable page with recent history')
+ check('product-buy-form' not in unavailable and 'product-detail-page' not in unavailable and 'noindex, nofollow' in unavailable,'unavailable page offers no purchase controls and does not overwrite recent history')
+ check('This product is not available right now' not in req('/products/never-existed-check')[1],'unknown product retains ordinary not-found behavior')
+
+
 
  # Customer authentication remains separate from administrator privileges.
  _,page,_=req('/Account/Register')
@@ -152,6 +194,9 @@ try:
  check(status==200 and urllib.parse.urlparse(profile_destination).path=='/','saving profile returns the customer home')
  _,saved_profile,_=req('/Account/Index')
  check('Updated Customer' in saved_profile and '01099998888' in saved_profile,'customer details persist after redirecting home')
+ status,profile,profile_destination=req('/Account/Profile',{'FullName':'Updated Customer','Phone':'01099998888','__RequestVerificationToken':token(saved_profile)},async_headers)
+ check(status==200 and '/Account' in urllib.parse.urlparse(profile_destination).path and 'Updated Customer' in profile,'background profile saves stay on the account page')
+
  with sqlite3.connect(env['Database__DevelopmentSqlitePath']) as db:
   customer_id=db.execute('SELECT Id FROM AspNetUsers WHERE Email=?',(customer_email,)).fetchone()[0]
   check(db.execute('SELECT COUNT(*) FROM AspNetUserRoles WHERE UserId=?',(customer_id,)).fetchone()[0]==0,'signup cannot assign administrator privileges')

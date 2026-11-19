@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 namespace NileShop.Models;
 public class Category
 {
+    public bool IsHidden { get; set; }
     public int Id { get; set; }
     [Required, MaxLength(150)] public string Slug { get; set; } = "";
     public ICollection<CategoryTranslation> Translations { get; set; } = new List<CategoryTranslation>();
@@ -51,6 +52,8 @@ public static class OrderStatuses
 }
 public class Order
 {
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public string? PaymentSessionStatus { get; set; }
     [MaxLength(450)] public string? CustomerUserId { get; set; }
     public decimal ShippingFee { get; set; }
     public int DeliveryMinDays { get; set; }

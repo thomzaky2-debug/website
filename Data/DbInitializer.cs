@@ -22,7 +22,76 @@ public static class DbInitializer
         }
         if (!await users.IsInRoleAsync(admin, "Admin")) Check(await users.AddToRoleAsync(admin, "Admin"));
         if (!await db.StoreMailSettings.AnyAsync()) db.StoreMailSettings.Add(new StoreMailSettings());
-        if (!await db.StoreSettings.AnyAsync()) db.StoreSettings.Add(new StoreSettings { DeliveryPolicyEn = "Delivery estimates begin after payment confirmation. Shipping fees are shown before checkout.", DeliveryPolicyAr = "تبدأ مدة التوصيل المتوقعة بعد تأكيد الدفع. تظهر رسوم التوصيل قبل إتمام الطلب.", ReturnsPolicyEn = "Request a return within 14 days of delivery. Contact NileShop with your order number and item details; eligibility is reviewed before approval.", ReturnsPolicyAr = "اطلب الاسترجاع خلال ١٤ يومًا من التوصيل. تواصل مع نايل شوب برقم الطلب وتفاصيل المنتج، ثم تتم مراجعة الأهلية قبل الموافقة." });
+        if (!await db.StoreSettings.AnyAsync()) db.StoreSettings.Add(new StoreSettings {
+            DeliveryPolicyEn = """
+                Order Processing & Confirmation
+                • Orders are processed after NilePay payment confirmation is received.
+                • Delivery timeframes are counted in business days (Sunday–Thursday, excluding Egyptian public holidays).
+
+                Delivery Areas & Timeframes
+                {{DELIVERY_AREAS}}
+                • Exact shipping fees are calculated and displayed clearly before checkout.
+
+                Order Tracking & Receiving Your Order
+                • Once your order is dispatched, your private tracking link and account order page are updated with the delivery company and tracking number.
+                • Please make sure your phone number, WhatsApp number (if provided), and full delivery address are accurate so the courier can reach you smoothly.
+                • If a delivery attempt is missed, the courier will contact you to reschedule. Orders returned due to unreachable contact details may incur a re-delivery fee.
+
+                Inspection Upon Delivery
+                • Please check your package upon arrival and contact us immediately with your order number if an item arrives damaged, incomplete, or incorrect.
+                """,
+            DeliveryPolicyAr = """
+                تجهيز الطلب وتأكيد الدفع
+                • يبدأ تجهيز وشحن الطلب بعد تأكيد الدفع عبر نايل باي (NilePay).
+                • تُحتسب مدد التوصيل بأيام العمل الرسمية (من الأحد إلى الخميس، باستثناء العطلات الرسمية في مصر).
+
+                مناطق ومدة التوصيل
+                {{DELIVERY_AREAS}}
+                • تظهر رسوم التوصيل النهائية بوضوح قبل إتمام الطلب.
+
+                تتبع الطلب واستلامه
+                • فور شحن الطلب، يتم تحديث رابط التتبع الخاص بك وصفحة «طلباتي» باسم شركة الشحن ورقم التتبع.
+                • يُرجى التأكد من صحة رقم الهاتف ورقم واتساب (إن وُجد) وعنوان التوصيل بالكامل لتسهيل تواصل المندوب معك.
+                • في حال تعذّر التسليم في المحاولة الأولى، سيتواصل معك المندوب لتحديد موعد آخر.
+
+                الفحص عند الاستلام
+                • يُرجى فحص الشحنة عند الاستلام، والتواصل معنا فورًا برقم الطلب في حال وجود أي تلف أو نقص أو خطأ في المنتج.
+                """,
+            ReturnsPolicyEn = """
+                Return Window
+                • You may request a return or exchange within 14 days from the date your order is delivered.
+
+                Eligibility Conditions
+                • Items must be unused, unwashed, unworn, and in their original condition with all tags, accessories, and original packaging intact.
+                • Defective, damaged, or incorrect items reported promptly after delivery are eligible for a full refund or replacement at no extra shipping cost.
+                • For hygiene and safety reasons, opened personal care items, fragrances, or items showing signs of wear or damage caused by misuse are not eligible for return.
+
+                How to Request a Return
+                • Contact us via our Contact page with your order number, item name, and reason for return (include photos if the item arrived damaged or defective).
+                • Our team will review your request and share return pickup or drop-off instructions once approved.
+
+                Inspection & Refunds
+                • Once the returned item is received and inspected, approved refunds are processed back via your agreed refund method (such as InstaPay transfer or store wallet credit).
+                • Original delivery fees are non-refundable unless the return is due to a defective, damaged, or wrong item sent by NileShop.
+                """,
+            ReturnsPolicyAr = """
+                مدة الاسترجاع والاستبدال
+                • يمكنك طلب استرجاع أو استبدال المنتجات خلال 14 يومًا من تاريخ استلام الطلب.
+
+                شروط قبول الاسترجاع
+                • يجب أن يكون المنتج غير مستخدم وغير مغسول وبحالته الأصلية مع جميع البطاقات والملحقات والتغليف الأصلي.
+                • في حال وصول منتج تالف أو به عيب صناعة أو غير مطابق للطلب، يحق لك الاسترجاع أو الاستبدال الكامل دون تحمل أي رسوم شحن إضافية.
+                • حرصًا على السلامة والنظافة، لا تُقبل استرجاعات منتجات العناية الشخصية أو العطور بعد فتحها، أو المنتجات التي يظهر عليها سوء استخدام.
+
+                خطوات طلب الاسترجاع
+                • تواصل معنا عبر صفحة «تواصل معنا» مع ذكر رقم الطلب واسم المنتج وسبب الاسترجاع (مع إرفاق صور في حال وجود تلف أو خطأ).
+                • سيقوم فريقنا بمراجعة الطلب والتواصل معك بترتيبات الاستلام أو الإرجاع بعد الموافقة.
+
+                الفحص واسترداد المبلغ
+                • بعد استلام المنتج المرتجع وفحصه والتأكد من مطابقته للشروط، يتم رد المبلغ وفق وسيلة الاسترداد المتفق عليها (مثل التحويل عبر إنستاباي أو إضافته لرصيد المحفظة).
+                • رسوم التوصيل الأصلية غير قابلة للاسترداد إلا في حال كان الاسترجاع بسبب عيب أو تلف أو خطأ في الطلب من قِبل نايل شوب.
+                """
+        });
         if (!await db.ShippingMethods.AnyAsync()) db.ShippingMethods.AddRange(
             new ShippingMethod { NameEn = "Cairo & Giza", NameAr = "القاهرة والجيزة", Fee = 50, MinDays = 3, MaxDays = 5 },
             new ShippingMethod { NameEn = "Other governorates", NameAr = "المحافظات الأخرى", Fee = 80, MinDays = 5, MaxDays = 7 });

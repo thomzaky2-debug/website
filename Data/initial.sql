@@ -1021,3 +1021,25 @@ GO
 COMMIT;
 GO
 
+
+BEGIN TRANSACTION;
+GO
+IF NOT EXISTS (SELECT * FROM [__EFMigrationsHistory] WHERE [MigrationId] = N'20261119120000_HomepageHeroImage')
+BEGIN
+    ALTER TABLE [StoreSettings] ADD [HeroImageUrl] nvarchar(500) NULL;
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES (N'20261119120000_HomepageHeroImage', N'8.0.22');
+END;
+GO
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+GO
+IF NOT EXISTS (SELECT * FROM [__EFMigrationsHistory] WHERE [MigrationId] = N'20261119130000_CategoryVisibility')
+BEGIN
+    ALTER TABLE [Categories] ADD [IsHidden] bit NOT NULL DEFAULT 0;
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES (N'20261119130000_CategoryVisibility', N'8.0.22');
+END;
+GO
+COMMIT;
+GO

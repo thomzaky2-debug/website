@@ -12,10 +12,8 @@ namespace NileShop.Controllers;
 public class AdminController(ApplicationDbContext db, AuditService audit, CatalogService catalog, ProductImageService images, IStringLocalizer<SharedResource> localizer) : Controller
 {
     public IActionResult Index() => RedirectToAction(nameof(Dashboard));
-    public async Task<IActionResult> Dashboard(int page = 1)
+    public async Task<IActionResult> Dashboard()
     {
-        page = Math.Clamp(page, 1, 100000);
-        var count = await db.Products.CountAsync();
         // Decimal aggregation is performed by SQL Server; bounded decimal conversion supports local SQLite QA.
         var revenue = db.Database.IsSqlite()
             ? (decimal)await db.Orders.Where(o => (o.PaymentStatus == "Paid" || o.PaymentStatus == "Overpaid") && o.Status != OrderStatuses.Cancelled).SumAsync(o => (double)o.TotalAmount)
@@ -23,19 +21,47 @@ public class AdminController(ApplicationDbContext db, AuditService audit, Catalo
         return View(new DashboardViewModel {
             Revenue = revenue, TotalOrders = await db.Orders.CountAsync(), ActiveProducts = await db.Products.CountAsync(p => p.IsActive),
             LowStock = await db.Products.CountAsync(p => p.IsActive && p.StockQuantity <= 5), TotalLogs = await db.AuditLogs.CountAsync(),
-            Products = await db.Products.AsNoTracking().Include(p => p.Translations).OrderBy(p => p.Id).Skip((page - 1) * 50).Take(50).ToListAsync(),
-            Categories = await db.Categories.AsNoTracking().Include(c => c.Translations).OrderBy(c => c.Id).ToListAsync(),
-            Orders = await db.Orders.AsNoTracking().Include(o => o.Items).OrderByDescending(o => o.Id).Take(100).ToListAsync(),
-            Logs = await db.AuditLogs.AsNoTracking().OrderByDescending(l => l.Id).Take(100).ToListAsync(), Page = page, TotalPages = (int)Math.Ceiling(count / 50d)
+
         });
     }
-    [HttpGet] public async Task<IActionResult> CreateProduct() => View(new ProductFormViewModel { Categories = await catalog.CategoriesAsync() });
+    [HttpGet]
+    public async Task<IActionResult> Products(int page = 1, int? categoryId = null)
+    {
+        page = Math.Clamp(page, 1, 100000);
+        var categories = await db.Categories.AsNoTracking().Include(c => c.Translations).OrderBy(c => c.Id).ToListAsync();
+        if (categoryId.HasValue && !categories.Any(c => c.Id == categoryId)) return NotFound();
+        var counts = await db.Products.GroupBy(p => p.CategoryId)
+            .Select(group => new { CategoryId = group.Key, Count = group.Count() }).ToDictionaryAsync(group => group.CategoryId, group => group.Count);
+        var query = db.Products.AsNoTracking().Where(p => !categoryId.HasValue || p.CategoryId == categoryId);
+        var count = await query.CountAsync();
+        page = Math.Min(page, Math.Max(1, (int)Math.Ceiling(count / 50d)));
+        var products = await query.Include(p => p.Translations).Include(p => p.Category).ThenInclude(c => c.Translations)
+            .OrderBy(p => p.CategoryId).ThenBy(p => p.Id).Skip((page - 1) * 50).Take(50).ToListAsync();
+        return View(new AdminProductsViewModel(products, page, (int)Math.Ceiling(count / 50d),
+            categories.Select(category => new AdminCategorySummary(category, counts.GetValueOrDefault(category.Id))).ToList(), categoryId));
+    }
+    [HttpGet]
+    public async Task<IActionResult> Categories() => View(new AdminCategoriesViewModel(
+        await db.Categories.AsNoTracking().Include(c => c.Translations).OrderBy(c => c.Id).ToListAsync()));
+    [HttpGet]
+    public async Task<IActionResult> AuditLogs(string? q, int page = 1)
+    {
+        q = q?.Trim(); if (q?.Length > 100) q = q[..100];
+        page = Math.Clamp(page, 1, 100000);
+        var query = db.AuditLogs.AsNoTracking();
+        if (!string.IsNullOrWhiteSpace(q)) query = query.Where(log => log.Action.Contains(q)
+            || (log.UserEmail != null && log.UserEmail.Contains(q)) || (log.Details != null && log.Details.Contains(q)));
+        var count = await query.CountAsync();
+        var logs = await query.OrderByDescending(log => log.Id).Skip((page - 1) * 100).Take(100).ToListAsync();
+        return View(new AdminAuditViewModel(logs, q, page, (int)Math.Ceiling(count / 100d)));
+    }
+    [HttpGet] public async Task<IActionResult> CreateProduct() => View(new ProductFormViewModel { Categories = await catalog.CategoriesAsync(includeHidden: true) });
     [HttpGet] public async Task<IActionResult> EditProduct(int id)
     {
         var p = await db.Products.AsNoTracking().Include(p => p.Translations).SingleOrDefaultAsync(p => p.Id == id);
         if (p is null) return NotFound();
         var en = p.Translations.FirstOrDefault(t => t.LanguageCode == "en"); var ar = p.Translations.FirstOrDefault(t => t.LanguageCode == "ar");
-        return View(new ProductFormViewModel { Sizes = p.Sizes, Colors = p.Colors, GalleryImages = p.GalleryImages, Id = id, OriginalStockQuantity = p.StockQuantity, Slug = p.Slug, Price = p.Price, OldPrice = p.OldPrice, StockQuantity = p.StockQuantity, ImageUrl = p.ImageUrl, CategoryId = p.CategoryId, IsActive = p.IsActive, IsFeatured = p.IsFeatured, NameEn = en?.Name ?? "", NameAr = ar?.Name ?? "", ShortDescriptionEn = en?.ShortDescription, ShortDescriptionAr = ar?.ShortDescription, FullDescriptionEn = en?.FullDescription ?? "", FullDescriptionAr = ar?.FullDescription ?? "", Categories = await catalog.CategoriesAsync() });
+        return View(new ProductFormViewModel { Sizes = p.Sizes, Colors = p.Colors, GalleryImages = p.GalleryImages, Id = id, OriginalStockQuantity = p.StockQuantity, Slug = p.Slug, Price = p.Price, OldPrice = p.OldPrice, StockQuantity = p.StockQuantity, ImageUrl = p.ImageUrl, CategoryId = p.CategoryId, IsActive = p.IsActive, IsFeatured = p.IsFeatured, NameEn = en?.Name ?? "", NameAr = ar?.Name ?? "", ShortDescriptionEn = en?.ShortDescription, ShortDescriptionAr = ar?.ShortDescription, FullDescriptionEn = en?.FullDescription ?? "", FullDescriptionAr = ar?.FullDescription ?? "", Categories = await catalog.CategoriesAsync(includeHidden: true) });
     }
     [HttpPost, ValidateAntiForgeryToken] public Task<IActionResult> CreateProduct(ProductFormViewModel model) => SaveProduct(model, false);
     [HttpPost, ValidateAntiForgeryToken] public Task<IActionResult> EditProduct(ProductFormViewModel model) => SaveProduct(model, true);
@@ -49,13 +75,13 @@ public class AdminController(ApplicationDbContext db, AuditService audit, Catalo
         if (string.IsNullOrWhiteSpace(m.ImageUrl) && m.Uploads.Count == 0) ModelState.AddModelError(nameof(m.Uploads), localizer["Images_Required"]);
         if (!ModelState.IsValid) {
             if (m.Uploads.Count > 0) ModelState.AddModelError(nameof(m.Uploads), localizer["Images_Reselect"]);
-            m.Categories = await catalog.CategoriesAsync(); return View(edit ? "EditProduct" : "CreateProduct", m);
+            m.Categories = await catalog.CategoriesAsync(includeHidden: true); return View(edit ? "EditProduct" : "CreateProduct", m);
         }
         try {
             var uploaded = await images.SaveAsync(m.Uploads);
             if (uploaded.Count > 0 && (m.ReplacePrimaryImage || string.IsNullOrEmpty(m.ImageUrl))) m.ImageUrl = uploaded[0];
             if (uploaded.Count > 0) m.GalleryImages = string.Join(',', (m.GalleryImages ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Concat(uploaded).Distinct().Take(12));
-        } catch (InvalidDataException) { ModelState.AddModelError(nameof(m.Uploads), localizer["Images_Invalid"]); m.Categories = await catalog.CategoriesAsync(); return View(edit ? "EditProduct" : "CreateProduct", m); }
+        } catch (InvalidDataException) { ModelState.AddModelError(nameof(m.Uploads), localizer["Images_Invalid"]); m.Categories = await catalog.CategoriesAsync(includeHidden: true); return View(edit ? "EditProduct" : "CreateProduct", m); }
         await using var tx = await db.Database.BeginTransactionAsync();
         var p = edit ? await db.Products.Include(p => p.Translations).SingleOrDefaultAsync(p => p.Id == m.Id) : new Product();
         if (p is null) return NotFound();
@@ -79,7 +105,20 @@ public class AdminController(ApplicationDbContext db, AuditService audit, Catalo
         if (!edit) db.Products.Add(p);
         await db.SaveChangesAsync();
         await audit.LogAsync(edit ? "UPDATE" : "CREATE", "Product", $"Product {p.Id}: {p.Slug}; stock {oldStock} -> {m.StockQuantity}");
-        await tx.CommitAsync(); TempData["Success"] = "Admin_Saved"; return RedirectToAction(nameof(Dashboard));
+        await tx.CommitAsync(); TempData["Success"] = "Admin_Saved";
+        if (Request.Headers["X-NileShop-Async"] == "true") return RedirectToAction(nameof(EditProduct), new { id = p.Id });
+        return RedirectToAction(nameof(Products));
+    }
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> SetProductVisibility(int id, bool hidden, int page = 1, int? categoryId = null)
+    {
+        await using var tx = await db.Database.BeginTransactionAsync();
+        var changed = await db.Products.Where(p => p.Id == id)
+            .ExecuteUpdateAsync(s => s.SetProperty(p => p.IsActive, !hidden));
+        if (changed == 0) return NotFound();
+        await audit.LogAsync("PRODUCT_VISIBILITY", "Product", $"Product {id}; hidden {hidden}");
+        await tx.CommitAsync();
+        return RedirectToAction(nameof(Products), new { page = Math.Clamp(page, 1, 100000), categoryId });
     }
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> ToggleActive(int id)
@@ -88,10 +127,10 @@ public class AdminController(ApplicationDbContext db, AuditService audit, Catalo
         var changed = await db.Products.Where(p => p.Id == id).ExecuteUpdateAsync(s => s.SetProperty(p => p.IsActive, p => !p.IsActive));
         if (changed == 0) return NotFound();
         await audit.LogAsync("TOGGLE_ACTIVE", "Product", $"Product {id}"); await tx.CommitAsync();
-        return RedirectToAction(nameof(Dashboard));
+        return RedirectToAction(nameof(Products));
     }
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> DeleteProduct(int id)
+    public async Task<IActionResult> DeleteProduct(int id, int page = 1, int? categoryId = null)
     {
         await using var tx = await db.Database.BeginTransactionAsync();
         var p = await db.Products.FindAsync(id); if (p is null) return NotFound();
@@ -100,7 +139,7 @@ public class AdminController(ApplicationDbContext db, AuditService audit, Catalo
         try {
             await db.SaveChangesAsync(); await audit.LogAsync("DELETE_OR_ARCHIVE", "Product", $"Product {id}: {p.Slug}"); await tx.CommitAsync();
         } catch (DbUpdateException) { await tx.RollbackAsync(); TempData["Error"] = "Error_InUse"; }
-        return RedirectToAction(nameof(Dashboard));
+        return RedirectToAction(nameof(Products), new { page = Math.Clamp(page, 1, 100000), categoryId });
     }
     [HttpGet] public IActionResult CreateCategory() => View(new CategoryFormViewModel());
     [HttpGet] public async Task<IActionResult> EditCategory(int id)
@@ -125,16 +164,33 @@ public class AdminController(ApplicationDbContext db, AuditService audit, Catalo
         }
         if (!edit) db.Categories.Add(c);
         await db.SaveChangesAsync(); await audit.LogAsync(edit ? "UPDATE" : "CREATE", "Category", $"Category {c.Id}: {c.Slug}"); await tx.CommitAsync();
-        TempData["Success"] = "Admin_Saved"; return RedirectToAction(nameof(Dashboard));
+        TempData["Success"] = "Admin_Saved";
+        if (Request.Headers["X-NileShop-Async"] == "true") return RedirectToAction(nameof(EditCategory), new { id = c.Id });
+        return RedirectToAction(nameof(Categories));
+    }
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> SetCategoryVisibility(int id, bool hidden)
+    {
+        await using var tx = await db.Database.BeginTransactionAsync();
+        var changed = await db.Categories.Where(c => c.Id == id)
+            .ExecuteUpdateAsync(s => s.SetProperty(c => c.IsHidden, hidden));
+        if (changed == 0) return NotFound();
+        await audit.LogAsync("CATEGORY_VISIBILITY", "Category", $"Category {id}; hidden {hidden}");
+        await tx.CommitAsync();
+        if (Request.Headers.Accept.Any(value => value?.Contains("application/json", StringComparison.OrdinalIgnoreCase) == true))
+            return Json(new { hidden, buttonText = localizer[hidden ? "Show_Category" : "Hide_Category"].Value,
+                statusText = localizer[hidden ? "Category_Hidden" : "Category_Visible"].Value });
+        TempData["Success"] = "Admin_Saved";
+        return RedirectToAction(nameof(Categories));
     }
     [HttpPost, ValidateAntiForgeryToken] public async Task<IActionResult> DeleteCategory(int id)
     {
         var c = await db.Categories.FindAsync(id); if (c is null) return NotFound();
-        if (await db.Products.AnyAsync(p => p.CategoryId == id)) { TempData["Error"] = "Error_InUse"; return RedirectToAction(nameof(Dashboard)); }
+        if (await db.Products.AnyAsync(p => p.CategoryId == id)) { TempData["Error"] = "Error_InUse"; return RedirectToAction(nameof(Categories)); }
         await using var tx = await db.Database.BeginTransactionAsync(); db.Categories.Remove(c);
         try { await db.SaveChangesAsync(); await audit.LogAsync("DELETE", "Category", $"Category {id}: {c.Slug}"); await tx.CommitAsync(); }
         catch (DbUpdateException) { await tx.RollbackAsync(); TempData["Error"] = "Error_InUse"; }
-        return RedirectToAction(nameof(Dashboard));
+        return RedirectToAction(nameof(Categories));
     }
     [HttpPost, ValidateAntiForgeryToken] public async Task<IActionResult> UpdateOrderStatus(int orderId, string status)
     {
@@ -142,28 +198,28 @@ public class AdminController(ApplicationDbContext db, AuditService audit, Catalo
         await using var tx = await db.Database.BeginTransactionAsync();
         var order = await db.Orders.AsNoTracking().Include(o => o.Items).SingleOrDefaultAsync(o => o.Id == orderId);
         if (order is null) return NotFound();
-        if (!OrderStatuses.CanTransition(order.Status, status)) { TempData["Error"] = "Error_StatusTransition"; return RedirectToAction(nameof(Dashboard)); }
-        if (order.Status == status) return RedirectToAction(nameof(Dashboard));
+        if (!OrderStatuses.CanTransition(order.Status, status)) { TempData["Error"] = "Error_StatusTransition"; return RedirectToAction("Index", "StoreAdmin"); }
+        if (order.Status == status) return RedirectToAction("Index", "StoreAdmin");
         if (status == OrderStatuses.Cancelled || (await db.PaymentAttempts.AnyAsync(p => p.OrderId == orderId) && order.PaymentStatus is not ("Paid" or "Overpaid"))) {
-            TempData["Error"] = "Payment_AdminReview"; return RedirectToAction(nameof(Dashboard));
+            TempData["Error"] = "Payment_AdminReview"; return RedirectToAction("Index", "StoreAdmin");
         }
         if ((order.PaymentStatus is not ("Paid" or "Overpaid") || order.NeedsPaymentReview) && (status is OrderStatuses.Processing or OrderStatuses.Shipped)) {
-            TempData["Error"] = "Payment_AdminReview"; return RedirectToAction(nameof(Dashboard));
+            TempData["Error"] = "Payment_AdminReview"; return RedirectToAction("Index", "StoreAdmin");
         }
         var changed = await db.Orders.Where(o => o.Id == orderId && o.Status == order.Status).ExecuteUpdateAsync(s => s.SetProperty(o => o.Status, status));
-        if (changed != 1) { TempData["Error"] = "Error_StatusTransition"; return RedirectToAction(nameof(Dashboard)); }
+        if (changed != 1) { TempData["Error"] = "Error_StatusTransition"; return RedirectToAction("Index", "StoreAdmin"); }
         if (status == OrderStatuses.Cancelled) foreach (var item in order.Items.OrderBy(i => i.ProductId))
             await db.Products.Where(p => p.Id == item.ProductId).ExecuteUpdateAsync(s => s.SetProperty(p => p.StockQuantity, p => p.StockQuantity + item.Quantity));
         db.OrderUpdates.Add(new OrderUpdate { OrderId = orderId, Status = status });
         if (status == OrderStatuses.Shipped && !await db.OrderEmails.AnyAsync(e => e.OrderId == orderId && e.Kind == "Shipped")) db.OrderEmails.Add(new OrderEmail { OrderId = orderId, Kind = "Shipped" });
         await audit.LogAsync("ORDER_STATUS", "Order", $"{order.OrderNumber}: {order.Status} -> {status}"); await tx.CommitAsync();
-        TempData["Success"] = "Admin_Saved"; return RedirectToAction(nameof(Dashboard));
+        TempData["Success"] = "Admin_Saved"; return RedirectToAction("Index", "StoreAdmin");
     }
     [HttpPost, ValidateAntiForgeryToken] public async Task<IActionResult> ClearOldLogs()
     {
         await using var tx = await db.Database.BeginTransactionAsync();
         var cutoff = DateTime.UtcNow.AddDays(-30); var count = await db.AuditLogs.Where(l => l.Timestamp < cutoff).ExecuteDeleteAsync();
         await audit.LogAsync("LOG_CLEANUP", "AuditLog", $"Deleted {count} records older than {cutoff:O}"); await tx.CommitAsync();
-        TempData["Success"] = "Admin_LogsCleared"; return RedirectToAction(nameof(Dashboard));
+        TempData["Success"] = "Admin_LogsCleared"; return RedirectToAction(nameof(AuditLogs));
     }
 }

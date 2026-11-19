@@ -1,4 +1,5 @@
 using NileShop.Data;
+using NileShop.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 namespace NileShop.Controllers;
@@ -12,6 +13,8 @@ public class OrdersController(ApplicationDbContext db) : Controller
         if (string.IsNullOrWhiteSpace(token)) return View("Find");
         if (token.Length != 64) return NotFound();
         var order = await db.Orders.AsNoTracking().Include(o => o.Items).Include(o => o.Updates).AsSplitQuery().SingleOrDefaultAsync(o => o.PaymentAccessToken == token);
-        return order is null ? NotFound() : View(order);
+        if (order is null) return NotFound();
+        await OrderStatusPresentation.LoadAsync(db, new[] { order });
+        return View(order);
     }
 }

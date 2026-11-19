@@ -16,7 +16,7 @@
     <span class="eyebrow">NileShop · @Localizer["Payment_Gateway"]</span>
     <div class="status-card panel">
         <div class="status-icon @(settled ? "is-paid" : "")" aria-hidden="true">@(settled ? "✓" : isUnderpaid ? "!" : "◷")</div>
-        <h1>@Localizer[Model.PaymentStatus == "Refunded" ? "Refunded" : isOverpaid ? "Payment_Overpaid_Title" : Model.PaymentStatus == "Paid" ? "Payment_Paid" : isUnderpaid ? "Payment_Underpaid_Title" : cancelled ? "Cancelled" : "Payment_Pending"]</h1>
+        <h1>@Localizer[Model.PaymentStatus == "Refunded" ? "Refunded" : isOverpaid ? "Payment_Overpaid_Title" : Model.PaymentStatus == "Paid" ? "Payment_Paid" : isUnderpaid ? "Payment_Underpaid_Title" : cancelled ? "Cancelled" : gateway=="EXPIRED" ? "Order_Payment_Expired" : gateway=="CANCELLED" ? "Order_Payment_Cancelled" : gateway=="FAILED" ? "Order_Payment_Failed" : "Payment_Pending"]</h1>
         @if (isOverpaid)
         {
             <p class="muted">@Localizer["Payment_Overpaid_Note"]</p>
@@ -63,7 +63,7 @@
                 {
                     <form asp-action="Pay" method="post"><input type="hidden" name="token" value="@Model.PaymentAccessToken"/><button class="primary-button">@Localizer["Payment_Pay"]</button></form>
                 }
-                <form asp-action="Check" method="post"><input type="hidden" name="token" value="@Model.PaymentAccessToken"/><button>@Localizer["Payment_Check"]</button></form>
+                <form asp-action="Check" method="post" data-async-form><input type="hidden" name="token" value="@Model.PaymentAccessToken"/><button>@Localizer["Payment_Check"]</button></form>
             }
             @if ((isOverpaid || isUnderpaid) && !string.IsNullOrWhiteSpace(Model.CustomerUserId))
             {

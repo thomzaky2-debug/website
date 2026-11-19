@@ -9,10 +9,18 @@ namespace NileShop.Controllers;
 public class ProductsController(CatalogService catalog, ApplicationDbContext db) : Controller
 {
     [HttpGet("/products/{slug}")]
+    [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
     public async Task<IActionResult> Details(string slug)
     {
         var p = await catalog.Active().SingleOrDefaultAsync(p => p.Slug == slug);
-        if (p is null) return NotFound();
+        if (p is null) {
+            var hidden = await db.Products.AsNoTracking()
+                .AnyAsync(product => product.Slug == slug && (!product.IsActive || product.Category.IsHidden));
+            if (!hidden) return NotFound();
+            Response.StatusCode = StatusCodes.Status404NotFound;
+            ViewData["Robots"] = "noindex, nofollow";
+            return View("Unavailable");
+        }
         var t = p.Translations.FirstOrDefault(t => t.LanguageCode == CatalogService.Language) ?? p.Translations.FirstOrDefault(t => t.LanguageCode == "en");
         var related = await catalog.Active().Where(x => x.CategoryId == p.CategoryId && x.Id != p.Id).OrderBy(x => x.Id).Take(4).ToListAsync();
         var returnDays=await db.StoreSettings.Select(s=>(int?)s.ReturnDays).FirstOrDefaultAsync()??14;

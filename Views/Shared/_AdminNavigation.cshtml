@@ -1,0 +1,13 @@
+@{var controller=ViewContext.RouteData.Values["controller"]?.ToString();var action=ViewContext.RouteData.Values["action"]?.ToString();}
+@foreach(var destination in new[]{
+    (Controller:"Admin",Action:"Dashboard",Title:"Nav_Dashboard",Active:controller=="Admin" && action=="Dashboard"),
+    (Controller:"Admin",Action:"Products",Title:"Products",Active:controller=="Admin" && action is "Products" or "CreateProduct" or "EditProduct"),
+    (Controller:"Admin",Action:"Categories",Title:"Categories",Active:controller=="Admin" && action is "Categories" or "CreateCategory" or "EditCategory"),
+    (Controller:"StoreAdmin",Action:"Index",Title:"Orders",Active:controller=="StoreAdmin" && action is "Index" or "Order"),
+    (Controller:"StoreAdmin",Action:"Customers",Title:"Customers",Active:controller=="StoreAdmin" && action is "Customers" or "Customer"),
+    (Controller:"StoreAdmin",Action:"Reviews",Title:"Review_Moderation",Active:controller=="StoreAdmin" && action=="Reviews"),
+    (Controller:"StoreAdmin",Action:"Reports",Title:"Sales_Reports",Active:controller=="StoreAdmin" && action=="Reports"),
+    (Controller:"StoreAdmin",Action:"Settings",Title:"Store_Settings",Active:controller=="StoreAdmin" && action=="Settings"),
+    (Controller:"Admin",Action:"AuditLogs",Title:"Logs",Active:controller=="Admin" && action=="AuditLogs")}){
+    <a asp-controller="@destination.Controller" asp-action="@destination.Action" aria-current="@(destination.Active?"page":null)">@Localizer[destination.Title]</a>
+}

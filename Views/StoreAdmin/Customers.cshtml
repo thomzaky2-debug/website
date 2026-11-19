@@ -1,3 +1,22 @@
 @model CustomersAdminViewModel
 @{ViewData["Title"]=Localizer["Customers"];}
-<div class="section-head"><div><span class="eyebrow">NileShop · @Localizer["Admin_Navigation"]</span><h1>@Localizer["Customers"]</h1></div></div><form method="get" class="panel operation-filters"><div class="field"><label for="customer-search">@Localizer["Customer_Search"]</label><input id="customer-search" name="q" value="@Model.Search" maxlength="100"/></div><button class="primary-button">@Localizer["Search"]</button></form><div tabindex="0" role="region" aria-label="@Localizer["Scrollable_Table"]" class="table-scroll admin-data-table"><table><thead><tr><th>@Localizer["CustomerName"]</th><th>@Localizer["Email"]</th><th>@Localizer["CustomerPhone"]</th><th>@Localizer["Orders"]</th></tr></thead><tbody>@foreach(var customer in Model.Customers){<tr><td>@customer.Name</td><td>@customer.Email</td><td>@customer.Phone</td><td>@customer.Orders</td></tr>}</tbody></table>@if(!Model.Customers.Any()){<div class="admin-empty">@Localizer["Empty"]</div>}</div><div class="pagination">@if(Model.Page>1){<a asp-route-q="@Model.Search" asp-route-page="@(Model.Page-1)">@Localizer["Previous"]</a>}@if(Model.Page<Model.Pages){<a asp-route-q="@Model.Search" asp-route-page="@(Model.Page+1)">@Localizer["Next"]</a>}</div>
+<div class="section-head"><div><span class="eyebrow">NileShop · @Localizer["Admin_Navigation"]</span><h1>@Localizer["Customers"]</h1><p class="muted">@Localizer["Customer_Directory_Help"]</p></div></div>
+<form method="get" class="panel operation-filters" data-async-form>
+    <div class="field"><label for="customer-search">@Localizer["Customer_Search"]</label><input id="customer-search" name="q" value="@Model.Search" maxlength="100" placeholder="@Localizer["Customer_Search_Placeholder"]"/></div>
+    <div class="field"><label for="customer-segment">@Localizer["Customer_Order_Activity"]</label><select id="customer-segment" name="segment"><option value="all" selected="@(Model.Segment=="all")">@Localizer["Customer_All"]</option><option value="with-orders" selected="@(Model.Segment=="with-orders")">@Localizer["Customer_With_Orders"]</option><option value="without-orders" selected="@(Model.Segment=="without-orders")">@Localizer["Customer_Without_Orders"]</option></select></div>
+    <button class="primary-button">@Localizer["Customer_Search_Button"]</button>
+</form>
+<p class="muted">@Localizer["Customer_Result_Count",Model.TotalMatches]</p>
+<div tabindex="0" role="region" aria-label="@Localizer["Scrollable_Table"]" class="table-scroll admin-data-table customer-directory"><table><thead><tr><th>@Localizer["CustomerName"]</th><th>@Localizer["Contact"]</th><th>@Localizer["Orders"]</th><th>@Localizer["Customer_Paid_Value"]</th><th>@Localizer["Customer_Last_Order"]</th><th>@Localizer["Status"]</th><th>@Localizer["Actions"]</th></tr></thead><tbody>
+@foreach(var customer in Model.Customers){<tr>
+    <td><a class="record-link" asp-action="Customer" asp-route-id="@customer.Id">@(string.IsNullOrWhiteSpace(customer.Name)?customer.Email:customer.Name)</a><small class="table-subline" dir="auto">@customer.Email</small></td>
+    <td><span dir="ltr">@(string.IsNullOrWhiteSpace(customer.Phone)?Localizer["Customer_Not_Provided"].Value:customer.Phone)</span>@if(!string.IsNullOrWhiteSpace(customer.WhatsApp)){<small class="table-subline">@Localizer["WhatsApp_Number"]: <bdi>@customer.WhatsApp</bdi></small>}</td>
+    <td><strong>@customer.Orders</strong><small class="table-subline">@Localizer["Customer_Paid_Count",customer.PaidOrders]</small></td>
+    <td class="money">@customer.PaidOrderValue.ToString("N2") <small>EGP</small></td>
+    <td>@(customer.LastOrderAt?.ToString("g")??Localizer["No_Account_Orders"].Value)</td>
+    <td><span class="status-pill @(customer.IsLocked?"off":"")">@Localizer[customer.IsLocked?"Customer_Locked":"Customer_Active"]</span></td>
+    <td><a class="action-link" asp-action="Customer" asp-route-id="@customer.Id">@Localizer["Customer_View_Profile"] →</a></td>
+</tr>}
+</tbody></table>@if(!Model.Customers.Any()){<div class="admin-empty">@Localizer["Empty"]</div>}</div>
+<p class="muted customer-value-note">@Localizer["Customer_Paid_Value_Help"]</p>
+<div class="pagination">@if(Model.Page>1){<a asp-route-q="@Model.Search" asp-route-segment="@Model.Segment" asp-route-page="@(Model.Page-1)">@Localizer["Previous"]</a>}@if(Model.Page<Model.Pages){<a asp-route-q="@Model.Search" asp-route-segment="@Model.Segment" asp-route-page="@(Model.Page+1)">@Localizer["Next"]</a>}</div>

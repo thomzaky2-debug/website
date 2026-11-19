@@ -9,6 +9,7 @@ public class CustomerLoginViewModel
 }
 public class CustomerRegisterViewModel : CustomerLoginViewModel
 {
+    [Required, RegularExpression("^(en|ar)$")] public string PreferredLanguage { get; set; } = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
     [Required, StringLength(100)] public string FullName { get; set; } = "";
     [Required, Phone, StringLength(30)] public string Phone { get; set; } = "";
     [Required, DataType(DataType.Password), Compare(nameof(Password), ErrorMessage="Password_Mismatch")]

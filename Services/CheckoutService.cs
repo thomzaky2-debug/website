@@ -32,11 +32,11 @@ public class CheckoutService(ApplicationDbContext db)
         foreach (var selection in cart.OrderBy(x => x.ProductId).ThenBy(x => x.Key))
         {
             var id = selection.ProductId; var quantity = selection.Quantity;
-            var p = await db.Products.AsNoTracking().Include(p => p.Translations).SingleOrDefaultAsync(p => p.Id == id && p.IsActive);
+            var p = await db.Products.AsNoTracking().Include(p => p.Translations).SingleOrDefaultAsync(p => p.Id == id && p.IsActive && !p.Category.IsHidden);
             if (p is not null && (!ProductOptions.Valid(p.Sizes, selection.Size) || !ProductOptions.Valid(p.Colors, selection.Color))) throw new CheckoutException("Options_Choose");
             if (p is null) throw new CheckoutException("Error_StockChanged");
             // One guarded SQL update prevents overselling even across simultaneous IIS requests.
-            var changed = await db.Products.Where(x => x.Id == id && x.IsActive && x.StockQuantity >= quantity && x.Price == p.Price)
+            var changed = await db.Products.Where(x => x.Id == id && x.IsActive && !x.Category.IsHidden && x.StockQuantity >= quantity && x.Price == p.Price)
                 .ExecuteUpdateAsync(s => s.SetProperty(x => x.StockQuantity, x => x.StockQuantity - quantity));
             if (changed != 1) throw new CheckoutException("Error_StockChanged");
             order.Items.Add(new OrderItem { SelectedSize = selection.Size, SelectedColor = selection.Color, ProductName = CatalogService.Name(p), ProductId = id, Quantity = quantity, UnitPrice = p.Price });

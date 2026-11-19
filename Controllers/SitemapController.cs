@@ -19,7 +19,7 @@ public class SitemapController(ApplicationDbContext db) : Controller
             urlSet.Add(new XElement(ns + "url",
                 new XElement(ns + "loc", baseUrl + page)));
         }
-        var categorySlugs = await db.Categories.AsNoTracking()
+        var categorySlugs = await db.Categories.AsNoTracking().Where(c => !c.IsHidden)
             .Select(c => c.Slug)
             .ToListAsync();
         foreach (var catSlug in categorySlugs)
@@ -28,7 +28,7 @@ public class SitemapController(ApplicationDbContext db) : Controller
                 new XElement(ns + "loc", baseUrl + "/shop?category=" + Uri.EscapeDataString(catSlug))));
         }
         var products = await db.Products.AsNoTracking()
-            .Where(p => p.IsActive)
+            .Where(p => p.IsActive && !p.Category.IsHidden)
             .Select(p => new { p.Slug, p.CreatedAt })
             .ToListAsync();
         foreach (var p in products)

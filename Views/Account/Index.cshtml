@@ -99,7 +99,7 @@
                     </div>
                 </header>
 
-                <form asp-action="Profile" method="post">
+                <form asp-action="Profile" method="post" data-async-form>
                     <div asp-validation-summary="All" class="validation" role="alert"></div>
                     <div class="profile-fields">
                         <div class="field">
@@ -149,6 +149,16 @@
                 </form>
             </section>
 
+            <section class="account-card panel account-language-settings">
+                <h2>@Localizer["Preferred_Language"]</h2>
+                <p class="muted">@Localizer["Language_Preference_Help"]</p>
+                <form asp-controller="Home" asp-action="SetLanguage" method="post" data-language-preference>
+                    <input type="hidden" name="returnUrl" value="/Account"/>
+                    <label for="preferred-language">@Localizer["Preferred_Language"]</label>
+                    <select id="preferred-language" name="culture"><option value="en" selected="@(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName=="en")">English</option><option value="ar" selected="@(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName=="ar")">العربية</option></select>
+                    <button type="submit">@Localizer["Save_Language"]</button>
+                </form>
+            </section>
             <section class="account-card panel">
                 <div class="account-section-top">
                     <div class="account-card-header">
@@ -177,7 +187,7 @@
                                     <small>@order.CreatedAt.ToString("yyyy-MM-dd HH:mm")</small>
                                 </div>
                                 <div class="account-recent-badges">
-                                    <span class="status-pill @(order.Status=="Cancelled"?"off":"")">@Localizer[order.Status]</span>
+                                    <span class="status-pill @(OrderStatusPresentation.IsWarning(order)?"off":"")">@Localizer[OrderStatusPresentation.Key(order)]</span>
                                     <small>@Localizer[order.PaymentStatus]</small>
                                 </div>
                                 <strong class="account-recent-amount">@order.TotalAmount.ToString("N2") EGP</strong>
@@ -210,7 +220,7 @@
                         <span class="security-chevron" aria-hidden="true">⌄</span>
                     </summary>
 
-                    <form asp-action="ChangePassword" method="post" class="account-password-form">
+                    <form asp-action="ChangePassword" method="post" class="account-password-form" data-async-form>
                         @if (pwError != null)
                         {
                             <div class="validation-summary-errors" role="alert">@pwError</div>

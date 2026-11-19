@@ -53,6 +53,12 @@ def webhook(session,event='event-one',amount=None,currency='EGP',state='CONFIRME
  return req('/webhooks/nilepay',headers=headers,raw=body)[0]
 try:
  start()
+ import sqlite3
+ admin_opener=urllib.request.build_opener(urllib.request.HTTPSHandler(context=ssl._create_unverified_context()),urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+ def admin_req(path,data=None):
+  with admin_opener.open(base+path,urllib.parse.urlencode(data).encode() if data is not None else None,timeout=15) as response:return response.read().decode()
+ admin_login=admin_req('/Identity/Account/Login')
+ admin_req('/Identity/Account/Login',{'Email':'nilepay-test@example.com','Password':password,'__RequestVerificationToken':token(admin_login)})
  _,home,_=req('/');req('/Cart/Add',{'productId':'1','quantity':'2','__RequestVerificationToken':token(home)})
  _,checkout,_=req('/Cart/Checkout');checkouttoken=re.search(r'name="CheckoutToken"[^>]*value="([^"]+)"',checkout).group(1)
  for username in ['', 'ahmed.mohammed@instapay', 'wrong user']:
@@ -65,6 +71,11 @@ try:
  check(retry_code==302 and retry_headers['Location']==original_location,'checkout response retry returns the existing order')
  location=headers['Location'];access=urllib.parse.parse_qs(urllib.parse.urlparse(location).query)['token'][0]
  _,page,_=req(location);check('Awaiting payment' in page,'browser return is not payment proof')
+ with sqlite3.connect(dbfile) as db:
+  order_id,order_number,access_token=db.execute('SELECT Id,OrderNumber,PaymentAccessToken FROM Orders ORDER BY Id LIMIT 1').fetchone()
+ check(order_number in admin_req('/StoreAdmin?status=Incomplete'),'order without a created session is listed as checkout incomplete')
+ check('Checkout incomplete' in req('/orders/track?token='+access_token)[1],'tracking distinguishes checkout not started from an active payment')
+
  check(req('/payment/return?token='+'A'*64)[0]==404,'unrelated customer cannot read payment')
  form={'token':access,'__RequestVerificationToken':token(page)}
  mode='failure';check(req('/payment/pay',form)[0]==302,'unknown gateway outcome returns recoverable payment page')
@@ -82,6 +93,8 @@ try:
  _,page,_=req(location);form={'token':access,'__RequestVerificationToken':token(page)}
  code,_,headers=req('/payment/pay',form)
  check(code==302 and headers['Location']=='http://localhost:5450/hosted','redirect uses returned hosted checkout URL')
+ check(order_number in admin_req('/StoreAdmin?status=AwaitingPayment') and order_number not in admin_req('/StoreAdmin?status=Incomplete'),'mapped payment session appears as awaiting payment instead of incomplete')
+
  check(len(sessions)==1 and all(v==requests[0] for v in requests),'restart retry preserves request and single session')
  check(webhook(session,bad=True)==401,'invalid signature rejected')
  check(webhook(session,age=-301)==401,'stale signature rejected')
@@ -90,11 +103,27 @@ try:
  check(webhook('unknown-session')==503,'unknown session returns retryable response')
  check(webhook(session,amount=total+1)==400,'wrong amount rejected')
  check(webhook(session,currency='USD')==400,'wrong currency rejected')
+ check(webhook(session,event='expired',state='EXPIRED')==200 and 'Payment session expired' in req(location)[1],'expiry is labeled accurately and never marks paid')
+ import sqlite3
+ with sqlite3.connect(dbfile) as db:
+  order_id,order_number,access_token=db.execute('SELECT Id,OrderNumber,PaymentAccessToken FROM Orders ORDER BY Id LIMIT 1').fetchone()
+ expired_list=admin_req('/StoreAdmin?status=Expired')
+ check(order_number in expired_list and 'Payment session expired' in expired_list,'expired gateway session appears in its admin status filter')
+ check(order_number not in admin_req('/StoreAdmin?status=AwaitingPayment'),'expired order is excluded from awaiting-payment results')
+ check('Payment session expired' in req('/orders/track?token='+access_token)[1],'customer tracking shows the expired session status')
+ check('Payment session expired' in admin_req('/StoreAdmin/Order/'+str(order_id)),'admin order details show expiry instead of pending')
+ for gateway_state,filter_name,label in [('FAILED','PaymentFailed','Payment failed'),('CANCELLED','PaymentCancelled','Payment cancelled')]:
+  check(webhook(session,event='status-'+gateway_state,state=gateway_state)==200,'signed gateway state accepted: '+gateway_state)
+  check(order_number in admin_req('/StoreAdmin?status='+filter_name) and label in req('/orders/track?token='+access_token)[1],'lists and tracking show '+label)
+
+
  check(webhook(session,event='underpaid',state='UNDERPAID')==200 and 'Awaiting payment' in req(location)[1],'underpayment never marks order paid')
  check(webhook(session,event='overpaid',state='OVERPAID')==200 and 'Awaiting payment' in req(location)[1],'overpayment event alone never marks paid')
- check(webhook(session,event='expired',state='EXPIRED')==200 and 'Awaiting payment' in req(location)[1],'expiry never marks paid')
  check(webhook(session)==200 and webhook(session)==200 and webhook(session,event='another-confirmation')==200,'duplicate deliveries acknowledged safely')
  check('Payment received' in req(location)[1],'confirmed webhook marks order paid')
+ check(order_number not in admin_req('/StoreAdmin?status=Expired'),'confirmed payment removes the expired label and filter membership')
+ check('Processing' in req('/orders/track?token='+access_token)[1],'confirmed payment displays the fulfilment status again')
+
  import sqlite3
  with sqlite3.connect(dbfile) as db:
   check(db.execute("SELECT COUNT(*) FROM AuditLogs WHERE Action='PAYMENT_CONFIRMED'").fetchone()[0]==1,'one durable fulfilment transition and audit')

@@ -1,0 +1,33 @@
+@model CustomerDetailAdminViewModel
+@{var customer=Model.Customer;var name=string.IsNullOrWhiteSpace(customer.Name)?customer.Email:customer.Name;ViewData["Title"]=name;}
+<div class="section-head"><div><span class="eyebrow">NileShop · @Localizer["Customers"]</span><h1>@name</h1><p class="muted" dir="auto">@customer.Email</p></div><a class="action-link" asp-action="Customers">← @Localizer["Customers"]</a></div>
+<div class="kpis customer-summary">
+    <div class="panel"><small>@Localizer["Orders"]</small><h2>@customer.Orders</h2></div>
+    <div class="panel"><small>@Localizer["Customer_Paid_Orders"]</small><h2>@customer.PaidOrders</h2></div>
+    <div class="panel"><small>@Localizer["Customer_Paid_Value"]</small><h2>@customer.PaidOrderValue.ToString("N2") <small>EGP</small></h2></div>
+    <div class="panel"><small>@Localizer["Wallet_Balance"]</small><h2>@Model.WalletBalance.ToString("N2") <small>EGP</small></h2></div>
+    <div class="panel"><small>@Localizer["Saved_Items"]</small><h2>@Model.SavedCount</h2></div>
+    <div class="panel"><small>@Localizer["Customer_Reviews"]</small><h2>@Model.ReviewCount</h2></div>
+</div>
+<p class="muted customer-value-note">@Localizer["Customer_Paid_Value_Help"]</p>
+<section class="panel customer-profile-details"><h2>@Localizer["Customer_Profile_Details"]</h2><dl class="customer-facts">
+    <div><dt>@Localizer["CustomerName"]</dt><dd>@name</dd></div>
+    <div><dt>@Localizer["Email"]</dt><dd>@if(!string.IsNullOrWhiteSpace(customer.Email)){<a href="mailto:@customer.Email" dir="ltr">@customer.Email</a>}else{@Localizer["Customer_Not_Provided"]}</dd></div>
+    <div><dt>@Localizer["CustomerPhone"]</dt><dd>@if(!string.IsNullOrWhiteSpace(customer.Phone)){<a href="tel:@customer.Phone" dir="ltr">@customer.Phone</a>}else{@Localizer["Customer_Not_Provided"]}</dd></div>
+    <div><dt>@Localizer["WhatsApp_Number"]</dt><dd dir="auto">@(string.IsNullOrWhiteSpace(customer.WhatsApp)?Localizer["Customer_Not_Provided"].Value:customer.WhatsApp)</dd></div>
+    <div class="customer-address"><dt>@Localizer["ShippingAddress"]</dt><dd class="description" dir="auto">@(string.IsNullOrWhiteSpace(customer.Address)?Localizer["Customer_Not_Provided"].Value:customer.Address)</dd></div>
+    <div><dt>@Localizer["Preferred_Language"]</dt><dd>@(customer.PreferredLanguage=="ar"?"العربية":customer.PreferredLanguage=="en"?"English":Localizer["Customer_Not_Provided"].Value)</dd></div>
+    <div><dt>@Localizer["Customer_Email_Verification"]</dt><dd>@Localizer[customer.EmailConfirmed?"Customer_Verified":"Customer_Unverified"]</dd></div>
+    <div><dt>@Localizer["Customer_Account_Status"]</dt><dd><span class="status-pill @(customer.IsLocked?"off":"")">@Localizer[customer.IsLocked?"Customer_Locked":"Customer_Active"]</span>@if(customer.IsLocked&&customer.LockoutEnd.HasValue){<small class="table-subline">@Localizer["Customer_Locked_Until",customer.LockoutEnd.Value.ToString("g")]</small>}</dd></div>
+    <div><dt>@Localizer["Customer_Last_Order"]</dt><dd>@(customer.LastOrderAt?.ToString("g")??Localizer["No_Account_Orders"].Value)</dd></div>
+</dl></section>
+<section class="customer-orders-section"><div class="section-head"><h2>@Localizer["Customer_Order_History"]</h2></div>
+<div tabindex="0" role="region" aria-label="@Localizer["Scrollable_Table"]" class="table-scroll admin-data-table"><table><thead><tr><th>@Localizer["Orders"]</th><th>@Localizer["Date"]</th><th>@Localizer["Total"]</th><th>@Localizer["Status"]</th><th>@Localizer["Actions"]</th></tr></thead><tbody>
+@foreach(var order in Model.Orders){<tr><td><a class="record-link" asp-action="Order" asp-route-id="@order.Id">@order.OrderNumber</a></td><td>@order.CreatedAt.ToString("g")</td><td class="money">@order.TotalAmount.ToString("N2") EGP</td><td><span class="status-pill @(OrderStatusPresentation.IsWarning(order)?"off":"")">@Localizer[OrderStatusPresentation.Key(order)]</span><small class="table-subline">@Localizer[order.PaymentStatus]</small></td><td><a class="action-link" asp-action="Order" asp-route-id="@order.Id">@Localizer["Details"] →</a></td></tr>}
+</tbody></table>@if(!Model.Orders.Any()){<div class="admin-empty">@Localizer["No_Account_Orders"]</div>}</div>
+<div class="pagination">@if(Model.Page>1){<a asp-action="Customer" asp-route-id="@customer.Id" asp-route-page="@(Model.Page-1)">@Localizer["Previous"]</a>}@if(Model.Page<Model.Pages){<a asp-action="Customer" asp-route-id="@customer.Id" asp-route-page="@(Model.Page+1)">@Localizer["Next"]</a>}</div>
+</section>
+<div class="customer-activity-grid">
+<section class="panel"><h2>@Localizer["Customer_Recent_Wallet"]</h2><p class="muted">@Localizer["Customer_Wallet_Limit"]</p>@if(!Model.WalletTransactions.Any()){<p class="muted">@Localizer["Wallet_Empty"]</p>}else{<div class="customer-activity-list">@foreach(var transaction in Model.WalletTransactions){<article><div><strong>@Localizer[transaction.Kind]</strong><small>@transaction.CreatedAt.ToString("g")</small><p class="description" dir="auto">@transaction.Description</p>@if(transaction.Order!=null){<a asp-action="Order" asp-route-id="@transaction.OrderId">@transaction.Order.OrderNumber</a>}</div><strong class="money">@(transaction.Amount>0?"+":"")@transaction.Amount.ToString("N2") EGP</strong></article>}</div>}</section>
+<section class="panel"><h2>@Localizer["Customer_Recent_Reviews"]</h2><p class="muted">@Localizer["Customer_Review_Limit"]</p>@if(!Model.Reviews.Any()){<p class="muted">@Localizer["Customer_No_Reviews"]</p>}else{<div class="customer-activity-list">@foreach(var review in Model.Reviews){<article><div><strong>@CatalogService.Name(review.Product)</strong><small>★ @review.Rating / 5 · @review.CreatedAt.ToString("g")</small><p class="description" dir="auto">@review.Text</p><span class="status-pill @(review.IsApproved?"":"off")">@Localizer[review.IsApproved?"Review_Published":"Review_Pending"]</span></div></article>}</div>}<a class="action-link" asp-action="Reviews">@Localizer["Review_Moderation"] →</a></section>
+</div>

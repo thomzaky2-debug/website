@@ -1,4 +1,5 @@
 using NileShop.Data;
+using System.Security.Claims;
 using NileShop.Services;
 using NileShop.ViewModels;
 using Microsoft.AspNetCore.Localization;
@@ -19,7 +20,8 @@ public class HomeController(CatalogService catalog, ApplicationDbContext db) : C
             .Concat(categoryGroups.SelectMany(g => g.Products).Select(p => p.Id)).Distinct();
         ViewBag.Ratings = await catalog.GetProductRatingsAsync(db, allProductIds);
         ViewBag.BestsellerIds = await catalog.GetBestsellerIdsAsync(db);
-        return View(new LandingViewModel {Categories=categoryGroups,Featured=(featured.Count>0?featured:latest).Select(CatalogService.Card).ToList(),Latest=latest.Select(CatalogService.Card).ToList()});
+        var heroImage = await db.StoreSettings.AsNoTracking().Select(s=>s.HeroImageUrl).FirstOrDefaultAsync();
+        return View(new LandingViewModel {HeroImageUrl=heroImage ?? "/assets/img/slider/slider0.jpg",Categories=categoryGroups,Featured=(featured.Count>0?featured:latest).Select(CatalogService.Card).ToList(),Latest=latest.Select(CatalogService.Card).ToList()});
     }
     [HttpGet("/shop")]
     public async Task<IActionResult> Shop(string? q, string? category, int page = 1, decimal? minPrice = null, decimal? maxPrice = null, string sort = "relevance", bool inStock = false)
@@ -62,13 +64,20 @@ public class HomeController(CatalogService catalog, ApplicationDbContext db) : C
         return Json(new {products=products.Select(p=>new {name=CatalogService.Name(p),price=p.Price,image=CatalogService.Card(p).ImageUrl,url=Url.Action("Details","Products",new {slug=p.Slug})})});
     }
     [HttpPost, ValidateAntiForgeryToken]
-    public IActionResult SetLanguage(string culture, string returnUrl)
+    public async Task<IActionResult> SetLanguage(string culture, string returnUrl)
     {
-        if (culture is not ("en" or "ar")) return BadRequest();
-        Response.Cookies.Append(CookieRequestCultureProvider.DefaultCookieName,
-            CookieRequestCultureProvider.MakeCookieValue(new RequestCulture(culture)),
-            new CookieOptions { Expires = DateTimeOffset.UtcNow.AddYears(1), HttpOnly = true, Secure = true, IsEssential = true, SameSite = SameSiteMode.Lax });
-        return LocalRedirect(Url.IsLocalUrl(returnUrl) ? returnUrl : "/");
+        if (!LanguagePreferences.Valid(culture)) return BadRequest();
+        var destination = Url.IsLocalUrl(returnUrl) ? returnUrl : "/";
+        if (destination.StartsWith("~/", StringComparison.Ordinal)) destination = destination[1..];
+        var path = destination.Split('?', '#')[0];
+        var admin = LanguagePreferences.IsAdminPath(path);
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (User.Identity?.IsAuthenticated == true && userId is not null) {
+            if (!await db.Users.AnyAsync(user => user.Id == userId)) return Challenge();
+            await LanguagePreferences.SaveAsync(db, userId, admin, culture);
+        }
+        LanguagePreferences.WriteCookie(Response, admin, culture);
+        return LocalRedirect(destination);
     }
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
     public IActionResult Error() { Response.StatusCode = 500; return View(); }
