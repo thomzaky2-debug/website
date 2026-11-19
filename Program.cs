@@ -16,8 +16,11 @@ if (sqlite) DevelopmentSqlite.Initialize();
 if (sqlite && !builder.Environment.IsDevelopment()) throw new InvalidOperationException("SQLite is restricted to Development. Production requires SQL Server.");
 builder.Services.AddDbContext<ApplicationDbContext>(options => {
     if (sqlite) options.UseSqlite(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder { DataSource = builder.Configuration["Database:DevelopmentSqlitePath"] ?? "bubbleshop.db" }.ToString());
-    else options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")
-        ?? throw new InvalidOperationException("Configure ConnectionStrings:DefaultConnection."));
+    else {
+        var conn = builder.Configuration.GetConnectionString("DefaultConnection");
+        if (string.IsNullOrWhiteSpace(conn)) throw new InvalidOperationException("Missing connection string: configure ConnectionStrings:DefaultConnection in appsettings.json with your MonsterASP MS SQL connection string.");
+        options.UseSqlServer(conn);
+    }
 });
 builder.Services.AddDefaultIdentity<IdentityUser>(options => {
     options.Password.RequiredLength = 12;
@@ -132,7 +135,10 @@ await using (var scope = app.Services.CreateAsyncScope()) {
         await db.Database.EnsureCreatedAsync();
         await DevelopmentSqlite.EnsureWalletSchemaAsync(db);
     }
-    else if (builder.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup")) await db.Database.MigrateAsync();
+    else {
+        // Automatically create and migrate SQL Server schema on production
+        await db.Database.MigrateAsync();
+    }
     await DbInitializer.InitializeAsync(scope.ServiceProvider, builder.Configuration);
 }
 app.Run();
