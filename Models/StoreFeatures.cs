@@ -3,7 +3,7 @@ namespace NileShop.Models;
 public class StoreSettings
 {
     [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever, MaxLength(500)] public string? HeroImageUrl { get; set; }
-    public int Id { get; set; } = 1;
+    public int Id { get; set; }
     [EmailAddress, MaxLength(254)] public string? ContactEmail { get; set; }
     [Phone, MaxLength(30)] public string? ContactPhone { get; set; }
     [MaxLength(500)] public string? AddressEn { get; set; }
