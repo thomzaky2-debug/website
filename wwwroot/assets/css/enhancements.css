@@ -3699,16 +3699,88 @@ a.primary-button:hover {
   box-shadow: 0 2px 8px rgba(236, 72, 153, 0.2) !important;
 }
 
-.save-product-form button {
+/* ---------- Silent Wishlist Red Heart Filling ---------- */
+.product > .save-product-form button {
+  display: grid;
+  place-items: center;
   border: 1px solid rgba(236, 72, 153, 0.3) !important;
-  transition: all .2s ease !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  transition: transform .2s cubic-bezier(.175, .885, .32, 1.275), background-color .2s ease, border-color .2s ease, box-shadow .2s ease !important;
+  cursor: pointer;
 }
 
-.save-product-form button:hover,
-.save-product-form button[aria-pressed=true] {
-  border-color: var(--chic-pink) !important;
-  color: var(--chic-pink) !important;
-  box-shadow: 0 0 0 2px rgba(236, 72, 153, 0.25), 0 2px 8px rgba(236, 72, 153, 0.2) !important;
+.product > .save-product-form button svg {
+  transition: fill .22s ease, stroke .22s ease, color .22s ease, transform .22s ease;
+}
+
+/* Hover over un-saved heart */
+.product > .save-product-form button:not(.is-saved):hover {
+  border-color: rgba(225, 29, 72, 0.5) !important;
+  color: #e11d48 !important;
+  box-shadow: 0 0 0 3px rgba(225, 29, 72, 0.18), 0 3px 10px rgba(225, 29, 72, 0.2) !important;
+  transform: scale(1.08) !important;
+}
+
+.product > .save-product-form button:not(.is-saved):hover svg {
+  stroke: #e11d48 !important;
+}
+
+/* Filled Red Heart state when clicked / saved */
+.product > .save-product-form button.is-saved,
+.product > .save-product-form button[aria-pressed=true] {
+  background: #ffffff !important;
+  border-color: #e11d48 !important;
+  color: #e11d48 !important;
+  box-shadow: 0 0 0 3px rgba(225, 29, 72, 0.22), 0 4px 14px rgba(225, 29, 72, 0.35) !important;
+  transform: scale(1.05);
+}
+
+.product > .save-product-form button.is-saved svg,
+.product > .save-product-form button[aria-pressed=true] svg {
+  fill: #e11d48 !important;
+  stroke: #e11d48 !important;
+  color: #e11d48 !important;
+  animation: heart-pop 0.38s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* Dark mode red heart */
+html.dark-mode .product > .save-product-form button {
+  background: rgba(24, 20, 28, 0.95) !important;
+  border-color: rgba(244, 114, 182, 0.3) !important;
+}
+
+html.dark-mode .product > .save-product-form button.is-saved,
+html.dark-mode .product > .save-product-form button[aria-pressed=true] {
+  background: #1e131d !important;
+  border-color: #f43f5e !important;
+  color: #f43f5e !important;
+  box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.28), 0 4px 16px rgba(244, 63, 94, 0.45) !important;
+}
+
+html.dark-mode .product > .save-product-form button.is-saved svg,
+html.dark-mode .product > .save-product-form button[aria-pressed=true] svg {
+  fill: #f43f5e !important;
+  stroke: #f43f5e !important;
+  color: #f43f5e !important;
+}
+
+/* Detail page save button */
+.product-save-detail button.is-saved {
+  color: #e11d48 !important;
+  border-color: rgba(225, 29, 72, 0.5) !important;
+  background: #fff5f7 !important;
+}
+html.dark-mode .product-save-detail button.is-saved {
+  color: #f43f5e !important;
+  border-color: rgba(244, 63, 94, 0.6) !important;
+  background: #25121b !important;
+}
+
+@keyframes heart-pop {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.4); }
+  75% { transform: scale(0.9); }
+  100% { transform: scale(1); }
 }
 
 input:focus-visible,

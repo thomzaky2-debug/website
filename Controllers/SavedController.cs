@@ -26,10 +26,31 @@ public class SavedController(ApplicationDbContext db,UserManager<IdentityUser> u
     {
         var id=users.GetUserId(User)!;
         if(!await db.Products.AnyAsync(p=>p.Id==productId&&p.IsActive && !p.Category.IsHidden))return NotFound();
-        if(!await db.SavedProducts.AnyAsync(s=>s.UserId==id&&s.ProductId==productId)){
-            db.SavedProducts.Add(new SavedProduct{UserId=id,ProductId=productId});
-            try{await db.SaveChangesAsync();}catch(DbUpdateException){if(!await db.SavedProducts.AsNoTracking().AnyAsync(s=>s.UserId==id&&s.ProductId==productId))throw;}
+        var isAjax = Request.Headers.Accept.ToString().Contains("application/json") || Request.Headers["X-Requested-With"] == "XMLHttpRequest";
+        var existing = await db.SavedProducts.FirstOrDefaultAsync(s=>s.UserId==id&&s.ProductId==productId);
+        bool isSaved;
+
+        if (isAjax && existing != null)
+        {
+            db.SavedProducts.Remove(existing);
+            await db.SaveChangesAsync();
+            isSaved = false;
         }
+        else
+        {
+            if (existing == null)
+            {
+                db.SavedProducts.Add(new SavedProduct{UserId=id,ProductId=productId});
+                try{await db.SaveChangesAsync();}catch(DbUpdateException){if(!await db.SavedProducts.AsNoTracking().AnyAsync(s=>s.UserId==id&&s.ProductId==productId))throw;}
+            }
+            isSaved = true;
+        }
+
+        if (isAjax)
+        {
+            return Json(new { success = true, saved = isSaved, productId });
+        }
+
         TempData["Success"]="Saved_Added";return LocalRedirect(Url.IsLocalUrl(returnUrl)?returnUrl!:Url.Action(nameof(Index))!);
     }
     [HttpPost,ValidateAntiForgeryToken]

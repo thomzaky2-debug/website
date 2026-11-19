@@ -638,5 +638,92 @@ if (settingsNavLinks.length > 0 && 'IntersectionObserver' in window) {
   });
 }
 
+// --- Silent Wishlist / Saved Items Heart Toggle ---
+function getLocalSaved() {
+  try { return JSON.parse(localStorage.getItem('chic_saved_items') || '[]'); }
+  catch { return []; }
+}
+function setLocalSaved(ids) {
+  try { localStorage.setItem('chic_saved_items', JSON.stringify(ids)); }
+  catch {}
+}
+function setHeartVisual(btn, saved) {
+  btn.classList.toggle('is-saved', saved);
+  btn.setAttribute('aria-pressed', String(saved));
+  const svg = btn.querySelector('svg');
+  if (svg) {
+    svg.setAttribute('fill', saved ? 'currentColor' : 'none');
+  }
+  if (btn.classList.contains('action-link')) {
+    btn.textContent = (saved ? '♥ ' : '♡ ') + (btn.dataset.label || btn.textContent.replace(/^[♥♡]\s*/, ''));
+  }
+}
+function syncAllHearts() {
+  const savedSet = new Set(getLocalSaved().map(Number));
+  document.querySelectorAll('.save-product-form[data-silent-save], .product-save-detail[data-silent-save]').forEach(f => {
+    const pid = parseInt(f.querySelector('input[name="productId"]')?.value, 10);
+    const btn = f.querySelector('button');
+    if (!btn || !pid) return;
+    if (btn.classList.contains('is-saved')) {
+      savedSet.add(pid);
+    } else if (savedSet.has(pid)) {
+      setHeartVisual(btn, true);
+    }
+  });
+  setLocalSaved([...savedSet]);
+}
+
+document.querySelectorAll('.save-product-form[data-silent-save], .product-save-detail[data-silent-save]').forEach(form => {
+  form.addEventListener('submit', async event => {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+
+    const button = form.querySelector('button');
+    if (!button || button.disabled) return;
+
+    const pid = parseInt(form.querySelector('input[name="productId"]')?.value, 10);
+    const wasSaved = button.classList.contains('is-saved');
+    const nextSaved = !wasSaved;
+
+    // Instant optimistic update: fill with red color!
+    setHeartVisual(button, nextSaved);
+
+    // Update localStorage
+    const savedSet = new Set(getLocalSaved().map(Number));
+    if (nextSaved) savedSet.add(pid);
+    else savedSet.delete(pid);
+    setLocalSaved([...savedSet]);
+
+    // Sync any other card of same product on screen
+    document.querySelectorAll(`.save-product-form input[name="productId"][value="${pid}"], .product-save-detail input[name="productId"][value="${pid}"]`).forEach(inp => {
+      const otherBtn = inp.form?.querySelector('button');
+      if (otherBtn && otherBtn !== button) setHeartVisual(otherBtn, nextSaved);
+    });
+
+    // Silent background AJAX request (no page refresh, no notice banner):
+    try {
+      const response = await window.fetch(form.action, {
+        method: 'POST',
+        body: new FormData(form),
+        credentials: 'same-origin',
+        headers: {
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      });
+      if (response.ok) {
+        const data = await response.json().catch(() => null);
+        if (data && typeof data.saved === 'boolean') {
+          setHeartVisual(button, data.saved);
+        }
+      }
+    } catch (err) {
+      // Silently keep optimistic UI
+    }
+  }, { signal: lifecycle.signal });
+});
+
+syncAllHearts();
+
 };
 window.initializeNileShopPage();

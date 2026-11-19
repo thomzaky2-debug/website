@@ -30,6 +30,14 @@ public class ProductsController(CatalogService catalog, ApplicationDbContext db)
         ViewData["CanReview"]=userId!=null && !await db.ProductReviews.AnyAsync(r=>r.ProductId==p.Id&&r.UserId==userId) && await db.Orders.AnyAsync(o=>o.CustomerUserId==userId&&(o.PaymentStatus=="Paid"||o.PaymentStatus=="Overpaid")&&!o.NeedsPaymentReview&&o.Status=="Shipped"&&o.Items.Any(i=>i.ProductId==p.Id));
         ViewBag.Ratings = await catalog.GetProductRatingsAsync(db, related.Select(x => x.Id).Append(p.Id).Distinct());
         ViewBag.BestsellerIds = await catalog.GetBestsellerIdsAsync(db);
+        if (userId != null)
+        {
+            ViewBag.SavedProductIds = (await db.SavedProducts
+                .AsNoTracking()
+                .Where(s => s.UserId == userId)
+                .Select(s => s.ProductId)
+                .ToListAsync()).ToHashSet();
+        }
         var localizedName = t?.Name ?? p.Slug;
         var localizedDesc = t?.ShortDescription ?? "";
         if (localizedDesc.Length > 160) localizedDesc = localizedDesc[..160];

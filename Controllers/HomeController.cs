@@ -20,6 +20,7 @@ public class HomeController(CatalogService catalog, ApplicationDbContext db) : C
             .Concat(categoryGroups.SelectMany(g => g.Products).Select(p => p.Id)).Distinct();
         ViewBag.Ratings = await catalog.GetProductRatingsAsync(db, allProductIds);
         ViewBag.BestsellerIds = await catalog.GetBestsellerIdsAsync(db);
+        await PopulateSavedProductIdsAsync();
         var heroImage = await db.StoreSettings.AsNoTracking().Select(s=>s.HeroImageUrl).FirstOrDefaultAsync();
         return View(new LandingViewModel {HeroImageUrl=heroImage ?? "/assets/img/slider/slider0.jpg",Categories=categoryGroups,Featured=(featured.Count>0?featured:latest).Select(CatalogService.Card).ToList(),Latest=latest.Select(CatalogService.Card).ToList()});
     }
@@ -47,7 +48,23 @@ public class HomeController(CatalogService catalog, ApplicationDbContext db) : C
         var shopProductIds = products.Select(p => p.Id).Concat(groups.SelectMany(g => g.Products).Select(p => p.Id)).Distinct();
         ViewBag.Ratings = await catalog.GetProductRatingsAsync(db, shopProductIds);
         ViewBag.BestsellerIds = await catalog.GetBestsellerIdsAsync(db);
+        await PopulateSavedProductIdsAsync();
         return View(new CatalogViewModel { TotalMatches=count,GroupByCategory=grouped,CategoryGroups=groups, MinPrice = minPrice, MaxPrice = maxPrice, Sort = sort, InStock = inStock, Products = products.Select(CatalogService.Card).ToList(), Categories = categories, Search = q, Category = category, Page = page, TotalPages = (int)Math.Ceiling(count / 12d) });
+    }
+    private async Task PopulateSavedProductIdsAsync()
+    {
+        if (User.Identity?.IsAuthenticated == true)
+        {
+            var uid = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (uid != null)
+            {
+                ViewBag.SavedProductIds = (await db.SavedProducts
+                    .AsNoTracking()
+                    .Where(s => s.UserId == uid)
+                    .Select(s => s.ProductId)
+                    .ToListAsync()).ToHashSet();
+            }
+        }
     }
     [HttpGet, ResponseCache(Duration=0,Location=ResponseCacheLocation.None,NoStore=true)]
     public async Task<IActionResult> Suggestions(string? q,string? category,decimal? minPrice,decimal? maxPrice,bool inStock=false,CancellationToken ct=default)
