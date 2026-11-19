@@ -652,7 +652,13 @@ function setHeartVisual(btn, saved) {
   btn.setAttribute('aria-pressed', String(saved));
   const svg = btn.querySelector('svg');
   if (svg) {
-    svg.setAttribute('fill', saved ? 'currentColor' : 'none');
+    if (saved) {
+      svg.setAttribute('fill', '#e11d48');
+      svg.setAttribute('stroke', '#e11d48');
+    } else {
+      svg.setAttribute('fill', 'none');
+      svg.setAttribute('stroke', 'currentColor');
+    }
   }
   if (btn.classList.contains('action-link')) {
     btn.textContent = (saved ? '♥ ' : '♡ ') + (btn.dataset.label || btn.textContent.replace(/^[♥♡]\s*/, ''));
