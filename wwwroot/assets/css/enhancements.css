@@ -3608,3 +3608,118 @@ html.dark-mode .settings-page .settings-actions {
     grid-template-columns: 1fr;
   }
 }
+
+/* ==========================================================================
+   Chic & Unique — Rose Pink Accent & Glow System
+   Adds an elegant shade of pink border, halo, and glow around cards, buttons,
+   badges, and interactive elements.
+   ========================================================================== */
+
+:root {
+  --chic-pink: #ec4899;
+  --chic-pink-deep: #db2777;
+  --chic-pink-light: #fbcfe8;
+  --chic-pink-border: rgba(236, 72, 153, 0.28);
+  --chic-pink-border-hover: rgba(236, 72, 153, 0.6);
+  --chic-pink-glow: 0 4px 18px rgba(236, 72, 153, 0.12);
+  --chic-pink-glow-hover: 0 10px 30px rgba(236, 72, 153, 0.24);
+  --chic-btn-ring: 0 0 0 2px rgba(236, 72, 153, 0.28), 0 4px 14px rgba(236, 72, 153, 0.2);
+  --chic-btn-ring-hover: 0 0 0 3px rgba(236, 72, 153, 0.45), 0 6px 20px rgba(236, 72, 153, 0.32);
+}
+
+html.dark-mode {
+  --chic-pink-border: rgba(244, 114, 182, 0.32);
+  --chic-pink-border-hover: rgba(244, 114, 182, 0.7);
+  --chic-pink-glow: 0 4px 20px rgba(244, 114, 182, 0.16);
+  --chic-pink-glow-hover: 0 10px 32px rgba(244, 114, 182, 0.3);
+  --chic-btn-ring: 0 0 0 2px rgba(244, 114, 182, 0.32), 0 4px 16px rgba(244, 114, 182, 0.25);
+  --chic-btn-ring-hover: 0 0 0 3px rgba(244, 114, 182, 0.55), 0 6px 24px rgba(244, 114, 182, 0.38);
+}
+
+/* 1. Cards (Products, Panels, Admin Cards, Status Cards) */
+.product {
+  border: 1px solid var(--chic-pink-border) !important;
+  box-shadow: 0 4px 16px rgba(7, 51, 73, .04), var(--chic-pink-glow) !important;
+  transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease !important;
+}
+
+.product:hover {
+  border-color: var(--chic-pink-border-hover) !important;
+  box-shadow: 0 12px 32px rgba(7, 51, 73, .08), var(--chic-pink-glow-hover) !important;
+  transform: translateY(-4px) !important;
+}
+
+.panel,
+.admin-category-card,
+.status-card,
+.product-unavailable-card,
+.settings-card {
+  border: 1px solid var(--chic-pink-border) !important;
+  box-shadow: 0 4px 20px rgba(7, 51, 73, .035), var(--chic-pink-glow) !important;
+}
+
+/* 2. Buttons (Primary buttons, action buttons, submit buttons) */
+.primary-button,
+.btn-primary,
+button.primary-button,
+a.primary-button {
+  border: 1px solid rgba(236, 72, 153, 0.45) !important;
+  box-shadow: var(--chic-btn-ring) !important;
+  transition: transform .15s ease, box-shadow .2s ease, background-color .2s ease, border-color .2s ease !important;
+}
+
+.primary-button:hover,
+.btn-primary:hover,
+button.primary-button:hover,
+a.primary-button:hover {
+  border-color: rgba(236, 72, 153, 0.8) !important;
+  box-shadow: var(--chic-btn-ring-hover) !important;
+  transform: translateY(-1px) !important;
+}
+
+.footer-newsletter button {
+  border: 1px solid rgba(236, 72, 153, 0.5) !important;
+  box-shadow: 0 0 0 1px rgba(236, 72, 153, 0.25), 0 3px 10px rgba(236, 72, 153, 0.2) !important;
+}
+
+.footer-newsletter button:hover {
+  border-color: rgba(236, 72, 153, 0.85) !important;
+  box-shadow: 0 0 0 2px rgba(236, 72, 153, 0.45), 0 4px 14px rgba(236, 72, 153, 0.35) !important;
+}
+
+/* 3. Badges, Hearts, Cart Counter, Focus states */
+.cart-count {
+  background: linear-gradient(135deg, #e11d48, #ec4899) !important;
+  box-shadow: 0 2px 8px rgba(236, 72, 153, 0.45) !important;
+}
+
+.badge,
+.product-badges span {
+  border: 1px solid rgba(244, 114, 182, 0.45) !important;
+  box-shadow: 0 2px 8px rgba(236, 72, 153, 0.2) !important;
+}
+
+.save-product-form button {
+  border: 1px solid rgba(236, 72, 153, 0.3) !important;
+  transition: all .2s ease !important;
+}
+
+.save-product-form button:hover,
+.save-product-form button[aria-pressed=true] {
+  border-color: var(--chic-pink) !important;
+  color: var(--chic-pink) !important;
+  box-shadow: 0 0 0 2px rgba(236, 72, 153, 0.25), 0 2px 8px rgba(236, 72, 153, 0.2) !important;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid rgba(236, 72, 153, 0.55) !important;
+  outline-offset: 2px !important;
+  border-color: var(--chic-pink) !important;
+}
+
+.mini-cart-actions .btn-primary {
+  border: 1px solid rgba(236, 72, 153, 0.5) !important;
+  box-shadow: var(--chic-btn-ring) !important;
+}
