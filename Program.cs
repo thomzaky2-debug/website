@@ -87,11 +87,14 @@ app.UseExceptionHandler(error => error.Run(async context => {
     var exception = context.Features.Get<IExceptionHandlerFeature>()?.Error;
     app.Logger.LogError(exception, "Unhandled request failure. Trace {TraceId}", context.TraceIdentifier);
     try {
-        // Fresh scope avoids persisting any pending changes left by a failed request.
         await using var scope = app.Services.CreateAsyncScope();
-        await scope.ServiceProvider.GetRequiredService<AuditService>().LogAsync("SYSTEM_ERROR", "Application", $"{exception?.GetType().Name}; Trace {context.TraceIdentifier}");
+        await scope.ServiceProvider.GetRequiredService<AuditService>().LogAsync("SYSTEM_ERROR", "Application", $"{exception?.GetType().Name}: {exception?.Message}; Trace {context.TraceIdentifier}");
     } catch (Exception auditError) { app.Logger.LogError(auditError, "Could not persist exception audit"); }
-    context.Response.Redirect("/Home/Error");
+
+    context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+    context.Response.ContentType = "text/html; charset=utf-8";
+    var details = exception is null ? "An unknown error occurred." : $"{exception.GetType().FullName}: {exception.Message}\n\n{exception.StackTrace}";
+    await context.Response.WriteAsync($"<!DOCTYPE html><html><head><title>Application Error</title><style>body{{font-family:Segoe UI,Tahoma,sans-serif;padding:2rem;line-height:1.5;background:#f8f9fa;color:#333}}pre{{background:#fff;padding:1.25rem;border:1px solid #dee2e6;border-radius:4px;overflow:auto;font-size:0.9rem;}}h2{{color:#dc3545;margin-top:0;}}</style></head><body><h2>Application Diagnostic Details</h2><p><strong>Trace Identifier:</strong> {context.TraceIdentifier}</p><pre>{System.Net.WebUtility.HtmlEncode(details)}</pre></body></html>");
 }));
 if (!app.Environment.IsDevelopment()) app.UseHsts();
 app.UseStatusCodePages(async statusCodeContext => {
