@@ -70,7 +70,7 @@ public class HomeController(CatalogService catalog, ApplicationDbContext db) : C
         var destination = Url.IsLocalUrl(returnUrl) ? returnUrl : "/";
         if (destination.StartsWith("~/", StringComparison.Ordinal)) destination = destination[1..];
         var path = destination.Split('?', '#')[0];
-        var admin = LanguagePreferences.IsAdminPath(path);
+        var admin = LanguagePreferences.IsAdminPath(path) || LanguagePreferences.IsAdminContext(HttpContext);
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (User.Identity?.IsAuthenticated == true && userId is not null) {
             if (!await db.Users.AnyAsync(user => user.Id == userId)) return Challenge();

@@ -6,11 +6,12 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Localization;
+using Microsoft.Extensions.Options;
 using NileShop.Services;
 using NileShop.ViewModels;
 namespace NileShop.Controllers;
 [ResponseCache(Duration=0,Location=ResponseCacheLocation.None,NoStore=true)]
-public class AccountController(UserManager<IdentityUser> users, SignInManager<IdentityUser> signIn, IStringLocalizer<SharedResource> localizer, ApplicationDbContext db, WalletService wallet, AuditService audit) : Controller
+public class AccountController(UserManager<IdentityUser> users, SignInManager<IdentityUser> signIn, IStringLocalizer<SharedResource> localizer, ApplicationDbContext db, WalletService wallet, AuditService audit, IOptions<SubdomainOptions> subOptions) : Controller
 {
     async Task<CustomerProfileViewModel> BuildProfileAsync(IdentityUser user, CustomerProfileViewModel? form = null)
     {
@@ -136,7 +137,21 @@ public class AccountController(UserManager<IdentityUser> users, SignInManager<Id
         return RedirectToAction(nameof(Index));
     }
     [AllowAnonymous,HttpGet]
-    public IActionResult Login(string? returnUrl)=>User.Identity?.IsAuthenticated==true ? (User.IsInRole("Admin") ? LocalRedirect("/Admin/Dashboard") : LocalRedirect(SafeReturn(returnUrl))) : View(new CustomerLoginViewModel {ReturnUrl=returnUrl});
+    public IActionResult Login(string? returnUrl)
+    {
+        var opts = subOptions.Value;
+        var isAdminHost = SubdomainRouting.IsAdminHost(HttpContext, opts);
+        if (User.Identity?.IsAuthenticated == true)
+        {
+            if (User.IsInRole("Admin")) return LocalRedirect("/Admin/Dashboard");
+            if (isAdminHost && !string.IsNullOrWhiteSpace(opts.ClientHost))
+            {
+                return Redirect(SubdomainRouting.BuildTargetUrl(HttpContext, opts.ClientHost, "/Account"));
+            }
+            return LocalRedirect(SafeReturn(returnUrl));
+        }
+        return View(new CustomerLoginViewModel {ReturnUrl=returnUrl});
+    }
     [AllowAnonymous,HttpPost,ValidateAntiForgeryToken,EnableRateLimiting("customer-auth")]
     public async Task<IActionResult> Login(CustomerLoginViewModel model)
     {
@@ -144,12 +159,23 @@ public class AccountController(UserManager<IdentityUser> users, SignInManager<Id
         var user=await users.FindByEmailAsync(model.Email.Trim());
         if(user is not null) {
             var isAdmin = await users.IsInRoleAsync(user,"Admin");
+            var opts = subOptions.Value;
+            var isAdminHost = SubdomainRouting.IsAdminHost(HttpContext, opts);
             var result = await signIn.PasswordSignInAsync(user,model.Password,false,lockoutOnFailure:true);
             if(result.Succeeded) {
                 if(isAdmin) {
                     HttpContext.User = await signIn.CreateUserPrincipalAsync(user);
                     await audit.LogAsync("ADMIN_LOGIN","Identity",$"Admin {user.Email} signed in");
+                    if (opts.Enabled && !string.IsNullOrWhiteSpace(opts.AdminHost) && !isAdminHost)
+                    {
+                        return Redirect(SubdomainRouting.BuildTargetUrl(HttpContext, opts.AdminHost, "/StoreAdmin"));
+                    }
                     return LocalRedirect(!string.IsNullOrWhiteSpace(model.ReturnUrl) && Url.IsLocalUrl(model.ReturnUrl) ? model.ReturnUrl! : "/Admin/Dashboard");
+                }
+                if (isAdminHost) {
+                    await signIn.SignOutAsync();
+                    ModelState.AddModelError("", localizer["Admin_Portal_Restricted"].Value);
+                    return View(model);
                 }
                 return LocalRedirect(SafeReturn(model.ReturnUrl));
             }

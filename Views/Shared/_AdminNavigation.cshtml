@@ -1,4 +1,5 @@
-@{var controller=ViewContext.RouteData.Values["controller"]?.ToString();var action=ViewContext.RouteData.Values["action"]?.ToString();}
+@inject Microsoft.Extensions.Options.IOptions<NileShop.Services.SubdomainOptions> SubdomainOpts
+@{var controller=ViewContext.RouteData.Values["controller"]?.ToString();var action=ViewContext.RouteData.Values["action"]?.ToString(); var subOpts = SubdomainOpts.Value;}
 @foreach(var destination in new[]{
     (Controller:"Admin",Action:"Dashboard",Title:"Nav_Dashboard",Active:controller=="Admin" && action=="Dashboard"),
     (Controller:"Admin",Action:"Products",Title:"Products",Active:controller=="Admin" && action is "Products" or "CreateProduct" or "EditProduct"),
@@ -10,4 +11,7 @@
     (Controller:"StoreAdmin",Action:"Settings",Title:"Store_Settings",Active:controller=="StoreAdmin" && action=="Settings"),
     (Controller:"Admin",Action:"AuditLogs",Title:"Logs",Active:controller=="Admin" && action=="AuditLogs")}){
     <a asp-controller="@destination.Controller" asp-action="@destination.Action" aria-current="@(destination.Active?"page":null)">@Localizer[destination.Title]</a>
+}
+@if(subOpts.Enabled && !string.IsNullOrWhiteSpace(subOpts.ClientHost)){
+    <a href="https://@subOpts.ClientHost" target="_blank" rel="noopener">@Localizer["View_Storefront"] ↗</a>
 }

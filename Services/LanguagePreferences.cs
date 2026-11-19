@@ -3,6 +3,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using NileShop.Data;
 namespace NileShop.Services;
 
@@ -10,6 +11,13 @@ public static class LanguagePreferences
 {
     public static bool IsAdminPath(string path) => new PathString(path).StartsWithSegments("/Admin")
         || new PathString(path).StartsWithSegments("/StoreAdmin") || new PathString(path).StartsWithSegments("/Identity");
+    public static bool IsAdminContext(HttpContext context)
+    {
+        var path = context.Request.Path.Value ?? "/";
+        if (IsAdminPath(path)) return true;
+        var subOptions = context.RequestServices.GetService<IOptions<SubdomainOptions>>()?.Value;
+        return subOptions is not null && SubdomainRouting.IsAdminHost(context, subOptions);
+    }
     public static string ClaimType(bool admin) => admin ? "nileshop:language:admin" : "nileshop:language:storefront";
     public static string CookieName(bool admin) => admin ? ".NileShop.Language.Admin" : ".NileShop.Language.Storefront";
     public static bool Valid(string? culture) => culture is "en" or "ar";
@@ -33,7 +41,7 @@ public class ScopedLanguageProvider : RequestCultureProvider
 {
     public override async Task<ProviderCultureResult?> DetermineProviderCultureResult(HttpContext context)
     {
-        var admin = LanguagePreferences.IsAdminPath(context.Request.Path.Value ?? "/");
+        var admin = LanguagePreferences.IsAdminContext(context);
         var userId = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (context.User.Identity?.IsAuthenticated == true && userId is not null) {
             // Account preference wins over browser cookies, including on shared computers.

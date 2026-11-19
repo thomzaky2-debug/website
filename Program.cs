@@ -72,6 +72,7 @@ builder.Services.AddHttpClient<NilePayClient>(http => http.Timeout = TimeSpan.Fr
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 builder.Services.AddScoped<NilePayService>();
 builder.Services.AddScoped<OrderOperations>();
+builder.Services.Configure<SubdomainOptions>(builder.Configuration.GetSection("Subdomains"));
 builder.Services.AddScoped<WalletService>();
 builder.Services.AddScoped<CustomerAdminService>();
 builder.Services.AddScoped<ProductImageService>();
@@ -120,6 +121,7 @@ app.UseRateLimiter();
 app.UseSession();
 app.UseAuthentication();
 app.UseRequestLocalization();
+app.UseMiddleware<SubdomainMiddleware>();
 app.UseAuthorization();
 app.MapControllerRoute("default", "{controller=Home}/{action=Index}/{id?}");
 app.MapRazorPages();
