@@ -5,8 +5,8 @@
     var bestsellerIds = ViewBag.BestsellerIds as HashSet<int>;
     var isBestseller = bestsellerIds != null && bestsellerIds.Contains(Model.Id);
     var isLowStock = Model.StockQuantity > 0 && Model.StockQuantity <= 5;
-    var hasDiscount = Model.OldPrice.HasValue && Model.OldPrice > Model.Price;
-    var discountPct = hasDiscount ? (int)Math.Round(100.0 * (double)(Model.OldPrice!.Value - Model.Price) / (double)Model.OldPrice.Value) : 0;
+    var hasDiscount = Model.HasDiscount;
+    var discountPct = Model.DiscountPercentage;
     var savedIds = ViewBag.SavedProductIds as HashSet<int>;
     var isSaved = savedIds != null && savedIds.Contains(Model.Id);
 }

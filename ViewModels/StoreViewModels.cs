@@ -2,7 +2,11 @@ using System.ComponentModel.DataAnnotations;
 using NileShop.Models;
 using NileShop.Services;
 namespace NileShop.ViewModels;
-public record ProductCard(int Id, string Slug, string Name, string Category, string ImageUrl, decimal Price, decimal? OldPrice, int StockQuantity, bool IsFeatured, bool HasOptions = false, bool IsNew = false);
+public record ProductCard(int Id, string Slug, string Name, string Category, string ImageUrl, decimal Price, decimal? OldPrice, int StockQuantity, bool IsFeatured, bool HasOptions = false, bool IsNew = false)
+{
+    public bool HasDiscount => OldPrice.HasValue && OldPrice.Value > Price;
+    public int DiscountPercentage => HasDiscount ? (int)Math.Round(100.0 * (double)(OldPrice!.Value - Price) / (double)OldPrice.Value) : 0;
+}
 public record CategoryLink(int Id, string Slug, string Name);
 public record CategoryProductGroup(CategoryLink Category, int Count, IReadOnlyList<ProductCard> Products);
 public class CatalogViewModel
