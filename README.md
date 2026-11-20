@@ -21,11 +21,13 @@ For local development only, set `ASPNETCORE_ENVIRONMENT=Development` and `Databa
 
 ## Windows IIS / MonsterASP.NET
 
-1. Create a SQL Server database in the hosting panel. Supply its connection string and admin settings via secure hosting configuration; do not commit credentials.
-2. Apply the included initial migration with `dotnet ef database update` (or `Update-Database` in Visual Studio Package Manager Console). Alternatively explicitly set `Database:ApplyMigrationsOnStartup=true` for first deployment, then disable it.
+1. Set `ConnectionStrings__DefaultConnection` in the hosting panel with the existing SQL Server connection string. Use `Encrypt=True;TrustServerCertificate=False`. Set `AdminSettings__Email` and `AdminSettings__Password` only when creating the first administrator.
+2. Apply the included SQL Server migrations with `dotnet ef database update` (or `Update-Database` in Visual Studio Package Manager Console). Alternatively, set `Database__ApplyMigrationsOnStartup=true` for initial setup, then disable it.
 3. Publish with `dotnet publish -c Release -o publish`. Upload the publish directory, including the generated web.config, to the IIS application root. Use the .NET 10 Hosting Bundle and an application pool with No Managed Code.
 4. Enable the site's HTTPS certificate and set `AllowedHosts` to the production hostname. Ensure IIS can write ASP.NET Data Protection keys to a persistent, access-controlled location; preserve these across deployments.
 5. Browse `/Identity/Account/Login`, then `/Admin/Dashboard`. The legacy Identity registration route redirects to admin login. Customer signup and login are available at `/Account/Register` and `/Account/Login`. Product/category mutations, order management and logs require the Admin role and antiforgery tokens.
+
+For HTTP 500.30 on MonsterASP.NET, open the site's **Logs → ASP.NET Core debug**, enable logging briefly, and restart to capture the first startup exception. Check **Scripting** for the runtime and environment variables, then disable debug logging after collecting the error.
 
 The app expects to run at the site root. The in-memory cart/session requires one IIS worker; use a distributed session store before scaling horizontally. Checkout uses NilePay hosted payment and is disabled until merchant settings are configured (see NILEPAY.md). Prices are EGP and orders contain the final server-calculated prices. Stock decrements use guarded SQL updates within the order transaction. The order operations page reconciles NilePay status before cancelling an unpaid order and releases stock once. Refunds are recorded only after the merchant completes them externally; NileShop does not issue a NilePay refund. Cancelled and shipped orders cannot be reopened. Ordered products are archived instead of deleted. Fulfilment and customer contact are managed from the dashboard.
 
@@ -74,7 +76,7 @@ Language preferences are independent for the storefront and admin routes. Guests
 
 ## Security configuration
 
-Read [SECURITY.md](SECURITY.md) for the review findings, checks and deployment requirements. Production configuration contains no credentials: supply `ConnectionStrings__DefaultConnection`, `AdminSettings__Email`, the first-run-only `AdminSettings__Password`, and a semicolon-separated `AllowedHosts` through your host's secure settings. SQL connections must use `Encrypt=True;TrustServerCertificate=False`, and SMTP delivery requires TLS. Apply reviewed SQL migrations with a separate deployment identity; automatic production migrations are disabled by default. The running application should have only its required database permissions.
+Read [SECURITY.md](SECURITY.md) for the review findings, checks and deployment requirements. Production configuration contains no credentials: supply `ConnectionStrings__DefaultConnection` and a semicolon-separated `AllowedHosts` through your host's secure settings. Creating the first administrator also requires `AdminSettings__Email` and `AdminSettings__Password`. SQL connections must use `Encrypt=True;TrustServerCertificate=False`, and SMTP delivery requires TLS. Apply reviewed SQL migrations with a separate deployment identity; automatic production migrations are disabled by default. The running application should have only its required database permissions.
 
 Authentication, session and antiforgery cookies require HTTPS. Behind a reverse proxy, configure forwarding only for trusted proxy addresses and retain HTTPS awareness. Persist ASP.NET Core Data Protection keys outside the webroot with access restricted to the application identity (and protected shared keys for multiple instances). An in-memory cart/session and per-process rate limiter are suitable for one application instance; use shared session storage and an edge/distributed limiter before scaling across instances.
 

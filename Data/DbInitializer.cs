@@ -11,16 +11,20 @@ public static class DbInitializer
         var users = services.GetRequiredService<UserManager<IdentityUser>>();
         static void Check(IdentityResult result) { if (!result.Succeeded) throw new InvalidOperationException(string.Join("; ", result.Errors.Select(e => e.Description))); }
         if (!await roles.RoleExistsAsync("Admin")) Check(await roles.CreateAsync(new IdentityRole("Admin")));
-        var email = config["AdminSettings:Email"];
-        if (string.IsNullOrWhiteSpace(email)) throw new InvalidOperationException("Configure AdminSettings:Email and AdminSettings:Password before first launch.");
-        var admin = await users.FindByEmailAsync(email);
-        if (admin is null) {
+        var adminRoleId = await db.Roles.Where(role => role.NormalizedName == "ADMIN").Select(role => role.Id).SingleAsync();
+        if (!await db.UserRoles.AnyAsync(role => role.RoleId == adminRoleId)) {
+            var email = config["AdminSettings:Email"]?.Trim();
             var password = config["AdminSettings:Password"];
-            if (string.IsNullOrWhiteSpace(password)) throw new InvalidOperationException("Configure a strong AdminSettings:Password before first launch.");
-            admin = new IdentityUser { UserName = email, Email = email, EmailConfirmed = true };
+            if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
+                throw new InvalidOperationException("Configure AdminSettings:Email and AdminSettings:Password to create the first administrator.");
+            await using var bootstrap = await db.Database.BeginTransactionAsync();
+            if (await users.FindByEmailAsync(email) is not null)
+                throw new InvalidOperationException("The bootstrap email is already registered. Configure an unused email for the first administrator.");
+            var admin = new IdentityUser { UserName = email, Email = email, EmailConfirmed = true };
             Check(await users.CreateAsync(admin, password));
+            Check(await users.AddToRoleAsync(admin, "Admin"));
+            await bootstrap.CommitAsync();
         }
-        if (!await users.IsInRoleAsync(admin, "Admin")) Check(await users.AddToRoleAsync(admin, "Admin"));
         if (!await db.StoreMailSettings.AnyAsync()) db.StoreMailSettings.Add(new StoreMailSettings());
         if (!await db.StoreSettings.AnyAsync()) db.StoreSettings.Add(new StoreSettings {
             DeliveryPolicyEn = """

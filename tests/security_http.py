@@ -62,10 +62,11 @@ try:
  with sqlite3.connect(database) as db:db.execute('ALTER TABLE SecurityTestSettings RENAME TO StoreSettings')
  # A bootstrap password change must not silently reset an existing administrator.
  proc.terminate();proc.wait(timeout=15);jar.clear()
+ env['AdminSettings__Email']=''
  env['AdminSettings__Password']=secrets.token_urlsafe(24)+'Bb2!'
  start();_,login,_,_=req('/Identity/Account/Login')
  code,body,_,_=req('/Identity/Account/Login',{'Email':'security-admin@example.test','Password':password,'__RequestVerificationToken':token(login)})
- check(code==200 and 'Dashboard' in body,'existing admin password survives restart with a different bootstrap password')
+ check(code==200 and 'Dashboard' in body,'existing admin password survives restart without a bootstrap email and with a different bootstrap password')
  _,dashboard,_,_=req('/Admin/Dashboard')
  req('/Identity/Account/Logout',{'__RequestVerificationToken':token(dashboard)})
  _,login,_,_=req('/Identity/Account/Login');csrf=token(login)
