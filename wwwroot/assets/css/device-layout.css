@@ -41,8 +41,29 @@ main :where(form, aside, article, fieldset, .field, .editor-main-column, .editor
   .menu-toggle[aria-expanded="true"] span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
   .menu-toggle[aria-expanded="true"] span:nth-child(2) { opacity: 0; }
   .menu-toggle[aria-expanded="true"] span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
-  .site-header .site-nav { display: none; position: absolute; inset-inline: var(--page-gutter); top: 100%; width: auto; max-height: calc(100vh - 100px); max-height: calc(100dvh - 100px); padding: 12px; background: #fff; border: 1px solid var(--line); border-radius: 0 0 16px 16px; box-shadow: 0 16px 32px #0002; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 4px; overflow-y: auto; overscroll-behavior: contain; z-index: 50; }
+  .site-header .site-nav {
+    display: none;
+    position: absolute;
+    inset-inline: auto var(--page-gutter);
+    top: calc(100% + 8px);
+    width: min(21rem, calc(100% - 2 * var(--page-gutter)));
+    max-height: calc(100vh - 96px);
+    max-height: calc(100dvh - 96px - env(safe-area-inset-bottom, 0px));
+    padding: 12px;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    box-shadow: 0 16px 32px #0003;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 4px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    z-index: 50;
+  }
   .site-header .site-nav { flex-wrap: nowrap; }
+  .site-header .site-nav > * { flex-shrink: 0; }
   .site-header .site-nav.is-open { display: flex; }
   .site-header .site-nav > a, .site-header .site-nav > form > button { width: 100%; min-height: 48px; padding: 12px; border-radius: 9px; justify-content: flex-start; text-align: start; white-space: normal; }
   .site-nav > form { display: block; width: 100%; margin: 0; }
