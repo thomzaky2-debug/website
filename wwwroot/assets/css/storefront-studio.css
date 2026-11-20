@@ -55,7 +55,9 @@ html.dark-mode .storefront-site { --studio-paper: #101a26; --studio-soft: #16233
 .storefront-site .product > form:not(.save-product-form) { margin-inline: 16px; }
 .storefront-site .product > form:not(.save-product-form) .primary-button { width: 100%; margin: 0; }
 .storefront-site .product > a.primary-button { margin-inline: 16px; width: auto; }
-.storefront-site .product .product-badges { inset-inline-start: 12px; inset-inline-end: auto; top: 12px; }
+.storefront-site .product > .save-product-form { inset-inline-start: auto; inset-inline-end: 12px; }
+.storefront-site .product .product-badges { inset-inline-start: 12px; inset-inline-end: auto; top: 12px; align-items: flex-start; max-width: calc(100% - 80px); }
+.storefront-site .product .product-badges .badge-tag { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
 .storefront-site .product .badge-tag { font-size: .65rem; letter-spacing: .03em; padding: 5px 8px; border-radius: 5px; }
 .storefront-site .saved-remove { display: flex; justify-content: flex-end; }
 .storefront-site .saved-remove button { min-height: 44px; margin-top: 4px; border: 0; background: transparent; color: var(--muted); font-size: .8rem; }
