@@ -29,7 +29,11 @@
 <a class="skip" href="#main">@Localizer["Skip_Content"]</a>
 <header class="site-header @(admin ? "admin-header" : "")"><div class="container nav">
   <a class="brand" href="@(admin ? "/Admin/Dashboard" : "/")" aria-label="Chic &amp; Unique"><img src="~/assets/img/logo.png" alt="Chic &amp; Unique" class="brand-logo-img"/><span>Chic &amp; Unique</span></a>
-  @if (!admin && !LanguagePreferences.IsAdminContext(Context))
+  @if (IsSectionDefined("HeaderSearch"))
+  {
+      @await RenderSectionAsync("HeaderSearch")
+  }
+  else if (!admin && !LanguagePreferences.IsAdminContext(Context))
   {
       <form class="header-search" asp-controller="Home" asp-action="Shop" method="get" role="search">
           <label class="sr-only" for="header-search-query">@Localizer["Search"]</label>

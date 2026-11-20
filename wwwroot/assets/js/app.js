@@ -183,19 +183,22 @@ document.querySelectorAll('[data-quantity-step]').forEach(button=>button.addEven
 }, { signal: lifecycle.signal }));
 // Apply catalog selections immediately while keeping all other filter values.
 const catalogFilters=document.querySelector('.catalog-filters');
-const refineToggle=catalogFilters?.querySelector('.catalog-refine-toggle');
-refineToggle?.addEventListener('click',()=>{
- const expanded=refineToggle.getAttribute('aria-expanded')!=='true';
- refineToggle.setAttribute('aria-expanded',String(expanded));
- catalogFilters.classList.toggle('refinements-open',expanded);
+const headerCatalog=document.getElementById('header-catalog');
+headerCatalog?.addEventListener('toggle', () => {
+ if (headerCatalog.open) closeSiteMenu();
 }, { signal: lifecycle.signal });
-catalogFilters?.addEventListener('invalid',event=>{
- if(event.target.closest('.catalog-refinements')){
-  refineToggle?.setAttribute('aria-expanded','true');
-  catalogFilters.classList.add('refinements-open');
+menuToggle?.addEventListener('click', () => {
+ if (headerCatalog) headerCatalog.open = false;
+}, { signal: lifecycle.signal });
+document.addEventListener('click', event => {
+ if (headerCatalog?.open && !headerCatalog.contains(event.target)) headerCatalog.open = false;
+}, { signal: lifecycle.signal });
+headerCatalog?.addEventListener('keydown', event => {
+ if (event.key === 'Escape' && !event.defaultPrevented && headerCatalog.open) {
+  headerCatalog.open = false;
+  headerCatalog.querySelector('summary')?.focus();
  }
-}, { capture: true, signal: lifecycle.signal });
-
+}, { signal: lifecycle.signal });
 catalogFilters?.querySelectorAll('select,input[type="checkbox"]').forEach(control=>{
  control.addEventListener('change',()=>submitCatalogFilters(), { signal: lifecycle.signal });
 });
@@ -301,16 +304,24 @@ function showToast(message, type = 'success') {
 }
 
 // --- A1. AJAX Add-to-Cart Interception ---
+let pendingCartAdd = Promise.resolve();
 document.querySelectorAll('form[data-ajax-cart]').forEach(form => {
   form.addEventListener('submit', async e => {
     e.preventDefault();
     if (!form.reportValidity()) return;
     const btn = form.querySelector('button[type="submit"], button:not([type])');
+    if (btn?.disabled) return;
+    const body = new FormData(form);
     if (btn) btn.disabled = true;
+    const previousAdd = pendingCartAdd;
+    let finishAdd;
+    pendingCartAdd = new Promise(resolve => { finishAdd = resolve; });
     try {
+      await previousAdd;
+      if (lifecycle.signal.aborted) return;
       const response = await fetch('/Cart/AddAjax', {
         method: 'POST',
-        body: new FormData(form),
+        body,
         headers: { 'Accept': 'application/json' },
         credentials: 'same-origin'
       });
@@ -318,7 +329,13 @@ document.querySelectorAll('form[data-ajax-cart]').forEach(form => {
       if (response.ok && data.success) {
         showToast(data.message || document.body.dataset.cartAdded);
         document.querySelectorAll('.cart-count').forEach(el => { el.textContent = data.cartCount; });
-        refreshMiniCart();
+        const options = form.closest('.quick-add details');
+        if (options?.open) {
+          const restoreFocus = options.contains(document.activeElement);
+          options.open = false;
+          if (restoreFocus) options.querySelector('summary')?.focus();
+        }
+        if (miniCartOverlay?.classList.contains('open')) refreshMiniCart();
       } else {
         showToast(data.message || document.body.dataset.asyncError, 'error');
       }
@@ -326,6 +343,7 @@ document.querySelectorAll('form[data-ajax-cart]').forEach(form => {
       showToast(document.body.dataset.asyncError, 'error');
     } finally {
       if (btn) btn.disabled = false;
+      finishAdd();
     }
   }, { signal: lifecycle.signal });
 });

@@ -24,6 +24,7 @@ try:
  check('home-category-grid' in home and 'catalog-filters' not in home,'home is a discovery landing page without catalog filters')
  _,shop,shop_url=req('/shop')
  check('catalog-filters' in shop and 'home-hero' not in shop,'shop provides the catalog without the landing hero')
+ check(shop.index('id="header-catalog"') < shop.index('class="catalog-filters panel"') < shop.index('</header>') and shop.count('id="catalog-search"')==1,'shop toolbar is in the header with no duplicate search field')
  check('/shop' in req('/?category=shoes')[2],'legacy category URLs redirect to the shop')
 
  check(req('/products/everyday-runner')[0]==200,'product details route')
@@ -140,6 +141,18 @@ try:
 
 
  _,catalog,_=req('/')
+ with sqlite3.connect(env['Database__DevelopmentSqlitePath']) as db:
+  original_colors=db.execute('SELECT Colors FROM Products WHERE Id=2').fetchone()[0]
+  db.execute("UPDATE Products SET Colors='Blue, Black' WHERE Id=2")
+ _,quick_shop,_=req('/shop?q=cardigan')
+ check('class="quick-add-trigger"' in quick_shop and '<option value="Blue">Blue</option>' in quick_shop,'quick add exposes product options on the card')
+ add={'productId':'2','__RequestVerificationToken':token(quick_shop)}
+ check(req('/Cart/AddAjax',add)[0]==400,'quick add requires a valid variant')
+ code,added,_=req('/Cart/AddAjax',dict(add,color='Blue'))
+ check(code==200 and '"cartCount":1' in added,'quick add updates the cart count for the selected variant')
+ req('/Cart/Remove',{'cartKey':'2::Blue','__RequestVerificationToken':token(quick_shop)})
+ with sqlite3.connect(env['Database__DevelopmentSqlitePath']) as db:
+  db.execute('UPDATE Products SET Colors=? WHERE Id=2',(original_colors,))
  req('/Cart/Add',{'productId':'2','quantity':'1','__RequestVerificationToken':token(catalog)})
 
  import json

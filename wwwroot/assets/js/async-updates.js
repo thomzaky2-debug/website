@@ -75,6 +75,12 @@
       }
       window.disposeNileShopPage?.();
       main.replaceChildren(...nextMain.childNodes);
+      const headerCatalog = document.getElementById('header-catalog');
+      const nextHeaderCatalog = page.getElementById('header-catalog');
+      if (headerCatalog && nextHeaderCatalog) {
+        nextHeaderCatalog.open = headerCatalog.open;
+        headerCatalog.replaceWith(nextHeaderCatalog);
+      }
       document.title = page.title;
       document.querySelectorAll('#site-nav a').forEach(link => {
         const next = [...page.querySelectorAll('#site-nav a')].find(node => node.getAttribute('href') === link.getAttribute('href'));
@@ -139,7 +145,7 @@
   });
   document.addEventListener('change', event => {
     const form = event.target.form;
-    if (event.target.matches('select') && form?.matches('[data-async-form][method="get"]') && !busy) form.requestSubmit();
+    if (event.target.matches('select') && form?.matches('[data-async-form][method="get"]:not(.catalog-filters)') && !busy) form.requestSubmit();
   });
   window.addEventListener('popstate', () => update(location.href));
   window.NileShopAsync = { refresh: () => update(location.href), update };
