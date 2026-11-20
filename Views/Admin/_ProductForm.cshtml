@@ -14,6 +14,7 @@
         <div class="field entry-wide"><label asp-for="CategoryId">@Localizer["CategoryId"] <span aria-hidden="true">*</span></label><select asp-for="CategoryId" required><option value="">@Localizer["Entry_Choose_Category"]</option>@foreach(var c in Model.Categories){<option value="@c.Id">@c.Name</option>}</select><span asp-validation-for="CategoryId"></span>@if(!Model.Categories.Any()){<small>@Localizer["Entry_No_Categories"] <a asp-action="CreateCategory">@Localizer["CreateCategory"]</a></small>}</div>
         <div class="field"><label asp-for="FullDescriptionEn">@Localizer["FullDescriptionEn"] <span aria-hidden="true">*</span></label><textarea asp-for="FullDescriptionEn" dir="ltr" rows="4" required maxlength="20000" placeholder="@Localizer["Entry_Description_Help"]"></textarea><span asp-validation-for="FullDescriptionEn"></span></div>
         <div class="field"><label asp-for="FullDescriptionAr">@Localizer["FullDescriptionAr"] <span aria-hidden="true">*</span></label><textarea asp-for="FullDescriptionAr" dir="rtl" rows="4" required maxlength="20000" placeholder="@Localizer["Entry_Description_Help"]"></textarea><span asp-validation-for="FullDescriptionAr"></span></div>
+        <div class="field"><label asp-for="Sizes">@Localizer["Options_Sizes"]</label><input asp-for="Sizes" placeholder="S, M, L" maxlength="500"/><span asp-validation-for="Sizes"></span></div>
     </div>
 </section>
 <section class="entry-card entry-media" aria-labelledby="entry-media-title">
@@ -46,8 +47,7 @@
     <label class="entry-check"><input asp-for="IsFeatured"/><span><strong>@Localizer["IsFeatured"]</strong><small>@Localizer["Entry_Featured_Help"]</small></span></label>
 </section>
 <section class="entry-card entry-more">
-    <details class="entry-disclosure" open="@(HasError(nameof(Model.Slug),nameof(Model.Sizes),nameof(Model.Colors),nameof(Model.ShortDescriptionEn),nameof(Model.ShortDescriptionAr)))"><summary>@Localizer["Entry_Additional"]</summary><p class="entry-help">@Localizer["Entry_Additional_Help"]</p><div class="entry-fields">
-        <div class="field"><label asp-for="Sizes">@Localizer["Options_Sizes"]</label><input asp-for="Sizes" placeholder="S, M, L" maxlength="500"/></div>
+    <details class="entry-disclosure" open="@(HasError(nameof(Model.Slug),nameof(Model.Colors),nameof(Model.ShortDescriptionEn),nameof(Model.ShortDescriptionAr)))"><summary>@Localizer["Entry_Additional"]</summary><p class="entry-help">@Localizer["Entry_Additional_Help"]</p><div class="entry-fields">
         <div class="field"><label asp-for="Colors">@Localizer["Options_Colors"]</label><input asp-for="Colors" placeholder="@Localizer["Entry_Colors_Example"]" maxlength="500"/></div>
         <div class="field"><label asp-for="ShortDescriptionEn">@Localizer["ShortDescriptionEn"]</label><textarea asp-for="ShortDescriptionEn" dir="ltr" rows="2" maxlength="500"></textarea><span asp-validation-for="ShortDescriptionEn"></span></div>
         <div class="field"><label asp-for="ShortDescriptionAr">@Localizer["ShortDescriptionAr"]</label><textarea asp-for="ShortDescriptionAr" dir="rtl" rows="2" maxlength="500"></textarea><span asp-validation-for="ShortDescriptionAr"></span></div>
