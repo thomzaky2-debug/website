@@ -16,6 +16,7 @@ env = dict(
     AdminSettings__Password=password,
     NilePay__ApiKey='',
     Smtp__Enabled='false',
+    AllowedHosts='localhost;admin.testshop.local;client.testshop.local',
     Subdomains__Enabled='true',
     Subdomains__AdminHost='admin.testshop.local',
     Subdomains__ClientHost='client.testshop.local',
@@ -56,7 +57,7 @@ def token(html):
     return m.group(1) if m else ''
 
 log = open('.dotnet/subdomain-test.log', 'w')
-proc = subprocess.Popen(['.dotnet/dotnet', 'bin/Debug/net8.0/NileShop.dll'], env=env, stdout=log, stderr=log)
+proc = subprocess.Popen(['.dotnet/dotnet', 'bin/Debug/net10.0/NileShop.dll'], env=env, stdout=log, stderr=log)
 
 try:
     for _ in range(60):

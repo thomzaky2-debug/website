@@ -2,7 +2,7 @@ import os,subprocess,secrets,time,ssl,urllib.request,urllib.parse,http.cookiejar
 from pathlib import Path
 password=secrets.token_urlsafe(24)+'Aa1!'
 env=dict(os.environ,ASPNETCORE_ENVIRONMENT='Development',Database__UseDevelopmentSqlite='true',Database__DevelopmentSqlitePath='.dotnet/smoke-'+secrets.token_hex(6)+'.db',AdminSettings__Email='smoke@example.com',AdminSettings__Password=password,ASPNETCORE_URLS='https://localhost:5444')
-log=open('http-server.log','w');proc=subprocess.Popen(['.dotnet/dotnet','bin/Debug/net8.0/NileShop.dll'],env=env,stdout=log,stderr=log)
+log=open('http-server.log','w');proc=subprocess.Popen(['.dotnet/dotnet','bin/Debug/net10.0/NileShop.dll'],env=env,stdout=log,stderr=log)
 jar=http.cookiejar.CookieJar();opener=urllib.request.build_opener(urllib.request.HTTPSHandler(context=ssl._create_unverified_context()),urllib.request.HTTPCookieProcessor(jar));base='https://localhost:5444'
 def req(path,data=None,headers=None):
  try:
@@ -126,6 +126,16 @@ try:
  with opener.open(urllib.request.Request(base+'/Admin/CreateProduct',data=b''.join(parts),headers={'Content-Type':'multipart/form-data; boundary='+boundary}),timeout=20) as response:check('/Admin/Products' in response.url,'product with upload saves under new perfume category')
  with sqlite3.connect(env['Database__DevelopmentSqlitePath']) as db:saved_image=db.execute("SELECT ImageUrl FROM Products WHERE Slug='tobacco-check'").fetchone()[0]
  check(saved_image.startswith('/assets/uploads/') and Path('wwwroot'+saved_image).read_bytes()==image,'new category product retains the exact uploaded image')
+ # The simplified create form can omit its technical URL field, including without JS.
+ generated=[]
+ for _ in range(2):
+  _,fresh_create,_=req('/Admin/CreateProduct')
+  auto_fields=dict(new_fields,Slug='',NameEn='Automatic URL Product',ImageUrl=saved_image,__RequestVerificationToken=token(fresh_create))
+  status,_,destination=req('/Admin/CreateProduct',auto_fields)
+  check(status==200 and '/Admin/Products' in destination,'new product saves without a manually entered URL')
+ with sqlite3.connect(env['Database__DevelopmentSqlitePath']) as db:
+  generated=[row[0] for row in db.execute("SELECT p.Slug FROM Products p JOIN ProductTranslations t ON t.ProductId=p.Id WHERE t.LanguageCode='en' AND t.Name='Automatic URL Product'")]
+ check(len(generated)==2 and len(set(generated))==2 and all(slug.startswith('automatic-url-product') for slug in generated),'automatic product URLs are readable and disambiguate duplicate names')
  Path('wwwroot'+saved_image).unlink(missing_ok=True)
 
 

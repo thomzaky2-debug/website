@@ -48,7 +48,7 @@ public class StoreWorker(IServiceScopeFactory scopes, IConfiguration config, ILo
             var password = string.IsNullOrEmpty(saved.EncryptedPassword) ? "" : services.GetRequiredService<IDataProtectionProvider>().CreateProtector("NileShop.SMTP.v1").Unprotect(saved.EncryptedPassword);
             smtp = new SmtpOptions { Enabled = saved.Enabled, Host = saved.Host, Port = saved.Port, Username = saved.Username, Password = password, From = saved.From, EnableSsl = saved.EnableSsl };
         }
-        if (!smtp.Enabled || string.IsNullOrWhiteSpace(smtp.Host) || string.IsNullOrWhiteSpace(smtp.From) || !Uri.TryCreate(site, UriKind.Absolute, out var origin) || origin.Scheme != "https") return;
+        if (!smtp.Enabled || !smtp.EnableSsl || string.IsNullOrWhiteSpace(smtp.Host) || string.IsNullOrWhiteSpace(smtp.From) || !Uri.TryCreate(site, UriKind.Absolute, out var origin) || origin.Scheme != "https") return;
         var now = DateTime.UtcNow;
         var ids = await db.OrderEmails.AsNoTracking().Where(e => e.SentAt == null && e.NextAttemptAt <= now && e.Attempts < 8).OrderBy(e => e.Id).Select(e => e.Id).Take(10).ToListAsync(ct);
         foreach (var id in ids) {

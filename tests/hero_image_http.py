@@ -26,7 +26,7 @@ def upload(image):
 
 image_path = None
 with open('.dotnet/hero-test.log', 'w') as log:
-    proc = subprocess.Popen(['.dotnet/dotnet', 'bin/Debug/net8.0/NileShop.dll'], env=env, stdout=log, stderr=log)
+    proc = subprocess.Popen(['.dotnet/dotnet', 'bin/Debug/net10.0/NileShop.dll'], env=env, stdout=log, stderr=log)
     try:
         for _ in range(60):
             try:

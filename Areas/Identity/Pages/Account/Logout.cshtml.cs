@@ -5,5 +5,5 @@ namespace NileShop.Areas.Identity.Pages.Account;
 public class LogoutModel(SignInManager<IdentityUser> signIn) : PageModel
 {
     public IActionResult OnGet() => RedirectToPage("/Account/Login");
-    public async Task<IActionResult> OnPostAsync() { await signIn.SignOutAsync(); return LocalRedirect("/"); }
+    public async Task<IActionResult> OnPostAsync() { await signIn.SignOutAsync(); NileShop.Services.AuthSession.ClearCheckout(HttpContext); return LocalRedirect("/"); }
 }

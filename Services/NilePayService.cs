@@ -82,6 +82,8 @@ public class NilePayService(ApplicationDbContext db, NilePayClient client, IOpti
     }
     public async Task<bool> ApplyAsync(NileCheckout transaction, string? eventId, CancellationToken ct)
     {
+        if (string.IsNullOrWhiteSpace(transaction.SessionId) || transaction.SessionId.Length > 200 || string.IsNullOrWhiteSpace(transaction.Status) || transaction.Status.Length > 30)
+            throw new NilePayException("Payment_Mismatch");
         var wallet = new WalletService(db);
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         if (eventId is not null && await db.PaymentEvents.AnyAsync(e => e.EventId == eventId, ct)) { await tx.CommitAsync(ct); return true; }
@@ -91,6 +93,12 @@ public class NilePayService(ApplicationDbContext db, NilePayClient client, IOpti
         if (transaction.AmountEgp != expectedAmount || transaction.Currency != "EGP") throw new NilePayException("Payment_Mismatch");
         if (string.IsNullOrWhiteSpace(transaction.Status) || transaction.Status.Length > 30) throw new NilePayException("Payment_Mismatch");
         if (transaction.DetectedAmountEgp.HasValue && (transaction.DetectedAmountEgp.Value <= 0 || transaction.DetectedAmountEgp.Value > 10000000m || decimal.Round(transaction.DetectedAmountEgp.Value, 2) != transaction.DetectedAmountEgp.Value))
+            throw new NilePayException("Payment_Mismatch");
+        if (transaction.Status == "CONFIRMED" && transaction.DetectedAmountEgp < expectedAmount)
+            throw new NilePayException("Payment_Mismatch");
+        if (transaction.Status == "OVERPAID" && transaction.DetectedAmountEgp.HasValue && transaction.DetectedAmountEgp <= expectedAmount)
+            throw new NilePayException("Payment_Mismatch");
+        if (transaction.Status == "UNDERPAID" && transaction.DetectedAmountEgp.HasValue && transaction.DetectedAmountEgp >= expectedAmount)
             throw new NilePayException("Payment_Mismatch");
 
         if (eventId is not null) db.PaymentEvents.Add(new PaymentEvent { EventId = eventId, PaymentAttemptId = attempt.Id });
@@ -110,7 +118,9 @@ public class NilePayService(ApplicationDbContext db, NilePayClient client, IOpti
                     .SetProperty(o => o.NeedsPaymentReview, o => o.InventoryReleased || o.Status == OrderStatuses.Cancelled)
                     .SetProperty(o => o.Status, o => o.Status == OrderStatuses.Pending && !o.InventoryReleased ? OrderStatuses.Processing : o.Status), ct);
 
-            await wallet.RecordIdempotentAsync(
+            // A late or conflicting event must not credit an already refunded/underpaid order.
+            if (changed == 1 || (attempt.Order.PaymentStatus == "Overpaid" && attempt.Order.DetectedAmountEgp == detected.Value))
+                await wallet.RecordIdempotentAsync(
                 ownerId,
                 excess,
                 WalletTransactionKinds.OverpaidCredit,
@@ -118,6 +128,8 @@ public class NilePayService(ApplicationDbContext db, NilePayClient client, IOpti
                 attempt.OrderId,
                 $"Overpayment excess from order {attempt.Order.OrderNumber} (transferred {detected.Value:0.00} EGP, required {expectedAmount:0.00} EGP)",
                 ct);
+            else
+                await db.Orders.Where(o => o.Id == attempt.OrderId).ExecuteUpdateAsync(s => s.SetProperty(o => o.NeedsPaymentReview, true), ct);
 
             if (changed == 1)
             {

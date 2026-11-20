@@ -20,7 +20,7 @@ public class PaymentController(ApplicationDbContext db, NilePayService payments,
         ViewData["GatewayStatus"] = await db.PaymentAttempts.Where(p => p.OrderId == order.Id).Select(p => p.GatewayStatus).SingleOrDefaultAsync() ?? "NOT_CREATED";
         return View(order);
     }
-    [HttpPost("/payment/pay"), ValidateAntiForgeryToken]
+    [HttpPost("/payment/pay"), ValidateAntiForgeryToken, Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("payment-status")]
     public async Task<IActionResult> Pay(string token, CancellationToken ct)
     {
         var order = await Owned(token); if (order is null) return NotFound();
@@ -35,7 +35,7 @@ public class PaymentController(ApplicationDbContext db, NilePayService payments,
             return Redirect(attempt.CheckoutUrl!);
         } catch (NilePayException ex) { TempData["Error"] = ex.Message; return RedirectToAction(nameof(Return), new { token }); }
     }
-    [HttpPost("/payment/check"), ValidateAntiForgeryToken]
+    [HttpPost("/payment/check"), ValidateAntiForgeryToken, Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("payment-status")]
     public async Task<IActionResult> Check(string token, CancellationToken ct)
     {
         var order = await Owned(token); if (order is null) return NotFound();
@@ -45,7 +45,7 @@ public class PaymentController(ApplicationDbContext db, NilePayService payments,
         } catch (NilePayException ex) { TempData["Error"] = ex.Message; }
         return RedirectToAction(nameof(Return), new { token });
     }
-    [HttpPost("/payment/status"), ValidateAntiForgeryToken]
+    [HttpPost("/payment/status"), ValidateAntiForgeryToken, Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("payment-status")]
     public async Task<IActionResult> Status(string token, CancellationToken ct)
     {
         var order = await Owned(token); if (order is null) return NotFound();
@@ -60,7 +60,12 @@ public class PaymentController(ApplicationDbContext db, NilePayService payments,
     public async Task<IActionResult> Webhook(CancellationToken ct)
     {
         if (!client.Ready) return StatusCode(503);
-        using var body = new MemoryStream(); await Request.Body.CopyToAsync(body, ct);
+        using var body = new MemoryStream();
+        var buffer = new byte[8192]; int read;
+        while ((read = await Request.Body.ReadAsync(buffer, ct)) > 0) {
+            if (body.Length + read > 65536) return StatusCode(StatusCodes.Status413PayloadTooLarge);
+            await body.WriteAsync(buffer.AsMemory(0, read), ct);
+        }
         var timestamp = Request.Headers["X-Instapay-Timestamp"].ToString();
         var signature = Request.Headers["X-Instapay-Signature"].ToString();
         var eventHeader = Request.Headers["X-Instapay-Event-Id"].ToString();

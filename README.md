@@ -1,10 +1,10 @@
 # NileShop
 
-ASP.NET Core 8 MVC, Identity, EF Core and SQL Server bilingual English/Arabic storefront. Uses the MIT Bubble theme template assets; attribution is preserved in `wwwroot/assets/TEMPLATE-LICENSE.txt`.
+ASP.NET Core 10 MVC, Identity, EF Core and SQL Server bilingual English/Arabic storefront. Uses the MIT Bubble theme template assets; attribution is preserved in `wwwroot/assets/TEMPLATE-LICENSE.txt`.
 
 ## Configure and run
 
-Install .NET 8 SDK. Configure secrets with environment variables or `dotnet user-secrets`:
+Install .NET 10 SDK (10.0.404 or newer supported servicing release). Configure secrets with environment variables or `dotnet user-secrets`:
 
 ```sh
 dotnet user-secrets set 'ConnectionStrings:DefaultConnection' 'Server=YOUR_SERVER;Database=YOUR_DATABASE;User Id=YOUR_USER;Password=YOUR_PASSWORD;Encrypt=True;TrustServerCertificate=False'
@@ -23,7 +23,7 @@ For local development only, set `ASPNETCORE_ENVIRONMENT=Development` and `Databa
 
 1. Create a SQL Server database in the hosting panel. Supply its connection string and admin settings via secure hosting configuration; do not commit credentials.
 2. Apply the included initial migration with `dotnet ef database update` (or `Update-Database` in Visual Studio Package Manager Console). Alternatively explicitly set `Database:ApplyMigrationsOnStartup=true` for first deployment, then disable it.
-3. Publish with `dotnet publish -c Release -o publish`. Upload the publish directory, including the generated web.config, to the IIS application root. Use the .NET 8 Hosting Bundle and an application pool with No Managed Code.
+3. Publish with `dotnet publish -c Release -o publish`. Upload the publish directory, including the generated web.config, to the IIS application root. Use the .NET 10 Hosting Bundle and an application pool with No Managed Code.
 4. Enable the site's HTTPS certificate and set `AllowedHosts` to the production hostname. Ensure IIS can write ASP.NET Data Protection keys to a persistent, access-controlled location; preserve these across deployments.
 5. Browse `/Identity/Account/Login`, then `/Admin/Dashboard`. The legacy Identity registration route redirects to admin login. Customer signup and login are available at `/Account/Register` and `/Account/Login`. Product/category mutations, order management and logs require the Admin role and antiforgery tokens.
 
@@ -70,3 +70,12 @@ Manual device coverage still needs verification in Android Chrome/Firefox, iPhon
 `https://localhost:5443` refers only to the device running the app. Cross-device access needs a deployed HTTPS URL with a publicly trusted certificate. Configure the deployment hostname in `AllowedHosts`, set `NilePay:PublicUrl` to that HTTPS origin and register its webhook URL. Keep local secrets excluded from publish output. Do not point a phone at its own localhost or bypass certificate warnings to test payments.
 
 Language preferences are independent for the storefront and admin routes. Guests use separate secure cookies for each area; signed-in users use separate account preferences stored in Identity claims. Customers choose English or Arabic at signup or in **My account → Preferred language**. Saved account preferences take precedence over browser cookies, including on shared computers, and are restored on other devices after login. Without a saved choice, the browser language is used when supported, with English as the default. The old shared ASP.NET culture cookie is ignored.
+
+
+## Security configuration
+
+Read [SECURITY.md](SECURITY.md) for the review findings, checks and deployment requirements. Production configuration contains no credentials: supply `ConnectionStrings__DefaultConnection`, `AdminSettings__Email`, the first-run-only `AdminSettings__Password`, and a semicolon-separated `AllowedHosts` through your host's secure settings. SQL connections must use `Encrypt=True;TrustServerCertificate=False`, and SMTP delivery requires TLS. Apply reviewed SQL migrations with a separate deployment identity; automatic production migrations are disabled by default. The running application should have only its required database permissions.
+
+Authentication, session and antiforgery cookies require HTTPS. Behind a reverse proxy, configure forwarding only for trusted proxy addresses and retain HTTPS awareness. Persist ASP.NET Core Data Protection keys outside the webroot with access restricted to the application identity (and protected shared keys for multiple instances). An in-memory cart/session and per-process rate limiter are suitable for one application instance; use shared session storage and an edge/distributed limiter before scaling across instances.
+
+Existing administrator passwords are never reset from configuration during startup. Remove the bootstrap password after initial provisioning. Any credential previously committed must be rotated at its provider; deleting it from the current tree does not remove it from Git history. Keep deployment secrets, private certificates and local configuration out of publish archives.

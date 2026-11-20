@@ -171,7 +171,7 @@ public class StoreAdminController(ApplicationDbContext db, CustomerAdminService 
                 return "https://wa.me/" + digits;
             }
         }
-        if (Uri.TryCreate(value, UriKind.Absolute, out var uri) && uri.Scheme is "https" or "http" && string.IsNullOrEmpty(uri.UserInfo))
+        if (Uri.TryCreate(value, UriKind.Absolute, out var uri) && uri.Scheme == "https" && string.IsNullOrEmpty(uri.UserInfo))
             return uri.AbsoluteUri;
         ModelState.AddModelError(field, "Validation_SocialUrl");
         return value;
@@ -199,7 +199,7 @@ public class StoreAdminController(ApplicationDbContext db, CustomerAdminService 
     [HttpPost,ValidateAntiForgeryToken]
     public async Task<IActionResult> Mail(MailSettingsViewModel model)
     {
-        if(!ModelState.IsValid || model.NewPassword?.Length>500 || (model.Enabled && (string.IsNullOrWhiteSpace(model.Host)||string.IsNullOrWhiteSpace(model.From))))return BadRequest();
+        if(!ModelState.IsValid || model.NewPassword?.Length>500 || (model.Enabled && (string.IsNullOrWhiteSpace(model.Host)||string.IsNullOrWhiteSpace(model.From)||!model.EnableSsl)))return BadRequest();
         var mail=await db.StoreMailSettings.FirstAsync();
         mail.Enabled=model.Enabled;mail.Host=model.Host?.Trim()??"";mail.Port=model.Port;mail.Username=model.Username?.Trim()??"";mail.From=model.From?.Trim()??"";mail.EnableSsl=model.EnableSsl;
         if(!string.IsNullOrEmpty(model.NewPassword))mail.EncryptedPassword=protection.CreateProtector("NileShop.SMTP.v1").Protect(model.NewPassword);

@@ -15,6 +15,7 @@ public class CheckoutService(ApplicationDbContext db)
         // The token is a server-issued session secret, unique in the database, so retries cannot place a second order.
         var existing = await db.Orders.AsNoTracking().FirstOrDefaultAsync(o => o.CheckoutToken == customer.CheckoutToken);
         if (existing is not null) {
+            if (existing.CustomerUserId != customer.CustomerUserId) throw new CheckoutException("Error");
             if (existing.PayableAmount > 0 && existing.InstaPaySenderHandle != senderHandle) throw new CheckoutException("InstaPay_Locked");
             return existing;
         }
@@ -93,6 +94,7 @@ public class CheckoutService(ApplicationDbContext db)
             await tx.RollbackAsync(); db.ChangeTracker.Clear();
             var duplicate = await db.Orders.AsNoTracking().FirstOrDefaultAsync(o => o.CheckoutToken == customer.CheckoutToken);
             if (duplicate is not null) {
+                if (duplicate.CustomerUserId != customer.CustomerUserId) throw new CheckoutException("Error");
                 if (duplicate.PayableAmount > 0 && duplicate.InstaPaySenderHandle != senderHandle) throw new CheckoutException("InstaPay_Locked");
                 return duplicate;
             }

@@ -11,6 +11,10 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true).AddEnvironmentVariables();
+if (!builder.Environment.IsDevelopment() && (string.IsNullOrWhiteSpace(builder.Configuration["AllowedHosts"]) || builder.Configuration["AllowedHosts"]!.Split(';').Any(host => host.Trim() == "*")))
+    throw new InvalidOperationException("Configure explicit AllowedHosts for production.");
+builder.WebHost.ConfigureKestrel(o => { o.AddServerHeader = false; o.Limits.MaxRequestBodySize = 18 * 1024 * 1024; });
+builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(o => { o.MultipartBodyLengthLimit = 16 * 1024 * 1024; o.ValueLengthLimit = 65536; o.ValueCountLimit = 256; });
 var sqlite = builder.Configuration.GetValue<bool>("Database:UseDevelopmentSqlite");
 if (sqlite) DevelopmentSqlite.Initialize();
 if (sqlite && !builder.Environment.IsDevelopment()) throw new InvalidOperationException("SQLite is restricted to Development. Production requires SQL Server.");
@@ -19,6 +23,11 @@ builder.Services.AddDbContext<ApplicationDbContext>(options => {
     else {
         var conn = builder.Configuration.GetConnectionString("DefaultConnection");
         if (string.IsNullOrWhiteSpace(conn)) throw new InvalidOperationException("Missing connection string: configure ConnectionStrings:DefaultConnection in appsettings.json with your MonsterASP MS SQL connection string.");
+        if (!builder.Environment.IsDevelopment()) {
+            var sql = new Microsoft.Data.SqlClient.SqlConnectionStringBuilder(conn);
+            if (sql.Encrypt == Microsoft.Data.SqlClient.SqlConnectionEncryptOption.Optional || sql.TrustServerCertificate)
+                throw new InvalidOperationException("Production SQL Server connections require Encrypt=True and TrustServerCertificate=False.");
+        }
         options.UseSqlServer(conn);
     }
 });
@@ -30,8 +39,9 @@ builder.Services.AddDefaultIdentity<IdentityUser>(options => {
     options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
     options.User.RequireUniqueEmail = true;
 }).AddRoles<IdentityRole>().AddEntityFrameworkStores<ApplicationDbContext>();
+builder.Services.Configure<SecurityStampValidatorOptions>(o => o.ValidationInterval = TimeSpan.FromMinutes(5));
 builder.Services.ConfigureApplicationCookie(o => {
-    o.Cookie.HttpOnly = true; o.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+    o.Cookie.HttpOnly = true; o.Cookie.SecurePolicy = CookieSecurePolicy.Always;
     o.Cookie.SameSite = SameSiteMode.Lax; o.ExpireTimeSpan = TimeSpan.FromHours(2);
     o.LoginPath = "/Account/Login";
     o.Events.OnRedirectToLogin = context => {
@@ -47,12 +57,25 @@ builder.Services.ConfigureApplicationCookie(o => {
 builder.Services.AddLocalization(o => o.ResourcesPath = "Resources");
 builder.Services.AddControllersWithViews(o => o.Filters.Add(new Microsoft.AspNetCore.Mvc.AutoValidateAntiforgeryTokenAttribute()))
     .AddViewLocalization().AddDataAnnotationsLocalization(o => o.DataAnnotationLocalizerProvider = (_, f) => f.Create(typeof(SharedResource)));
-builder.Services.AddRazorPages();
+builder.Services.AddRazorPages(o => o.Conventions.AddAreaPageApplicationModelConvention("Identity", "/Account/Login", model => model.EndpointMetadata.Add(new Microsoft.AspNetCore.RateLimiting.EnableRateLimitingAttribute("admin-auth"))));
 builder.Services.AddRateLimiter(options => {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = (context, _) => {
+        if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retry))
+            context.HttpContext.Response.Headers.RetryAfter = Math.Ceiling(retry.TotalSeconds).ToString(CultureInfo.InvariantCulture);
+        return ValueTask.CompletedTask;
+    };
     options.AddPolicy("customer-auth", context => RateLimitPartition.GetFixedWindowLimiter(
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit=20, Window=TimeSpan.FromMinutes(5), QueueLimit=0, AutoReplenishment=true }));
+    options.AddPolicy("admin-auth", context => HttpMethods.IsPost(context.Request.Method)
+        ? RateLimitPartition.GetFixedWindowLimiter(context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions { PermitLimit=20, Window=TimeSpan.FromMinutes(5), QueueLimit=0, AutoReplenishment=true })
+        : RateLimitPartition.GetNoLimiter<string>("read"));
+    options.AddPolicy("checkout", context => RateLimitPartition.GetFixedWindowLimiter(context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit=20, Window=TimeSpan.FromMinutes(1), QueueLimit=0, AutoReplenishment=true }));
+    options.AddPolicy("payment-status", context => RateLimitPartition.GetFixedWindowLimiter(context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit=60, Window=TimeSpan.FromMinutes(1), QueueLimit=0, AutoReplenishment=true }));
 });
 builder.Services.Configure<RequestLocalizationOptions>(o => {
     o.DefaultRequestCulture = new RequestCulture("en");
@@ -62,9 +85,9 @@ builder.Services.Configure<RequestLocalizationOptions>(o => {
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(o => {
     o.IdleTimeout = TimeSpan.FromMinutes(30); o.Cookie.HttpOnly = true;
-    o.Cookie.IsEssential = true; o.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest; o.Cookie.SameSite = SameSiteMode.Lax;
+    o.Cookie.IsEssential = true; o.Cookie.SecurePolicy = CookieSecurePolicy.Always; o.Cookie.SameSite = SameSiteMode.Lax;
 });
-builder.Services.AddAntiforgery(o => o.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest);
+builder.Services.AddAntiforgery(o => o.Cookie.SecurePolicy = CookieSecurePolicy.Always);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddDataProtection().SetApplicationName("NileShop");
 builder.Services.AddScoped<AuditService>();
@@ -72,7 +95,7 @@ builder.Services.AddScoped<CartService>();
 builder.Services.AddScoped<CatalogService>();
 builder.Services.AddScoped<CheckoutService>();
 builder.Services.Configure<NilePayOptions>(builder.Configuration.GetSection("NilePay"));
-builder.Services.AddHttpClient<NilePayClient>(http => http.Timeout = TimeSpan.FromSeconds(20))
+builder.Services.AddHttpClient<NilePayClient>(http => { http.Timeout = TimeSpan.FromSeconds(20); http.MaxResponseContentBufferSize = 65536; })
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 builder.Services.AddScoped<NilePayService>();
 builder.Services.AddScoped<OrderOperations>();
@@ -83,18 +106,19 @@ builder.Services.AddScoped<ProductImageService>();
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("Smtp"));
 builder.Services.AddHostedService<StoreWorker>();
 var app = builder.Build();
+app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseExceptionHandler(error => error.Run(async context => {
     var exception = context.Features.Get<IExceptionHandlerFeature>()?.Error;
     app.Logger.LogError(exception, "Unhandled request failure. Trace {TraceId}", context.TraceIdentifier);
     try {
         await using var scope = app.Services.CreateAsyncScope();
-        await scope.ServiceProvider.GetRequiredService<AuditService>().LogAsync("SYSTEM_ERROR", "Application", $"{exception?.GetType().Name}: {exception?.Message}; Trace {context.TraceIdentifier}");
+        await scope.ServiceProvider.GetRequiredService<AuditService>().LogAsync("SYSTEM_ERROR", "Application", $"{exception?.GetType().Name}; Trace {context.TraceIdentifier}");
     } catch (Exception auditError) { app.Logger.LogError(auditError, "Could not persist exception audit"); }
 
-    context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+    context.Response.StatusCode = exception is BadHttpRequestException badRequest ? badRequest.StatusCode : StatusCodes.Status500InternalServerError;
     context.Response.ContentType = "text/html; charset=utf-8";
-    var details = exception is null ? "An unknown error occurred." : $"{exception.GetType().FullName}: {exception.Message}\n\n{exception.StackTrace}";
-    await context.Response.WriteAsync($"<!DOCTYPE html><html><head><title>Application Error</title><style>body{{font-family:Segoe UI,Tahoma,sans-serif;padding:2rem;line-height:1.5;background:#f8f9fa;color:#333}}pre{{background:#fff;padding:1.25rem;border:1px solid #dee2e6;border-radius:4px;overflow:auto;font-size:0.9rem;}}h2{{color:#dc3545;margin-top:0;}}</style></head><body><h2>Application Diagnostic Details</h2><p><strong>Trace Identifier:</strong> {context.TraceIdentifier}</p><pre>{System.Net.WebUtility.HtmlEncode(details)}</pre></body></html>");
+    context.Response.Headers.CacheControl = "no-store";
+    await context.Response.WriteAsync($"<!doctype html><html lang=\"en\"><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>Unable to complete request</title></head><body><h1>Unable to complete your request</h1><p>Please try again later.</p><p>Reference: {System.Net.WebUtility.HtmlEncode(context.TraceIdentifier)}</p></body></html>");
 }));
 if (!app.Environment.IsDevelopment()) app.UseHsts();
 app.UseStatusCodePages(async statusCodeContext => {
@@ -139,8 +163,7 @@ await using (var scope = app.Services.CreateAsyncScope()) {
         await DevelopmentSqlite.EnsureWalletSchemaAsync(db);
     }
     else {
-        // Automatically create and migrate SQL Server schema on production
-        await db.Database.MigrateAsync();
+        if (builder.Configuration.GetValue("Database:ApplyMigrationsOnStartup", false)) await db.Database.MigrateAsync();
     }
     await DbInitializer.InitializeAsync(scope.ServiceProvider, builder.Configuration);
 }

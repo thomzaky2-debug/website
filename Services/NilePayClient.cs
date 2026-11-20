@@ -19,7 +19,12 @@ public class NilePayClient(HttpClient http, IOptions<NilePayOptions> settings, I
     public bool Ready => options.Enabled && !string.IsNullOrWhiteSpace(options.ApiKey) && !string.IsNullOrWhiteSpace(options.WebhookSecret) && Uri.TryCreate(options.PublicUrl, UriKind.Absolute, out var url) && url.Scheme == "https" && string.IsNullOrEmpty(url.UserInfo) && url.AbsolutePath == "/" && string.IsNullOrEmpty(url.Query) && string.IsNullOrEmpty(url.Fragment);
     public bool ValidCheckoutUrl(string? value) => Uri.TryCreate(value, UriKind.Absolute, out var url) && string.IsNullOrEmpty(url.UserInfo) && (url.Scheme == "https" || (environment.IsDevelopment() && url.Scheme == "http" && url.IsLoopback));
     public async Task<NileCheckout> CreateAsync(string payload, string key, CancellationToken ct) => await SendAsync(HttpMethod.Post, "/api/v1/checkout/create", payload, key, ct);
-    public async Task<NileCheckout> StatusAsync(string sessionId, CancellationToken ct) => await SendAsync(HttpMethod.Get, "/api/v1/checkout/status?sessionId=" + Uri.EscapeDataString(sessionId), null, null, ct);
+    public async Task<NileCheckout> StatusAsync(string sessionId, CancellationToken ct)
+    {
+        var checkout = await SendAsync(HttpMethod.Get, "/api/v1/checkout/status?sessionId=" + Uri.EscapeDataString(sessionId), null, null, ct);
+        if (checkout.SessionId != sessionId) throw new NilePayException("Payment_Mismatch");
+        return checkout;
+    }
     async Task<NileCheckout> SendAsync(HttpMethod method, string path, string? body, string? key, CancellationToken ct)
     {
         if (!Ready) throw new NilePayException("Payment_Unavailable");

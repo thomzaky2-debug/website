@@ -8,6 +8,13 @@ _template_ref/
 *.db-shm
 *.db-wal
 appsettings.Local.json
+appsettings.*.Local.json
+.env
+.env.*
+!.env.example
+*.pfx
+*.p12
+*.key
 TestResults/
 publish/
 build.log

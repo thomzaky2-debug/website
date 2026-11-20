@@ -1,5 +1,18 @@
 @model StoreSettings
-@{ViewData["Title"] = Localizer["Contact"];}
-<div class="info-page">
-<nav class="breadcrumb-nav" aria-label="Breadcrumb"><ol class="breadcrumb-list"><li class="breadcrumb-item"><a href="/">@Localizer["Nav_Home"]</a></li><li class="breadcrumb-separator" aria-hidden="true">›</li><li class="breadcrumb-item" aria-current="page">@Localizer["Contact"]</li></ol></nav>
-<span class="eyebrow">Chic & Unique · @Localizer["Footer_Help"]</span><h1>@Localizer["Contact"]</h1><div class="info-grid">@if(!string.IsNullOrWhiteSpace(Model.ContactEmail)){<div class="panel info-card"><small>@Localizer["Email"]</small><a href="mailto:@Model.ContactEmail">@Model.ContactEmail</a></div>}@if(!string.IsNullOrWhiteSpace(Model.ContactPhone)){<div class="panel info-card"><small>@Localizer["CustomerPhone"]</small><a href="tel:@Model.ContactPhone">@Model.ContactPhone</a></div>}@if(string.IsNullOrWhiteSpace(Model.ContactEmail)&&string.IsNullOrWhiteSpace(Model.ContactPhone)){<div class="panel info-card">@Localizer["Contact_Pending"]</div>}</div>@if(!string.IsNullOrWhiteSpace(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName=="ar"?Model.AddressAr:Model.AddressEn)){<p class="panel">@(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName=="ar"?Model.AddressAr:Model.AddressEn)</p>}</div>
+@{
+    ViewData["Title"]=Localizer["Contact"];
+    var address=CultureInfo.CurrentUICulture.TwoLetterISOLanguageName=="ar"?Model.AddressAr:Model.AddressEn;
+    if(string.IsNullOrWhiteSpace(address)) address=Model.AddressEn??Model.AddressAr;
+}
+<div class="info-page contact-page">
+<nav class="breadcrumb-nav" aria-label="@Localizer["Nav_Home"]"><ol class="breadcrumb-list"><li class="breadcrumb-item"><a href="/">@Localizer["Nav_Home"]</a></li><li class="breadcrumb-separator" aria-hidden="true">›</li><li class="breadcrumb-item" aria-current="page">@Localizer["Contact"]</li></ol></nav>
+<div class="store-page-heading"><span class="eyebrow">Chic &amp; Unique · @Localizer["Footer_Help"]</span><h1>@Localizer["Studio_Here_To_Help"]</h1><p>@Localizer["Studio_Contact_Intro"]</p></div>
+<div class="contact-methods">
+@if(!string.IsNullOrWhiteSpace(Model.ContactEmail)){<a class="contact-method panel" href="mailto:@Model.ContactEmail"><span class="contact-method-icon"><partial name="_StoreIcon" model='@("mail")'/></span><h2>@Localizer["Studio_Contact_Email"]</h2><span class="contact-method-value" dir="ltr">@Model.ContactEmail</span></a>}
+@if(!string.IsNullOrWhiteSpace(Model.ContactPhone)){<a class="contact-method panel" href="tel:@Model.ContactPhone"><span class="contact-method-icon"><partial name="_StoreIcon" model='@("phone")'/></span><h2>@Localizer["Studio_Contact_Call"]</h2><span class="contact-method-value" dir="ltr">@Model.ContactPhone</span></a>}
+@if(string.IsNullOrWhiteSpace(Model.ContactEmail)&&string.IsNullOrWhiteSpace(Model.ContactPhone)){<div class="contact-method panel"><span class="contact-method-icon"><partial name="_StoreIcon" model='@("contact")'/></span><p>@Localizer["Contact_Pending"]</p></div>}
+</div>
+@if(!string.IsNullOrWhiteSpace(address)){<div class="contact-address panel"><partial name="_StoreIcon" model='@("location")'/><div><h2>@Localizer["Studio_Visit_Address"]</h2><p>@address</p></div></div>}
+<p class="contact-order-note">@Localizer["Studio_Order_Reference"]</p>
+<partial name="_StoreSupport"/>
+</div>

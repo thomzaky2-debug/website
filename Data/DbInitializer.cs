@@ -19,10 +19,6 @@ public static class DbInitializer
             if (string.IsNullOrWhiteSpace(password)) throw new InvalidOperationException("Configure a strong AdminSettings:Password before first launch.");
             admin = new IdentityUser { UserName = email, Email = email, EmailConfirmed = true };
             Check(await users.CreateAsync(admin, password));
-        } else if (!string.IsNullOrWhiteSpace(config["AdminSettings:Password"])) {
-            var password = config["AdminSettings:Password"]!;
-            var token = await users.GeneratePasswordResetTokenAsync(admin);
-            await users.ResetPasswordAsync(admin, token, password);
         }
         if (!await users.IsInRoleAsync(admin, "Admin")) Check(await users.AddToRoleAsync(admin, "Admin"));
         if (!await db.StoreMailSettings.AnyAsync()) db.StoreMailSettings.Add(new StoreMailSettings());

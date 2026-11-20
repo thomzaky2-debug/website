@@ -18,6 +18,7 @@ class Gateway(BaseHTTPRequestHandler):
   assert self.headers.get('Authorization')=='Bearer '+key
   session=urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)['sessionId'][0]
   checkout=next(v[1].copy() for v in sessions.values() if v[1]['sessionId']==session);checkout['status']=status
+  if mode=='wrong-session':checkout['sessionId']='another-session'
   self.send_response(200);self.end_headers();self.wfile.write(json.dumps({'ok':True,'checkout':checkout}).encode())
 server=ThreadingHTTPServer(('localhost',5450),Gateway);threading.Thread(target=server.serve_forever,daemon=True).start()
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -29,7 +30,7 @@ proc=None
 log=open('nilepay-server.log','w')
 def start():
  global proc
- proc=subprocess.Popen(['.dotnet/dotnet','bin/Debug/net8.0/NileShop.dll'],env=env,stdout=log,stderr=log)
+ proc=subprocess.Popen(['.dotnet/dotnet','bin/Debug/net10.0/NileShop.dll'],env=env,stdout=log,stderr=log)
  for _ in range(100):
   try:
    if req('/')[0]==200:return
@@ -46,8 +47,10 @@ def token(body):return re.search(r'name="__RequestVerificationToken"[^>]*value="
 def check(ok,name):
  if not ok:raise AssertionError(name)
  print('PASS '+name,flush=True)
-def webhook(session,event='event-one',amount=None,currency='EGP',state='CONFIRMED',age=0,bad=False,headerid=None):
- body=json.dumps({'event':'checkout.updated','eventId':event,'transaction':{'sessionId':session,'amountEgp':amount if amount is not None else total,'currency':currency,'status':state}},separators=(',',':')).encode()
+def webhook(session,event='event-one',amount=None,currency='EGP',state='CONFIRMED',age=0,bad=False,headerid=None,detected=None):
+ transaction={'sessionId':session,'amountEgp':amount if amount is not None else total,'currency':currency,'status':state}
+ if detected is not None:transaction['detectedAmountEgp']=detected
+ body=json.dumps({'event':'checkout.updated','eventId':event,'transaction':transaction},separators=(',',':')).encode()
  ts=str(int(time.time())+age);sig=hmac.new(secret.encode(),ts.encode()+b'.'+body,hashlib.sha256).hexdigest()
  headers={'Content-Type':'application/json','X-Instapay-Event-Id':headerid or event,'X-Instapay-Timestamp':ts,'X-Instapay-Signature':'v1='+('0'*64 if bad else sig)}
  return req('/webhooks/nilepay',headers=headers,raw=body)[0]
@@ -119,6 +122,8 @@ try:
 
  check(webhook(session,event='underpaid',state='UNDERPAID')==200 and 'Awaiting payment' in req(location)[1],'underpayment never marks order paid')
  check(webhook(session,event='overpaid',state='OVERPAID')==200 and 'Awaiting payment' in req(location)[1],'overpayment event alone never marks paid')
+ check(webhook(session,event='underfunded-confirmed',detected=0.01)==400,'signed CONFIRMED with an underfunded transfer is rejected')
+ check(req('/webhooks/nilepay',headers={'Content-Type':'application/json'},raw=b'x'*65537)[0]==413,'oversized webhook is rejected before signature parsing')
  check(webhook(session)==200 and webhook(session)==200 and webhook(session,event='another-confirmation')==200,'duplicate deliveries acknowledged safely')
  check('Payment received' in req(location)[1],'confirmed webhook marks order paid')
  check(order_number not in admin_req('/StoreAdmin?status=Expired'),'confirmed payment removes the expired label and filter membership')
@@ -142,6 +147,11 @@ try:
   check(contact==('Saved Customer','saved@example.test','01012345678'),'checkout uses saved profile and ignores posted contact changes')
  loc2=headers['Location'];_,page,_=req(loc2);acc2=urllib.parse.parse_qs(urllib.parse.urlparse(loc2).query)['token'][0]
  req('/payment/pay',{'token':acc2,'__RequestVerificationToken':token(page)})
+ with sqlite3.connect(dbfile) as db:db.execute('UPDATE PaymentAttempts SET LastCheckedAt=NULL');db.commit()
+ mode='wrong-session';status='CONFIRMED'
+ _,check_page,_=req(loc2);req('/payment/check',{'token':acc2,'__RequestVerificationToken':token(check_page)})
+ with sqlite3.connect(dbfile) as db:check(db.execute('SELECT PaymentStatus FROM Orders WHERE PaymentAccessToken=?',(acc2,)).fetchone()[0]=='Unpaid','status response for a different session cannot settle an order')
+ mode='normal'
  with sqlite3.connect(dbfile) as db:db.execute('UPDATE PaymentAttempts SET LastCheckedAt=NULL');db.commit()
  status='CONFIRMED';_,page,_=req(loc2);req('/payment/check',{'token':acc2,'__RequestVerificationToken':token(page)})
  check('Payment received' in req(loc2)[1],'authenticated status reconciliation settles delayed webhook')

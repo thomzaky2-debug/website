@@ -60,13 +60,13 @@ public class CartController(CartService cart, ApplicationDbContext db, CheckoutS
         };
         await FillSavedContact(model, prefillAddress: true); return View(model);
     }
-    [HttpPost, ValidateAntiForgeryToken]
+    [HttpPost, ValidateAntiForgeryToken, Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("checkout")]
     public async Task<IActionResult> Checkout(CheckoutViewModel model)
     {
         if (model.CheckoutToken != HttpContext.Session.GetString("CheckoutToken") && model.CheckoutToken != HttpContext.Session.GetString("LastCheckoutToken")) return BadRequest();
         if (model.CheckoutToken == HttpContext.Session.GetString("LastCheckoutToken") && model.CheckoutToken != HttpContext.Session.GetString("CheckoutToken")) {
             var existing = await db.Orders.AsNoTracking().SingleOrDefaultAsync(o => o.CheckoutToken == model.CheckoutToken);
-            if (existing is null || (existing.PayableAmount > 0 && existing.InstaPaySenderHandle != InstaPayHandle.FromUsername(model.InstaPayUsername))) return BadRequest();
+            if (existing is null || existing.CustomerUserId != users.GetUserId(User) || (existing.PayableAmount > 0 && existing.InstaPaySenderHandle != InstaPayHandle.FromUsername(model.InstaPayUsername))) return BadRequest();
             return RedirectToAction("Return", "Payment", new { token = existing.PaymentAccessToken });
         }
         model.CustomerUserId = users.GetUserId(User);

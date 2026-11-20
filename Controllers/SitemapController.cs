@@ -13,7 +13,7 @@ public class SitemapController(ApplicationDbContext db) : Controller
         XNamespace ns = "http://www.sitemaps.org/schemas/sitemap/0.9";
         var baseUrl = $"{Request.Scheme}://{Request.Host}";
         var urlSet = new XElement(ns + "urlset");
-        var staticPages = new[] { "/", "/shop", "/info/contact", "/info/delivery", "/info/returns" };
+        var staticPages = new[] { "/", "/shop", "/contact", "/delivery", "/returns" };
         foreach (var page in staticPages)
         {
             urlSet.Add(new XElement(ns + "url",

@@ -1,0 +1,10 @@
+const fs = require('node:fs');
+const vm = require('node:vm');
+const assert = require('node:assert/strict');
+const source = fs.readFileSync('wwwroot/assets/js/app.js', 'utf8');
+const helper = source.match(/function escapeHtml\(value\) \{[\s\S]*?\n\}/)[0];
+const escape = vm.runInNewContext(helper + '; escapeHtml');
+assert.equal(escape('" onerror="alert(1)\'>&<'), '&quot; onerror=&quot;alert(1)&#39;&gt;&amp;&lt;');
+assert.equal(escape('عطر & shoes'), 'عطر &amp; shoes');
+assert.equal(escape(null), '');
+console.log('PASS dynamic HTML escapes attribute delimiters and text without losing Arabic');

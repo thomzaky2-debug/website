@@ -163,6 +163,7 @@ public class AccountController(UserManager<IdentityUser> users, SignInManager<Id
             var isAdminHost = SubdomainRouting.IsAdminHost(HttpContext, opts);
             var result = await signIn.PasswordSignInAsync(user,model.Password,false,lockoutOnFailure:true);
             if(result.Succeeded) {
+                AuthSession.ClearCheckout(HttpContext);
                 if(isAdmin) {
                     HttpContext.User = await signIn.CreateUserPrincipalAsync(user);
                     await audit.LogAsync("ADMIN_LOGIN","Identity",$"Admin {user.Email} signed in");
@@ -198,11 +199,12 @@ public class AccountController(UserManager<IdentityUser> users, SignInManager<Id
         result=await users.AddClaimAsync(user,new Claim(LanguagePreferences.ClaimType(false), model.PreferredLanguage));
         if(!result.Succeeded){await tx.RollbackAsync();ModelState.AddModelError("",localizer["Registration_Failed"]);return View(model);}
         await tx.CommitAsync();
+        AuthSession.ClearCheckout(HttpContext);
         LanguagePreferences.WriteCookie(Response,false,model.PreferredLanguage);
         await signIn.SignInAsync(user,isPersistent:false);
         return LocalRedirect(SafeReturn(model.ReturnUrl));
     }
     [HttpPost,ValidateAntiForgeryToken]
-    public async Task<IActionResult> Logout(){await signIn.SignOutAsync();return RedirectToAction("Index","Home");}
+    public async Task<IActionResult> Logout(){await signIn.SignOutAsync();AuthSession.ClearCheckout(HttpContext);return RedirectToAction("Index","Home");}
     string SafeReturn(string? value)=>Url.IsLocalUrl(value)?value!:Url.Action("Index","Home")!;
 }

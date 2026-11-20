@@ -19,7 +19,7 @@ def token(html):
     return re.search(r'name="__RequestVerificationToken"[^>]*value="([^"]+)"', html).group(1)
 
 log=open('.dotnet/category-test.log','w')
-proc=subprocess.Popen(['.dotnet/dotnet','bin/Debug/net8.0/NileShop.dll'],env=env,stdout=log,stderr=log)
+proc=subprocess.Popen(['.dotnet/dotnet','bin/Debug/net10.0/NileShop.dll'],env=env,stdout=log,stderr=log)
 try:
  for _ in range(60):
   try:

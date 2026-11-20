@@ -1,0 +1,2 @@
+@model StoreEmptyState
+<div class="store-empty panel"><div class="store-empty-icon"><partial name="_StoreIcon" model="Model.Icon"/></div>@if(Model.PrimaryHeading){<h1>@Model.Title</h1>}else{<h2>@Model.Title</h2>}<p>@Model.Description</p><a class="primary-button" asp-controller="@Model.Controller" asp-action="@Model.Action">@Model.ActionText</a></div>

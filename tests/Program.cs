@@ -52,6 +52,28 @@ db.ChangeTracker.Clear();await operations.RecordRefundAsync(order.Id,"external-r
 Check(await db.Products.Where(x=>x.Id==p.Id).Select(x=>x.StockQuantity).SingleAsync()==3,"repeated refund never duplicates released inventory");
 await payments.ApplyAsync(new NileCheckout("late-session","CONFIRMED",order.TotalAmount,"EGP",null),"later-event",default);
 Check(await db.Orders.AsNoTracking().Where(o=>o.Id==order.Id).Select(o=>o.PaymentStatus).SingleAsync()=="Refunded","late duplicate confirmation cannot undo refund");
+var wrongOwner = Customer("token-one"); wrongOwner.CustomerUserId = "other-customer";
+try { await service.PlaceAsync(wrongOwner, new Dictionary<int,int>{{p.Id,1}}); throw new Exception("Expected ownership rejection"); }
+catch (CheckoutException) { Check(true,"checkout retry cannot move an order between accounts"); }
+db.ChangeTracker.Clear();
+var securityOrder = await service.PlaceAsync(Customer("security-payment"), new Dictionary<int,int>{{p.Id,1}});
+db.PaymentAttempts.Add(new PaymentAttempt {OrderId=securityOrder.Id,IdempotencyKey="security",SessionId="security-session",RequestJson="{}"});
+await db.SaveChangesAsync(); db.ChangeTracker.Clear();
+try { await payments.ApplyAsync(new NileCheckout("security-session","CONFIRMED",securityOrder.TotalAmount,"EGP",null,0.01m),"invalid-confirmation",default); throw new Exception("Expected underfunded confirmation rejection"); }
+catch (NilePayException) { Check(true,"CONFIRMED cannot settle an explicitly underfunded transfer"); }
+Check(await db.Orders.AsNoTracking().Where(o=>o.Id==securityOrder.Id).Select(o=>o.PaymentStatus).SingleAsync()=="Unpaid" && !await db.PaymentEvents.AnyAsync(e=>e.EventId=="invalid-confirmation"),"rejected confirmation leaves payment and event ledger unchanged");
+db.Users.Add(new Microsoft.AspNetCore.Identity.IdentityUser {Id="security-owner",UserName="security@example.test",NormalizedUserName="SECURITY@EXAMPLE.TEST"});
+await db.SaveChangesAsync();
+await db.Orders.Where(o=>o.Id==order.Id).ExecuteUpdateAsync(s=>s.SetProperty(o=>o.CustomerUserId,"security-owner"));
+db.ChangeTracker.Clear();
+await payments.ApplyAsync(new NileCheckout("late-session","OVERPAID",order.TotalAmount,"EGP",null,order.TotalAmount+50),"late-overpay-refund",default);
+Check(!await db.WalletTransactions.AnyAsync(w=>w.UserId=="security-owner") && await db.Orders.Where(o=>o.Id==order.Id).Select(o=>o.PaymentStatus).SingleAsync()=="Refunded","late overpayment event cannot credit a refunded order wallet");
+await db.Orders.Where(o=>o.Id==securityOrder.Id).ExecuteUpdateAsync(s=>s.SetProperty(o=>o.CustomerUserId,"security-owner"));
+db.ChangeTracker.Clear();
+await payments.ApplyAsync(new NileCheckout("security-session","OVERPAID",securityOrder.TotalAmount,"EGP",null,securityOrder.TotalAmount+5),"valid-excess",default);
+db.ChangeTracker.Clear();
+await payments.ApplyAsync(new NileCheckout("security-session","OVERPAID",securityOrder.TotalAmount,"EGP",null,securityOrder.TotalAmount+5),"repeated-valid-excess",default);
+Check(await new WalletService(db).GetBalanceAsync("security-owner")==5m && await db.WalletTransactions.CountAsync(w=>w.OrderId==securityOrder.Id)==1,"legitimate overpayment credits the excess once across different event IDs");
 var priceForm=new ProductFormViewModel {Price=1.001m};
 Check(priceForm.Validate(new System.ComponentModel.DataAnnotations.ValidationContext(priceForm)).Any(e=>e.ErrorMessage=="Validation_PricePrecision"),"fractional piastres rejected before catalog save");
 

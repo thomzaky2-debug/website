@@ -1,11 +1,2 @@
-@{ Layout = "_Layout"; ViewData["Title"] = "Page Not Found"; }
-<div class="not-found-page">
-    <div class="not-found-code">404</div>
-    <h1 class="not-found-message">Page not found</h1>
-    <p>The page you're looking for doesn't exist or has been moved.</p>
-    <div class="not-found-actions">
-        <a href="/" class="btn-primary">Go Home</a>
-        <a href="/shop" class="btn-outline">Browse Shop</a>
-    </div>
-</div>
-
+@{ViewData["Title"]=Localizer["Studio_Not_Found_Title"];}
+<div class="not-found-page"><span class="eyebrow">404 · Chic &amp; Unique</span><partial name="_StoreEmpty" model='@(new StoreEmptyState("search", Localizer["Studio_Not_Found_Title"], Localizer["Studio_Not_Found_Help"], "Home", "Shop", Localizer["Nav_Shop"], true))'/><a class="store-home-link" asp-controller="Home" asp-action="Index">@Localizer["Nav_Home"]</a></div>

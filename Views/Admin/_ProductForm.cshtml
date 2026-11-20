@@ -1,15 +1,58 @@
 @model ProductFormViewModel
+@{
+    bool HasError(params string[] fields) => fields.Any(field => (ViewData.ModelState[field]?.Errors.Count ?? 0) > 0);
+}
 <input asp-for="Id" type="hidden"/><input asp-for="OriginalStockQuantity" type="hidden"/>
 <div asp-validation-summary="All" class="validation"></div>
-<div class="product-editor-columns">
-<div class="editor-main-column">
-<section class="editor-section editor-basics"><h2>@Localizer["Product_Basics"]</h2><div class="editor-grid"><div class="field"><label asp-for="Slug">@Localizer["Slug"]</label><input asp-for="Slug"/><span asp-validation-for="Slug"></span></div><div class="field"><label asp-for="CategoryId">@Localizer["CategoryId"]</label><select asp-for="CategoryId">@foreach(var c in Model.Categories){<option value="@c.Id">@c.Name</option>}</select><span asp-validation-for="CategoryId"></span></div><div class="field"><label asp-for="Price">@Localizer["Price"] (EGP)</label><input asp-for="Price" type="number" step="0.01" min="0"/><span asp-validation-for="Price"></span></div><div class="field"><label asp-for="OldPrice">@Localizer["OldPrice"] (EGP)</label><input asp-for="OldPrice" type="number" step="0.01" min="0"/><span asp-validation-for="OldPrice"></span></div><div class="field"><label asp-for="StockQuantity">@Localizer["StockQuantity"]</label><input asp-for="StockQuantity" type="number" min="0"/><span asp-validation-for="StockQuantity"></span></div></div></section>
-<section class="editor-section editor-content"><h2>@Localizer["Product_Content"]</h2><div class="bilingual"><fieldset dir="ltr"><legend>English</legend><div class="field"><label asp-for="NameEn">@Localizer["NameEn"]</label><input asp-for="NameEn"/><span asp-validation-for="NameEn"></span></div><div class="field"><label asp-for="ShortDescriptionEn">@Localizer["ShortDescriptionEn"]</label><textarea asp-for="ShortDescriptionEn" rows="3"></textarea><span asp-validation-for="ShortDescriptionEn"></span></div><div class="field"><label asp-for="FullDescriptionEn">@Localizer["FullDescriptionEn"]</label><textarea asp-for="FullDescriptionEn" rows="6"></textarea><span asp-validation-for="FullDescriptionEn"></span></div></fieldset><fieldset dir="rtl"><legend>العربية</legend><div class="field"><label asp-for="NameAr">@Localizer["NameAr"]</label><input asp-for="NameAr"/><span asp-validation-for="NameAr"></span></div><div class="field"><label asp-for="ShortDescriptionAr">@Localizer["ShortDescriptionAr"]</label><textarea asp-for="ShortDescriptionAr" rows="3"></textarea><span asp-validation-for="ShortDescriptionAr"></span></div><div class="field"><label asp-for="FullDescriptionAr">@Localizer["FullDescriptionAr"]</label><textarea asp-for="FullDescriptionAr" rows="6"></textarea><span asp-validation-for="FullDescriptionAr"></span></div></fieldset></div></section>
+<p class="entry-intro">@Localizer["Entry_Intro"]</p>
+<div class="product-entry-grid">
+<section class="entry-card entry-details" aria-labelledby="entry-details-title">
+    <div class="entry-card-heading"><h2 id="entry-details-title">@Localizer["Entry_Details"]</h2><p>@Localizer["Entry_Bilingual_Help"]</p></div>
+    <div class="entry-fields">
+        <div class="field"><label asp-for="NameEn">@Localizer["NameEn"] <span aria-hidden="true">*</span></label><input asp-for="NameEn" dir="ltr" required maxlength="250" placeholder="@Localizer["Entry_Name_Example"]"/><span asp-validation-for="NameEn"></span></div>
+        <div class="field"><label asp-for="NameAr">@Localizer["NameAr"] <span aria-hidden="true">*</span></label><input asp-for="NameAr" dir="rtl" required maxlength="250" placeholder="@Localizer["Entry_Name_Example_Ar"]"/><span asp-validation-for="NameAr"></span></div>
+        <div class="field entry-wide"><label asp-for="CategoryId">@Localizer["CategoryId"] <span aria-hidden="true">*</span></label><select asp-for="CategoryId" required><option value="">@Localizer["Entry_Choose_Category"]</option>@foreach(var c in Model.Categories){<option value="@c.Id">@c.Name</option>}</select><span asp-validation-for="CategoryId"></span>@if(!Model.Categories.Any()){<small>@Localizer["Entry_No_Categories"] <a asp-action="CreateCategory">@Localizer["CreateCategory"]</a></small>}</div>
+        <div class="field"><label asp-for="FullDescriptionEn">@Localizer["FullDescriptionEn"] <span aria-hidden="true">*</span></label><textarea asp-for="FullDescriptionEn" dir="ltr" rows="4" required maxlength="20000" placeholder="@Localizer["Entry_Description_Help"]"></textarea><span asp-validation-for="FullDescriptionEn"></span></div>
+        <div class="field"><label asp-for="FullDescriptionAr">@Localizer["FullDescriptionAr"] <span aria-hidden="true">*</span></label><textarea asp-for="FullDescriptionAr" dir="rtl" rows="4" required maxlength="20000" placeholder="@Localizer["Entry_Description_Help"]"></textarea><span asp-validation-for="FullDescriptionAr"></span></div>
+    </div>
+</section>
+<section class="entry-card entry-media" aria-labelledby="entry-media-title">
+    <div class="entry-card-heading"><h2 id="entry-media-title">@Localizer["Product_Images"]</h2><p>@Localizer["Entry_Photo_Help"]</p></div>
+    <div class="entry-upload-layout">
+        <div class="editor-image-preview"><img id="product-editor-preview" src="@Model.ImageUrl" data-saved-src="@Model.ImageUrl" alt="@Localizer["Product_Images"]" hidden="@(string.IsNullOrWhiteSpace(Model.ImageUrl))"/><span id="product-editor-empty" hidden="@(!string.IsNullOrWhiteSpace(Model.ImageUrl))">@Localizer["No_Product_Image"]</span></div>
+        <div class="entry-upload-controls field">
+            <label asp-for="Uploads" class="entry-upload-label"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 16V3m-5 5 5-5 5 5M4 15v5h16v-5"/></svg>@Localizer["Entry_Choose_Photos"]</label>
+            <input asp-for="Uploads" type="file" multiple accept="image/jpeg,image/png,image/webp" aria-describedby="entry-upload-help entry-upload-status"/>
+            <small id="entry-upload-help">@Localizer["Entry_Upload_Limits"]</small>
+            <span asp-validation-for="Uploads"></span>
+            <p id="entry-upload-status" class="entry-upload-status" role="status" aria-live="polite" data-selected-label="@Localizer["Entry_Selected_Photos"]"></p>
+            <div id="entry-upload-thumbnails" class="entry-upload-thumbnails" aria-label="@Localizer["Product_Images"]"></div>
+            <label class="entry-check"><input asp-for="ReplacePrimaryImage"/> <span>@Localizer["Use_Upload_As_Main"]</span></label>
+        </div>
+    </div>
+    <details class="entry-disclosure editor-advanced" open="@(HasError(nameof(Model.ImageUrl),nameof(Model.GalleryImages)))"><summary>@Localizer["Image_Advanced"]</summary><p class="entry-help">@Localizer["Entry_Image_Advanced_Help"]</p><div class="entry-fields"><div class="field"><label asp-for="ImageUrl">@Localizer["ImageUrl"]</label><input asp-for="ImageUrl" dir="ltr"/><span asp-validation-for="ImageUrl"></span></div><div class="field"><label asp-for="GalleryImages">@Localizer["Images_Gallery"]</label><textarea asp-for="GalleryImages" dir="ltr" rows="2"></textarea><span asp-validation-for="GalleryImages"></span></div></div></details>
+</section>
+<section class="entry-card entry-pricing" aria-labelledby="entry-pricing-title">
+    <div class="entry-card-heading"><h2 id="entry-pricing-title">@Localizer["Entry_Price_Stock"]</h2></div>
+    <div class="entry-fields">
+        <div class="field"><label asp-for="Price">@Localizer["Price"] (EGP) <span aria-hidden="true">*</span></label><input asp-for="Price" type="number" inputmode="decimal" step="0.01" min="0.01" max="99999999" required/><span asp-validation-for="Price"></span></div>
+        <div class="field"><label asp-for="StockQuantity">@Localizer["StockQuantity"] <span aria-hidden="true">*</span></label><input asp-for="StockQuantity" type="number" inputmode="numeric" step="1" min="0" max="1000000" required/><span asp-validation-for="StockQuantity"></span></div>
+        <div class="field entry-wide"><label asp-for="OldPrice">@Localizer["Entry_Compare_Price"] (EGP)</label><input asp-for="OldPrice" type="number" inputmode="decimal" step="0.01" min="0.01" max="99999999" placeholder="@Localizer["Entry_Optional"]"/><small>@Localizer["Entry_Compare_Help"]</small><span asp-validation-for="OldPrice"></span></div>
+    </div>
+</section>
+<section class="entry-card entry-publishing" aria-labelledby="entry-publishing-title">
+    <div class="entry-card-heading"><h2 id="entry-publishing-title">@Localizer["Visibility"]</h2></div>
+    <label class="entry-check"><input asp-for="IsActive"/><span><strong>@Localizer["Entry_Visible"]</strong><small>@Localizer["Entry_Visible_Help"]</small></span></label>
+    <label class="entry-check"><input asp-for="IsFeatured"/><span><strong>@Localizer["IsFeatured"]</strong><small>@Localizer["Entry_Featured_Help"]</small></span></label>
+</section>
+<section class="entry-card entry-more">
+    <details class="entry-disclosure" open="@(HasError(nameof(Model.Slug),nameof(Model.Sizes),nameof(Model.Colors),nameof(Model.ShortDescriptionEn),nameof(Model.ShortDescriptionAr)))"><summary>@Localizer["Entry_Additional"]</summary><p class="entry-help">@Localizer["Entry_Additional_Help"]</p><div class="entry-fields">
+        <div class="field"><label asp-for="Sizes">@Localizer["Options_Sizes"]</label><input asp-for="Sizes" placeholder="S, M, L" maxlength="500"/></div>
+        <div class="field"><label asp-for="Colors">@Localizer["Options_Colors"]</label><input asp-for="Colors" placeholder="@Localizer["Entry_Colors_Example"]" maxlength="500"/></div>
+        <div class="field"><label asp-for="ShortDescriptionEn">@Localizer["ShortDescriptionEn"]</label><textarea asp-for="ShortDescriptionEn" dir="ltr" rows="2" maxlength="500"></textarea><span asp-validation-for="ShortDescriptionEn"></span></div>
+        <div class="field"><label asp-for="ShortDescriptionAr">@Localizer["ShortDescriptionAr"]</label><textarea asp-for="ShortDescriptionAr" dir="rtl" rows="2" maxlength="500"></textarea><span asp-validation-for="ShortDescriptionAr"></span></div>
+        <div class="field entry-wide"><label asp-for="Slug">@Localizer["Entry_Product_Link"]</label><input asp-for="Slug" dir="ltr" maxlength="200" pattern="[a-z0-9]+(-[a-z0-9]+)*" aria-describedby="entry-slug-help" data-auto-slug="@(Model.Id==0 && string.IsNullOrWhiteSpace(Model.Slug)?"true":"false")"/><small id="entry-slug-help">@Localizer["Entry_Link_Help"]</small><span asp-validation-for="Slug"></span></div>
+    </div></details>
+</section>
 </div>
-<aside class="editor-side-column">
-<section class="editor-section editor-media"><h2>@Localizer["Product_Images"]</h2><div class="editor-image-preview"><img id="product-editor-preview" src="@Model.ImageUrl" data-saved-src="@Model.ImageUrl" alt="@Localizer["Product_Images"]" hidden="@(string.IsNullOrWhiteSpace(Model.ImageUrl))"/><span id="product-editor-empty" hidden="@(!string.IsNullOrWhiteSpace(Model.ImageUrl))">@Localizer["No_Product_Image"]</span></div><div class="editor-grid"><div class="field"><label asp-for="Uploads">@Localizer["Images_Upload"]</label><input asp-for="Uploads" type="file" multiple accept="image/jpeg,image/png,image/webp"/><small>@Localizer["Images_Help"]</small><span asp-validation-for="Uploads"></span></div><label class="editor-check wide"><input asp-for="ReplacePrimaryImage"/> @Localizer["Use_Upload_As_Main"]</label><details class="editor-advanced wide" open="@((ViewData.ModelState[nameof(Model.ImageUrl)]?.Errors.Count ?? 0)>0 || (ViewData.ModelState[nameof(Model.GalleryImages)]?.Errors.Count ?? 0)>0)"><summary>@Localizer["Image_Advanced"]</summary><div class="field"><label asp-for="ImageUrl">@Localizer["ImageUrl"]</label><input asp-for="ImageUrl"/><span asp-validation-for="ImageUrl"></span></div><div class="field"><label asp-for="GalleryImages">@Localizer["Images_Gallery"]</label><textarea asp-for="GalleryImages" rows="2"></textarea><span asp-validation-for="GalleryImages"></span></div></details></div></section>
-<section class="editor-section editor-options"><h2>@Localizer["Product_Options"]</h2><p class="muted">@Localizer["Options_Help"]</p><div class="editor-grid"><div class="field"><label asp-for="Sizes">@Localizer["Options_Sizes"]</label><input asp-for="Sizes" placeholder="S, M, L"/></div><div class="field"><label asp-for="Colors">@Localizer["Options_Colors"]</label><input asp-for="Colors" placeholder="Blue, White"/></div></div></section>
-<section class="editor-section editor-visibility"><h2>@Localizer["Visibility"]</h2><label class="editor-check"><input asp-for="IsActive"/> @Localizer["IsActive"]</label><label class="editor-check"><input asp-for="IsFeatured"/> @Localizer["IsFeatured"]</label></section>
-</aside>
-</div>
-<div class="editor-actions"><button class="primary-button">@Localizer["Save"]</button><a asp-action="Products">@Localizer["Cancel"]</a></div>
+<div class="entry-save-bar"><a asp-action="Products">@Localizer["Cancel"]</a><button type="submit" class="primary-button">@Localizer[Model.Id==0?"CreateProduct":"Save_Changes"]</button></div>

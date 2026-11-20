@@ -67,6 +67,16 @@ public class AdminController(ApplicationDbContext db, AuditService audit, Catalo
     [HttpPost, ValidateAntiForgeryToken] public Task<IActionResult> EditProduct(ProductFormViewModel model) => SaveProduct(model, true);
     async Task<IActionResult> SaveProduct(ProductFormViewModel m, bool edit)
     {
+        // New products get a readable URL without requiring the merchant to type a slug.
+        // Existing links and explicitly supplied URLs are always preserved.
+        if (!edit && string.IsNullOrWhiteSpace(m.Slug)) {
+            var englishName = m.NameEn;
+            var stem = System.Text.RegularExpressions.Regex.Replace((englishName ?? "").ToLowerInvariant(), "[^a-z0-9]+", "-").Trim('-');
+            stem = stem[..Math.Min(stem.Length, 170)].TrimEnd('-');
+            if (stem.Length == 0) stem = "product-" + Guid.NewGuid().ToString("N")[..12];
+            m.Slug = await db.Products.AnyAsync(p => p.Slug == stem) ? stem + "-" + Guid.NewGuid().ToString("N")[..8] : stem;
+            ModelState.Remove(nameof(m.Slug));
+        }
         if (!await db.Categories.AnyAsync(c => c.Id == m.CategoryId)) ModelState.AddModelError(nameof(m.CategoryId), localizer["Validation_Category"]);
         if (await db.Products.AnyAsync(p => p.Slug == m.Slug && (!edit || p.Id != m.Id))) ModelState.AddModelError(nameof(m.Slug), localizer["Validation_UniqueSlug"]);
         if (!images.ValidPath(m.ImageUrl)) ModelState.AddModelError(nameof(m.ImageUrl), localizer["Validation_Image"]);

@@ -97,6 +97,10 @@
         validation.focus({ preventScroll: true });
       }
       window.scrollTo(position.x, position.y);
+      // Long product forms need visible feedback after the bottom save action.
+      if (form?.matches('.product-editor-form')) {
+        (validation || main.querySelector('.notice'))?.scrollIntoView({block: 'center', behavior: 'auto'});
+      }
       main.querySelectorAll('.notice').forEach(node => node.setAttribute('role', 'status'));
       return true;
     } catch {
