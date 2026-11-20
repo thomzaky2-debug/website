@@ -46,33 +46,34 @@ main :where(form, aside, article, fieldset, .field, .editor-main-column, .editor
     position: absolute;
     inset-inline: auto var(--page-gutter);
     top: calc(100% + 8px);
-    width: min(21rem, calc(100% - 2 * var(--page-gutter)));
+    width: min(15rem, calc(100% - 2 * var(--page-gutter)));
     max-height: calc(100vh - 96px);
     max-height: calc(100dvh - 96px - env(safe-area-inset-bottom, 0px));
-    padding: 12px;
+    padding: 8px;
     background: #fff;
     border: 1px solid var(--line);
     border-radius: 16px;
     box-shadow: 0 16px 32px #0003;
-    flex-direction: column;
+    grid-template-columns: 44px minmax(0, 1fr);
     align-items: stretch;
     justify-content: flex-start;
-    gap: 4px;
+    gap: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
     z-index: 50;
   }
-  .site-header .site-nav { flex-wrap: nowrap; }
-  .site-header .site-nav > * { flex-shrink: 0; }
-  .site-header .site-nav.is-open { display: flex; }
-  .site-header .site-nav > a, .site-header .site-nav > form > button { width: 100%; min-height: 48px; padding: 12px; border-radius: 9px; justify-content: flex-start; text-align: start; white-space: normal; }
+  .site-header .site-nav.is-open { display: grid; }
+  .site-header .site-nav > * { grid-column: 1 / -1; }
+  .site-header .site-nav > a, .site-header .site-nav > form > button { width: 100%; min-height: 44px; padding: 8px 10px; border-radius: 9px; justify-content: flex-start; text-align: start; white-space: normal; }
   .site-nav > form { display: block; width: 100%; margin: 0; }
-  .site-nav .dark-mode-toggle { width: 48px; height: 48px; margin: 4px 12px; flex-shrink: 0; }
+  .site-header .site-nav > .dark-mode-toggle { grid-column: 1; width: 44px; height: 44px; margin: 0; }
+  .site-header .site-nav > form:last-child { grid-column: 2; }
+  .no-js .site-header .site-nav > form:last-child { grid-column: 1 / -1; }
   .site-header .site-nav > a[aria-current="page"] { background: var(--surface, #f4f9f8); text-decoration: none; }
   html.dark-mode .site-header .site-nav { background: #172231; border-color: var(--line); }
   html.dark-mode .site-header .site-nav > a[aria-current="page"] { background: #24364b; }
   .no-js .site-header .nav { flex-wrap: wrap; }
-  .no-js .site-header .site-nav { display: flex; position: static; width: 100%; max-height: none; box-shadow: none; }
+  .no-js .site-header .site-nav { display: grid; position: static; width: 100%; max-height: none; box-shadow: none; }
   .no-js .menu-toggle { display: none; }
 }
 
