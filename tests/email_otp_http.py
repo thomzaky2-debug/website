@@ -6,6 +6,7 @@ import queue
 import re
 import secrets
 import socketserver
+import sqlite3
 import ssl
 import subprocess
 import tempfile
@@ -97,6 +98,9 @@ with tempfile.TemporaryDirectory() as directory:
                 else:
                     raise AssertionError('OTP test site did not become ready')
 
+                # Hosting SMTP must recover account email even with stale encrypted database settings.
+                with sqlite3.connect(folder / 'otp.db') as db:
+                    db.execute("UPDATE StoreMailSettings SET Enabled=1, EncryptedPassword='unreadable'")
                 _, page, _ = customer.req('/Account/Register')
                 _, verify, url = customer.req('/Account/Register', {
                     'Email': customer_email, 'FullName': 'OTP Customer', 'Phone': '01012345678',

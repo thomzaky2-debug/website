@@ -19,7 +19,9 @@ public sealed class AccountMailSender(
         try
         {
             var smtp = defaults.Value;
-            var settings = await db.StoreMailSettings.AsNoTracking().FirstOrDefaultAsync(timeout.Token);
+            // Hosting configuration can restore account email access without an admin sign-in.
+            var settings = smtp.Enabled ? null :
+                await db.StoreMailSettings.AsNoTracking().FirstOrDefaultAsync(timeout.Token);
             if (settings is { Enabled: true })
             {
                 smtp = new SmtpOptions
@@ -31,14 +33,23 @@ public sealed class AccountMailSender(
                 };
             }
             if (!smtp.Enabled || !smtp.EnableSsl || string.IsNullOrWhiteSpace(smtp.Host) ||
-                string.IsNullOrWhiteSpace(smtp.From)) return false;
+                string.IsNullOrWhiteSpace(smtp.From))
+            {
+                logger.LogWarning("Account email requires enabled SMTP, STARTTLS, a host and a sender address.");
+                return false;
+            }
             using var transport = new SmtpClient(smtp.Host, smtp.Port) { EnableSsl = true };
             if (!string.IsNullOrEmpty(smtp.Username))
                 transport.Credentials = new NetworkCredential(smtp.Username, smtp.Password);
             using var message = new MailMessage(smtp.From, recipient) { Subject = subject, Body = body };
             await transport.SendMailAsync(message, timeout.Token);
         }
-        catch (Exception error) when (error is SmtpException or CryptographicException or FormatException
+        catch (SmtpException error)
+        {
+            logger.LogWarning("Account email SMTP submission failed with status {StatusCode}.", (int)error.StatusCode);
+            return false;
+        }
+        catch (Exception error) when (error is CryptographicException or FormatException
             or ArgumentException or InvalidOperationException or OperationCanceledException)
         {
             logger.LogWarning("Account email could not be sent ({ErrorType}).", error.GetType().Name);
