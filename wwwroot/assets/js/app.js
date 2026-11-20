@@ -23,7 +23,6 @@ window.initializeNileShopPage = function () {
    lifecycle.abort(); timeouts.forEach(window.clearTimeout); intervals.forEach(window.clearInterval);
    observers.forEach(observer => observer.disconnect());
    document.querySelectorAll('[data-object-url]').forEach(node => { URL.revokeObjectURL(node.dataset.objectUrl); delete node.dataset.objectUrl; });
-   document.querySelector('.toast-container')?.remove();
  };
 'use strict';
 document.documentElement.classList.remove('no-js');
@@ -162,9 +161,9 @@ if(quantityForms.length){
     document.querySelector('#cart-grand-total').textContent=money.format(cart.total)+' EGP';
     document.querySelector('#cart-item-count').textContent=cart.count;
     document.querySelectorAll('.cart-count').forEach(node=>node.textContent=cart.count);
-    const message=document.querySelector('#cart-update-message');message.textContent=cart.error||'';message.hidden=!cart.error;
+    if (cart.error) showToast(cart.error, 'error');
    }
-  }catch{const message=document.querySelector('#cart-update-message');if(message){message.textContent=document.body.dataset.asyncError;message.hidden=false;}}
+  }catch{showToast(document.body.dataset.asyncError, 'error');}
   finally{cartBusy=false;setCartBusy(pendingQuantities.size>0);}
  }
  for(const form of quantityForms){
@@ -287,20 +286,20 @@ function showToast(message, type = 'success') {
   if (!container) {
     container = document.createElement('div');
     container.className = 'toast-container';
-    container.setAttribute('aria-live', 'polite');
     document.body.appendChild(container);
   }
   const toast = document.createElement('div');
   toast.className = 'toast-notification' + (type === 'error' ? ' error' : '');
+  toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
   toast.innerHTML =
-    '<span class="toast-icon">' + (type === 'error' ? '✕' : '✓') + '</span>' +
+    '<span class="toast-icon" aria-hidden="true">' + (type === 'error' ? '✕' : '✓') + '</span>' +
     '<span class="toast-message">' + escapeHtml(message) + '</span>';
   container.appendChild(toast);
   requestAnimationFrame(() => requestAnimationFrame(() => toast.classList.add('show')));
-  setTimeout(() => {
+  window.setTimeout(() => {
     toast.classList.remove('show');
-    setTimeout(() => toast.remove(), 400);
-  }, 3000);
+    window.setTimeout(() => toast.remove(), 400);
+  }, type === 'error' ? 6500 : 4000);
 }
 
 // --- A1. AJAX Add-to-Cart Interception ---
@@ -659,7 +658,7 @@ document.querySelectorAll('[data-category-visibility]').forEach(form => {
       button.textContent = state.buttonText;
       form.closest('.admin-category-card').querySelector('.category-visibility-status').textContent = state.statusText;
     } catch {
-      error.hidden = false;
+      showToast(error.textContent.trim() || document.body.dataset.asyncError, 'error');
     } finally {
       button.disabled = false;
       form.removeAttribute('aria-busy');
@@ -794,6 +793,11 @@ document.querySelectorAll('.save-product-form[data-silent-save], .product-save-d
 });
 
 syncAllHearts();
+window.NileShopToast = showToast;
+document.querySelectorAll('[data-page-toast]:not([hidden])').forEach(notice => {
+  showToast(notice.textContent.trim(), notice.dataset.pageToast);
+  notice.hidden = true;
+});
 
 };
 window.initializeNileShopPage();

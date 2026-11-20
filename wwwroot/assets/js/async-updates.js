@@ -20,6 +20,10 @@
     if (event.target.form) dirtyForms.add(event.target.form);
   });
   function reportError(form) {
+    if (window.NileShopToast) {
+      window.NileShopToast(document.body.dataset.asyncError, 'error');
+      return;
+    }
     let message = document.querySelector('#async-update-error');
     if (!message) {
       message = document.createElement('p');
@@ -103,11 +107,10 @@
         validation.focus({ preventScroll: true });
       }
       window.scrollTo(position.x, position.y);
-      // Long product forms need visible feedback after the bottom save action.
-      if (form?.matches('.product-editor-form')) {
-        (validation || main.querySelector('.notice'))?.scrollIntoView({block: 'center', behavior: 'auto'});
+      if (validation) {
+        const message = validation.querySelector('li') || validation;
+        if (message.textContent.trim()) window.NileShopToast?.(message.textContent.trim(), 'error');
       }
-      main.querySelectorAll('.notice').forEach(node => node.setAttribute('role', 'status'));
       return true;
     } catch {
       // Never retry a mutation automatically: the server may already have saved it.

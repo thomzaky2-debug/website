@@ -6,7 +6,8 @@
 /* ---------- A1. Toast Notification ---------- */
 .toast-container {
   position: fixed;
-  bottom: 24px;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  max-width: calc(100vw - 48px);
   inset-inline-end: 24px;
   z-index: 9999;
   display: flex;
@@ -64,6 +65,8 @@
 
 .toast-message {
   flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 [dir="rtl"] .toast-notification {
@@ -1580,7 +1583,8 @@ html.dark-mode .skeleton {
 @media (max-width: 600px) {
   .toast-container {
     inset-inline-end: 12px;
-    bottom: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    max-width: calc(100vw - 24px);
   }
 
   .toast-notification {
