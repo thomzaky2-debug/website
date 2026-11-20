@@ -146,7 +146,14 @@ public class StoreAdminController(ApplicationDbContext db, CustomerAdminService 
         var mail=await db.StoreMailSettings.AsNoTracking().FirstAsync();
         ViewData["Mail"]=new MailSettingsViewModel { Enabled=mail.Enabled,Host=mail.Host,Port=mail.Port,Username=mail.Username,HasPassword=!string.IsNullOrEmpty(mail.EncryptedPassword),From=mail.From,EnableSsl=mail.EnableSsl };
     }
-    public async Task<IActionResult> Settings() { await SettingsData();return View(await db.StoreSettings.AsNoTracking().FirstAsync()); }
+    public async Task<IActionResult> Settings()
+    {
+        await SettingsData();
+        var settings = await db.StoreSettings.AsNoTracking().FirstAsync();
+        settings.ReturnsPolicyEn = ReturnPolicyWindow.Apply(settings.ReturnsPolicyEn, settings.ReturnDays, arabic: false);
+        settings.ReturnsPolicyAr = ReturnPolicyWindow.Apply(settings.ReturnsPolicyAr, settings.ReturnDays, arabic: true);
+        return View(settings);
+    }
     [HttpPost,ValidateAntiForgeryToken]
     public async Task<IActionResult> Settings(StoreSettings model)
     {
@@ -155,6 +162,8 @@ public class StoreAdminController(ApplicationDbContext db, CustomerAdminService 
         model.TwitterUrl = NormalizeSocialUrl(model.TwitterUrl, nameof(model.TwitterUrl));
         model.WhatsAppUrl = NormalizeSocialUrl(model.WhatsAppUrl, nameof(model.WhatsAppUrl), allowPhone: true);
         if(!ModelState.IsValid){await SettingsData();return View(model);}
+        model.ReturnsPolicyEn = ReturnPolicyWindow.Apply(model.ReturnsPolicyEn, model.ReturnDays, arabic: false);
+        model.ReturnsPolicyAr = ReturnPolicyWindow.Apply(model.ReturnsPolicyAr, model.ReturnDays, arabic: true);
         var settings=await db.StoreSettings.FirstAsync();model.Id=settings.Id;model.HeroImageUrl=settings.HeroImageUrl;db.Entry(settings).CurrentValues.SetValues(model);
         await audit.LogAsync("STORE_SETTINGS","Store","Updated contact, social and policy settings");TempData["Success"]="Admin_Saved";return RedirectToAction(nameof(Settings));
     }

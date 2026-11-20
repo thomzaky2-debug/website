@@ -251,11 +251,11 @@
             </div>
             <div class="settings-field">
               <label asp-for="ReturnsPolicyEn">@Localizer["Returns_Policy_En"]</label>
-              <textarea asp-for="ReturnsPolicyEn" dir="ltr"></textarea>
+              <textarea asp-for="ReturnsPolicyEn" dir="ltr" data-return-window-pattern="@ReturnPolicyWindow.EnglishPattern"></textarea>
             </div>
             <div class="settings-field">
               <label asp-for="ReturnsPolicyAr">@Localizer["Returns_Policy_Ar"]</label>
-              <textarea asp-for="ReturnsPolicyAr" dir="rtl"></textarea>
+              <textarea asp-for="ReturnsPolicyAr" dir="rtl" data-return-window-pattern="@ReturnPolicyWindow.ArabicPattern"></textarea>
             </div>
           </div>
           <div class="settings-actions">

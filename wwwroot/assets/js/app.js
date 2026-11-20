@@ -682,6 +682,16 @@ document.querySelectorAll('[data-copy-text]').forEach(btn => {
   }, { signal: lifecycle.signal });
 });
 
+const returnDays = document.querySelector('#ReturnDays');
+returnDays?.addEventListener('input', () => {
+  if (!returnDays.value || !returnDays.validity.valid) return;
+  const days = String(returnDays.valueAsNumber);
+  returnDays.form.querySelectorAll('[data-return-window-pattern]').forEach(field => {
+    const pattern = new RegExp(field.dataset.returnWindowPattern, 'gi');
+    field.value = field.value.replace(pattern, (_, prefix) => prefix + days);
+  });
+}, { signal: lifecycle.signal });
+
 const settingsNavLinks = [...document.querySelectorAll('.settings-page .settings-nav a[href^="#"]')];
 if (settingsNavLinks.length > 0 && 'IntersectionObserver' in window) {
   const sections = settingsNavLinks

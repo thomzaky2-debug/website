@@ -78,6 +78,13 @@ try:
  status,updated,_=req('/StoreAdmin/Mail',{'Enabled':'false','Host':'smtp.example.test','Port':'587','Username':'test@example.test','NewPassword':secret,'From':'orders@example.test','EnableSsl':'true','__RequestVerificationToken':token(settings)})
  check(status==200 and 'smtp.example.test' in updated and secret not in updated,'SMTP settings saved without exposing password')
  import sqlite3
+ status,_,_=req('/StoreAdmin/Settings',{
+  'ReturnDays':'7','ReturnsPolicyEn':'Request a return within 14 days. Refunds take 5 days.',
+  'ReturnsPolicyAr':'يمكنك طلب استرجاع المنتجات خلال ٢ يومًا من تاريخ الاستلام.',
+  '__RequestVerificationToken':token(settings)})
+ check(status==200 and 'Request a return within 7 days. Refunds take 5 days.' in req('/returns')[1],'return window updates the storefront without changing the refund deadline')
+ with sqlite3.connect(env['Database__DevelopmentSqlitePath']) as db:
+  check(db.execute('SELECT ReturnsPolicyAr FROM StoreSettings').fetchone()[0]=='يمكنك طلب استرجاع المنتجات خلال 7 يومًا من تاريخ الاستلام.','return window synchronizes the saved Arabic policy')
  with sqlite3.connect(env['Database__DevelopmentSqlitePath']) as db:
   saved=db.execute('SELECT Host,EncryptedPassword FROM StoreMailSettings').fetchone()
   check(saved[0]=='smtp.example.test' and secret not in saved[1] and saved[1],'SMTP password encrypted at rest')
