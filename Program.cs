@@ -28,8 +28,9 @@ builder.Services.AddDbContext<ApplicationDbContext>(options => {
             if (sql.Encrypt == Microsoft.Data.SqlClient.SqlConnectionEncryptOption.Optional || sql.TrustServerCertificate)
                 throw new InvalidOperationException("Production SQL Server connections require Encrypt=True and TrustServerCertificate=False.");
         }
-        options.UseSqlServer(conn);
+        options.UseSqlServer(conn, sql => sql.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery));
     }
+    options.ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.MultipleCollectionIncludeWarning));
 });
 builder.Services.AddDefaultIdentity<IdentityUser>(options => {
     options.Password.RequiredLength = 12;

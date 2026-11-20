@@ -143,13 +143,13 @@ public class StoreAdminController(ApplicationDbContext db, CustomerAdminService 
         ViewData["GatewayReady"]=gateway.Ready;
         ViewData["GatewayOrigin"]=gatewayOptions.Value.ApiUrl;
         ViewData["PublicUrl"]=gatewayOptions.Value.PublicUrl;
-        var mail=await db.StoreMailSettings.AsNoTracking().FirstAsync();
+        var mail=await db.StoreMailSettings.AsNoTracking().OrderBy(s => s.Id).FirstAsync();
         ViewData["Mail"]=new MailSettingsViewModel { Enabled=mail.Enabled,Host=mail.Host,Port=mail.Port,Username=mail.Username,HasPassword=!string.IsNullOrEmpty(mail.EncryptedPassword),From=mail.From,EnableSsl=mail.EnableSsl };
     }
     public async Task<IActionResult> Settings()
     {
         await SettingsData();
-        var settings = await db.StoreSettings.AsNoTracking().FirstAsync();
+        var settings = await db.StoreSettings.AsNoTracking().OrderBy(s => s.Id).FirstAsync();
         settings.ReturnsPolicyEn = ReturnPolicyWindow.Apply(settings.ReturnsPolicyEn, settings.ReturnDays, arabic: false);
         settings.ReturnsPolicyAr = ReturnPolicyWindow.Apply(settings.ReturnsPolicyAr, settings.ReturnDays, arabic: true);
         return View(settings);
@@ -164,7 +164,7 @@ public class StoreAdminController(ApplicationDbContext db, CustomerAdminService 
         if(!ModelState.IsValid){await SettingsData();return View(model);}
         model.ReturnsPolicyEn = ReturnPolicyWindow.Apply(model.ReturnsPolicyEn, model.ReturnDays, arabic: false);
         model.ReturnsPolicyAr = ReturnPolicyWindow.Apply(model.ReturnsPolicyAr, model.ReturnDays, arabic: true);
-        var settings=await db.StoreSettings.FirstAsync();model.Id=settings.Id;model.HeroImageUrl=settings.HeroImageUrl;db.Entry(settings).CurrentValues.SetValues(model);
+        var settings=await db.StoreSettings.OrderBy(s => s.Id).FirstAsync();model.Id=settings.Id;model.HeroImageUrl=settings.HeroImageUrl;db.Entry(settings).CurrentValues.SetValues(model);
         await audit.LogAsync("STORE_SETTINGS","Store","Updated contact, social and policy settings");TempData["Success"]="Admin_Saved";return RedirectToAction(nameof(Settings));
     }
     string? NormalizeSocialUrl(string? raw, string field, bool allowPhone = false)
@@ -188,7 +188,7 @@ public class StoreAdminController(ApplicationDbContext db, CustomerAdminService 
     [HttpPost, ValidateAntiForgeryToken, RequestSizeLimit(5 * 1024 * 1024)]
     public async Task<IActionResult> HeroImage(IFormFile? heroImage, bool reset = false)
     {
-        var settings = await db.StoreSettings.FirstAsync();
+        var settings = await db.StoreSettings.OrderBy(s => s.Id).FirstAsync();
         if (reset) settings.HeroImageUrl = null;
         else {
             if (heroImage is null || heroImage.Length == 0) {
@@ -209,7 +209,7 @@ public class StoreAdminController(ApplicationDbContext db, CustomerAdminService 
     public async Task<IActionResult> Mail(MailSettingsViewModel model)
     {
         if(!ModelState.IsValid || model.NewPassword?.Length>500 || (model.Enabled && (string.IsNullOrWhiteSpace(model.Host)||string.IsNullOrWhiteSpace(model.From)||!model.EnableSsl)))return BadRequest();
-        var mail=await db.StoreMailSettings.FirstAsync();
+        var mail=await db.StoreMailSettings.OrderBy(s => s.Id).FirstAsync();
         mail.Enabled=model.Enabled;mail.Host=model.Host?.Trim()??"";mail.Port=model.Port;mail.Username=model.Username?.Trim()??"";mail.From=model.From?.Trim()??"";mail.EnableSsl=model.EnableSsl;
         if(!string.IsNullOrEmpty(model.NewPassword))mail.EncryptedPassword=protection.CreateProtector("NileShop.SMTP.v1").Protect(model.NewPassword);
         await db.SaveChangesAsync();

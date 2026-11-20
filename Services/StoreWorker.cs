@@ -42,7 +42,7 @@ public class StoreWorker(IServiceScopeFactory scopes, IConfiguration config, ILo
         var smtp = services.GetRequiredService<IOptions<SmtpOptions>>().Value;
         var site = services.GetRequiredService<IOptions<NilePayOptions>>().Value.PublicUrl;
         var db = services.GetRequiredService<ApplicationDbContext>();
-        var saved = smtp.Enabled ? null : await db.StoreMailSettings.AsNoTracking().FirstOrDefaultAsync(ct);
+        var saved = smtp.Enabled ? null : await db.StoreMailSettings.AsNoTracking().OrderBy(s => s.Id).FirstOrDefaultAsync(ct);
         if (saved is not null) {
             if (!saved.Enabled) return;
             var password = string.IsNullOrEmpty(saved.EncryptedPassword) ? "" : services.GetRequiredService<IDataProtectionProvider>().CreateProtector("NileShop.SMTP.v1").Unprotect(saved.EncryptedPassword);
@@ -56,8 +56,8 @@ public class StoreWorker(IServiceScopeFactory scopes, IConfiguration config, ILo
             if (claimed == 0) continue;
             var email = await db.OrderEmails.AsNoTracking().Include(e => e.Order).SingleAsync(e => e.Id == id, ct);
             try {
-                using var transport = new SmtpClient(smtp.Host, smtp.Port) { EnableSsl = smtp.EnableSsl, Timeout = 20000 };
-                if (!string.IsNullOrEmpty(smtp.Username)) transport.Credentials = new NetworkCredential(smtp.Username, smtp.Password);
+                using var transport = new SmtpClient(smtp.Host.Trim(), smtp.Port) { EnableSsl = smtp.EnableSsl, UseDefaultCredentials = false, Timeout = 20000 };
+                if (!string.IsNullOrEmpty(smtp.Username)) transport.Credentials = new NetworkCredential(smtp.Username.Trim(), smtp.Password);
                 using var message = new MailMessage(smtp.From, email.Order.CustomerEmail) {
                     Subject = $"NileShop · {email.Order.OrderNumber} · {email.Kind}",
                     Body = $"NileShop\nOrder / الطلب: {email.Order.OrderNumber}\nUpdate / التحديث: {email.Kind}\nTotal / الإجمالي: {email.Order.TotalAmount:0.00} EGP\n\nTrack your order / تتبع طلبك:\n{site.TrimEnd('/')}/orders/track?token={email.Order.PaymentAccessToken}\n\nKeep this private tracking link secure. احتفظ برابط التتبع الخاص بك."
