@@ -83,6 +83,9 @@ builder.Services.Configure<RequestLocalizationOptions>(o => {
     o.RequestCultureProviders = [new ScopedLanguageProvider(), new AcceptLanguageHeaderRequestCultureProvider()];
 });
 builder.Services.AddDistributedMemoryCache();
+builder.Services.AddMemoryCache();
+builder.Services.AddScoped<EmailOtp>();
+builder.Services.AddScoped<AccountMailSender>();
 builder.Services.AddSession(o => {
     o.IdleTimeout = TimeSpan.FromMinutes(30); o.Cookie.HttpOnly = true;
     o.Cookie.IsEssential = true; o.Cookie.SecurePolicy = CookieSecurePolicy.Always; o.Cookie.SameSite = SameSiteMode.Lax;

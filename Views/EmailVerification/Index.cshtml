@@ -1,0 +1,23 @@
+@model bool
+@{ ViewData["Title"] = Localizer["Otp_Title"]; }
+<div class="login-page">
+    <section class="login panel">
+        <h1>@Localizer["Otp_Title"]</h1>
+        <div asp-validation-summary="All" class="validation" role="alert"></div>
+        @if (Model)
+        {
+            <p class="muted">@Localizer["Otp_Intro"]</p>
+            <form asp-action="Index" method="post" data-email-otp>
+                <label for="otp-code">@Localizer["Otp_Code"]</label>
+                <input id="otp-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code"
+                       dir="ltr" minlength="6" maxlength="6" pattern="[0-9]{6}" required/>
+                <button type="submit" class="primary-button">@Localizer["Otp_Verify"]</button>
+            </form>
+        }
+        else
+        {
+            <p role="status">@Localizer["Otp_Expired"]</p>
+        }
+        <p class="account-switch"><a asp-controller="Account" asp-action="Login">@Localizer["Customer_Login"]</a></p>
+    </section>
+</div>

@@ -1,0 +1,15 @@
+@model ForgotPasswordViewModel
+@{ ViewData["Title"] = Localizer["Recovery_Forgot"]; }
+<div class="login-page">
+    <section class="login panel">
+        <h1>@Localizer["Recovery_Forgot"]</h1>
+        <p class="muted">@Localizer["Recovery_Intro"]</p>
+        <form asp-action="Forgot" method="post">
+            <div asp-validation-summary="All" class="validation" role="alert"></div>
+            <label asp-for="Email">@Localizer["Email"]</label>
+            <input asp-for="Email" type="email" autocomplete="email" maxlength="254" required/>
+            <button type="submit" class="primary-button">@Localizer["Recovery_Send"]</button>
+        </form>
+        <p class="account-switch"><a asp-controller="Account" asp-action="Login">@Localizer["Customer_Login"]</a></p>
+    </section>
+</div>

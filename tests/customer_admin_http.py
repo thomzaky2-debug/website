@@ -41,7 +41,7 @@ def seed(database):
 
 def main():
  base='https://localhost:5446';password=secrets.token_urlsafe(24)+'Aa1!';database='.dotnet/customer-test-'+secrets.token_hex(6)+'.db'
- env=dict(os.environ,ASPNETCORE_ENVIRONMENT='Development',ASPNETCORE_URLS=base,Database__UseDevelopmentSqlite='true',Database__DevelopmentSqlitePath=database,AdminSettings__Email='customer-admin@example.test',AdminSettings__Password=password,StoreWorker__ReconcilePayments='false')
+ env=dict(os.environ,ASPNETCORE_ENVIRONMENT='Development', EmailOtp__Enabled='false',ASPNETCORE_URLS=base,Database__UseDevelopmentSqlite='true',Database__DevelopmentSqlitePath=database,AdminSettings__Email='customer-admin@example.test',AdminSettings__Password=password,StoreWorker__ReconcilePayments='false')
  log=open('.dotnet/customer-test.log','w');proc=subprocess.Popen(['.dotnet/dotnet','bin/Debug/net10.0/NileShop.dll'],env=env,stdout=log,stderr=log)
  admin=Client(base);alice=Client(base);bob=Client(base);new=Client(base)
  try:

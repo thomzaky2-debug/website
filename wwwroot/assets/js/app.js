@@ -692,6 +692,15 @@ returnDays?.addEventListener('input', () => {
   });
 }, { signal: lifecycle.signal });
 
+const emailOtpForm = document.querySelector('[data-email-otp]');
+const emailOtpCode = emailOtpForm?.querySelector('#otp-code');
+emailOtpCode?.addEventListener('input', () => {
+  emailOtpCode.value = emailOtpCode.value.replace(/[٠-٩۰-۹]/g, digit =>
+    String(digit.charCodeAt(0) - (digit <= '٩' ? 0x660 : 0x6f0))
+  ).replace(/[^0-9]/g, '');
+  if (emailOtpCode.value.length === 6) emailOtpForm.requestSubmit();
+}, { signal: lifecycle.signal });
+
 const settingsNavLinks = [...document.querySelectorAll('.settings-page .settings-nav a[href^="#"]')];
 if (settingsNavLinks.length > 0 && 'IntersectionObserver' in window) {
   const sections = settingsNavLinks

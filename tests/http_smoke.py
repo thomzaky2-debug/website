@@ -1,7 +1,7 @@
 import os,subprocess,secrets,time,ssl,urllib.request,urllib.parse,http.cookiejar,re
 from pathlib import Path
 password=secrets.token_urlsafe(24)+'Aa1!'
-env=dict(os.environ,ASPNETCORE_ENVIRONMENT='Development',Database__UseDevelopmentSqlite='true',Database__DevelopmentSqlitePath='.dotnet/smoke-'+secrets.token_hex(6)+'.db',AdminSettings__Email='smoke@example.com',AdminSettings__Password=password,ASPNETCORE_URLS='https://localhost:5444')
+env=dict(os.environ,ASPNETCORE_ENVIRONMENT='Development', EmailOtp__Enabled='false',Database__UseDevelopmentSqlite='true',Database__DevelopmentSqlitePath='.dotnet/smoke-'+secrets.token_hex(6)+'.db',AdminSettings__Email='smoke@example.com',AdminSettings__Password=password,ASPNETCORE_URLS='https://localhost:5444')
 log=open('http-server.log','w');proc=subprocess.Popen(['.dotnet/dotnet','bin/Debug/net10.0/NileShop.dll'],env=env,stdout=log,stderr=log)
 jar=http.cookiejar.CookieJar();opener=urllib.request.build_opener(urllib.request.HTTPSHandler(context=ssl._create_unverified_context()),urllib.request.HTTPCookieProcessor(jar));base='https://localhost:5444'
 def req(path,data=None,headers=None):

@@ -1,0 +1,26 @@
+@model ResetPasswordViewModel
+@{ ViewData["Title"] = Localizer["Recovery_Reset"]; }
+<div class="login-page">
+    <section class="login panel">
+        <h1>@Localizer["Recovery_Reset"]</h1>
+        @if (!string.IsNullOrEmpty(Model.UserId) && !string.IsNullOrEmpty(Model.Token))
+        {
+            <form asp-action="Reset" method="post">
+                <div asp-validation-summary="All" class="validation" role="alert"></div>
+                <input asp-for="UserId" type="hidden"/>
+                <input asp-for="Token" type="hidden"/>
+                <label asp-for="Password">@Localizer["New_Password"]</label>
+                <input asp-for="Password" type="password" autocomplete="new-password" minlength="12" maxlength="128" aria-describedby="reset-password-help" required/>
+                <small class="muted" id="reset-password-help">@Localizer["Customer_Password_Help"]</small>
+                <label asp-for="ConfirmPassword">@Localizer["Confirm_Password"]</label>
+                <input asp-for="ConfirmPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" required/>
+                <button type="submit" class="primary-button">@Localizer["Recovery_Reset"]</button>
+            </form>
+        }
+        else
+        {
+            <p role="alert">@Localizer["Recovery_Invalid"]</p>
+        }
+        <p class="account-switch"><a asp-action="Forgot">@Localizer["Recovery_Forgot"]</a></p>
+    </section>
+</div>

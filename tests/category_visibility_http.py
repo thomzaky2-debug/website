@@ -5,7 +5,7 @@ from pathlib import Path
 
 password = secrets.token_urlsafe(24) + 'Aa1!'
 database = '.dotnet/category-test-' + secrets.token_hex(6) + '.db'
-env = dict(os.environ, ASPNETCORE_ENVIRONMENT='Development', ASPNETCORE_URLS='https://localhost:5447', Database__UseDevelopmentSqlite='true', Database__DevelopmentSqlitePath=database, AdminSettings__Email='hero@example.test', AdminSettings__Password=password, NilePay__ApiKey='', Smtp__Enabled='false')
+env = dict(os.environ, ASPNETCORE_ENVIRONMENT='Development', EmailOtp__Enabled='false', ASPNETCORE_URLS='https://localhost:5447', Database__UseDevelopmentSqlite='true', Database__DevelopmentSqlitePath=database, AdminSettings__Email='hero@example.test', AdminSettings__Password=password, NilePay__ApiKey='', Smtp__Enabled='false')
 base = 'https://localhost:5447'
 jar = http.cookiejar.CookieJar()
 opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), urllib.request.HTTPSHandler(context=ssl._create_unverified_context()), urllib.request.HTTPCookieProcessor(jar))

@@ -25,7 +25,7 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
  def redirect_request(self,*a,**k):return None
 jar=http.cookiejar.CookieJar();opener=urllib.request.build_opener(urllib.request.HTTPSHandler(context=ssl._create_unverified_context()),urllib.request.HTTPCookieProcessor(jar),NoRedirect())
 base='https://localhost:5445';dbfile='.dotnet/nilepay-'+secrets.token_hex(6)+'.db'
-env=dict(os.environ,ASPNETCORE_ENVIRONMENT='Development',Database__UseDevelopmentSqlite='true',Database__DevelopmentSqlitePath=dbfile,AdminSettings__Email='nilepay-test@example.com',AdminSettings__Password=password,ASPNETCORE_URLS=base,NilePay__Enabled='true',NilePay__ApiUrl='http://localhost:5450',NilePay__ApiKey=key,NilePay__WebhookSecret=secret,NilePay__PublicUrl=base,StoreWorker__ReconcilePayments='false',Smtp__Enabled='false')
+env=dict(os.environ,ASPNETCORE_ENVIRONMENT='Development', EmailOtp__Enabled='false',Database__UseDevelopmentSqlite='true',Database__DevelopmentSqlitePath=dbfile,AdminSettings__Email='nilepay-test@example.com',AdminSettings__Password=password,ASPNETCORE_URLS=base,NilePay__Enabled='true',NilePay__ApiUrl='http://localhost:5450',NilePay__ApiKey=key,NilePay__WebhookSecret=secret,NilePay__PublicUrl=base,StoreWorker__ReconcilePayments='false',Smtp__Enabled='false')
 proc=None
 log=open('nilepay-server.log','w')
 def start():

@@ -1,0 +1,8 @@
+@{ ViewData["Title"] = Localizer["Otp_Title"]; }
+<div class="login-page">
+    <section class="login panel">
+        <h1>@Localizer["Otp_Title"]</h1>
+        <p role="status">@Localizer["Recovery_Requested"]</p>
+        <p class="account-switch"><a asp-controller="Account" asp-action="Login">@Localizer["Customer_Login"]</a></p>
+    </section>
+</div>

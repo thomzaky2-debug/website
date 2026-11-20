@@ -11,7 +11,7 @@ using NileShop.Services;
 using NileShop.ViewModels;
 namespace NileShop.Controllers;
 [ResponseCache(Duration=0,Location=ResponseCacheLocation.None,NoStore=true)]
-public class AccountController(UserManager<IdentityUser> users, SignInManager<IdentityUser> signIn, IStringLocalizer<SharedResource> localizer, ApplicationDbContext db, WalletService wallet, AuditService audit, IOptions<SubdomainOptions> subOptions) : Controller
+public class AccountController(UserManager<IdentityUser> users, SignInManager<IdentityUser> signIn, IStringLocalizer<SharedResource> localizer, ApplicationDbContext db, WalletService wallet, AuditService audit, IOptions<SubdomainOptions> subOptions, EmailOtp otp) : Controller
 {
     async Task<CustomerProfileViewModel> BuildProfileAsync(IdentityUser user, CustomerProfileViewModel? form = null)
     {
@@ -161,8 +161,24 @@ public class AccountController(UserManager<IdentityUser> users, SignInManager<Id
             var isAdmin = await users.IsInRoleAsync(user,"Admin");
             var opts = subOptions.Value;
             var isAdminHost = SubdomainRouting.IsAdminHost(HttpContext, opts);
-            var result = await signIn.PasswordSignInAsync(user,model.Password,false,lockoutOnFailure:true);
+            var result = otp.Enabled
+                ? await signIn.CheckPasswordSignInAsync(user, model.Password, lockoutOnFailure: true)
+                : await signIn.PasswordSignInAsync(user, model.Password, false, lockoutOnFailure: true);
             if(result.Succeeded) {
+                if (otp.Enabled)
+                {
+                    if (isAdminHost && !isAdmin)
+                    {
+                        ModelState.AddModelError("", localizer["Admin_Portal_Restricted"]);
+                        return View(model);
+                    }
+                    var destination = isAdmin && !Url.IsLocalUrl(model.ReturnUrl)
+                        ? "/Admin/Dashboard" : SafeReturn(model.ReturnUrl);
+                    if (await otp.SendAsync(HttpContext, user, destination, isAdmin))
+                        return RedirectToAction("Index", "EmailVerification");
+                    ModelState.AddModelError("", localizer["Otp_Send_Failed"]);
+                    return View(model);
+                }
                 AuthSession.ClearCheckout(HttpContext);
                 if(isAdmin) {
                     HttpContext.User = await signIn.CreateUserPrincipalAsync(user);
@@ -201,10 +217,17 @@ public class AccountController(UserManager<IdentityUser> users, SignInManager<Id
         await tx.CommitAsync();
         AuthSession.ClearCheckout(HttpContext);
         LanguagePreferences.WriteCookie(Response,false,model.PreferredLanguage);
+        if (otp.Enabled)
+        {
+            if (await otp.SendAsync(HttpContext, user, SafeReturn(model.ReturnUrl), admin: false))
+                return RedirectToAction("Index", "EmailVerification");
+            TempData["Error"] = "Otp_Signup_Send_Failed";
+            return RedirectToAction(nameof(Login), new { returnUrl = SafeReturn(model.ReturnUrl) });
+        }
         await signIn.SignInAsync(user,isPersistent:false);
         return LocalRedirect(SafeReturn(model.ReturnUrl));
     }
     [HttpPost,ValidateAntiForgeryToken]
-    public async Task<IActionResult> Logout(){await signIn.SignOutAsync();AuthSession.ClearCheckout(HttpContext);return RedirectToAction("Index","Home");}
+    public async Task<IActionResult> Logout(){await signIn.SignOutAsync();otp.Clear(HttpContext.Session);AuthSession.ClearCheckout(HttpContext);return RedirectToAction("Index","Home");}
     string SafeReturn(string? value)=>Url.IsLocalUrl(value)?value!:Url.Action("Index","Home")!;
 }

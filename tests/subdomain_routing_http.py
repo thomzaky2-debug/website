@@ -8,7 +8,7 @@ port = '5449'
 base = f'https://localhost:{port}'
 env = dict(
     os.environ,
-    ASPNETCORE_ENVIRONMENT='Development',
+    ASPNETCORE_ENVIRONMENT='Development', EmailOtp__Enabled='false',
     ASPNETCORE_URLS=f'https://*:{port}',
     Database__UseDevelopmentSqlite='true',
     Database__DevelopmentSqlitePath=database,

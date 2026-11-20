@@ -61,6 +61,7 @@ public class SubdomainMiddleware(RequestDelegate next, IOptions<SubdomainOptions
         "/Account/Logout",
         "/Account/AccessDenied",
         "/Identity",
+        "/Account/VerifyEmailCode",
         "/Home/SetLanguage",
         "/Home/Error"
     ];

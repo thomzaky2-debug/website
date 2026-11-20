@@ -4,7 +4,7 @@ from pathlib import Path
 
 base='https://localhost:5452'; database='.dotnet/security-'+secrets.token_hex(6)+'.db'
 password=secrets.token_urlsafe(24)+'Aa1!'
-env=dict(os.environ, ASPNETCORE_ENVIRONMENT='Development', ASPNETCORE_URLS=base,
+env=dict(os.environ, ASPNETCORE_ENVIRONMENT='Development', EmailOtp__Enabled='false', ASPNETCORE_URLS=base,
  Database__UseDevelopmentSqlite='true', Database__DevelopmentSqlitePath=database,
  AdminSettings__Email='security-admin@example.test', AdminSettings__Password=password,
  StoreWorker__ReconcilePayments='false', NilePay__Enabled='false', Smtp__Enabled='false')

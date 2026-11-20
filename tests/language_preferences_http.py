@@ -5,7 +5,7 @@ from pathlib import Path
 base='https://localhost:5449'
 password=secrets.token_urlsafe(24)+'Aa1!'
 database='.dotnet/language-test-'+secrets.token_hex(6)+'.db'
-env=dict(os.environ,ASPNETCORE_ENVIRONMENT='Development',ASPNETCORE_URLS=base,Database__UseDevelopmentSqlite='true',Database__DevelopmentSqlitePath=database,AdminSettings__Email='language-admin@example.test',AdminSettings__Password=password,StoreWorker__ReconcilePayments='false')
+env=dict(os.environ,ASPNETCORE_ENVIRONMENT='Development', EmailOtp__Enabled='false',ASPNETCORE_URLS=base,Database__UseDevelopmentSqlite='true',Database__DevelopmentSqlitePath=database,AdminSettings__Email='language-admin@example.test',AdminSettings__Password=password,StoreWorker__ReconcilePayments='false')
 class Client:
  def __init__(self):
   self.jar=http.cookiejar.CookieJar()

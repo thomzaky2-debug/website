@@ -98,7 +98,13 @@ public static class DbInitializer
         });
         if (!await db.ShippingMethods.AnyAsync()) db.ShippingMethods.AddRange(
             new ShippingMethod { NameEn = "Cairo & Giza", NameAr = "القاهرة والجيزة", Fee = 50, MinDays = 3, MaxDays = 5 },
-            new ShippingMethod { NameEn = "Other governorates", NameAr = "المحافظات الأخرى", Fee = 80, MinDays = 5, MaxDays = 7 });
+            new ShippingMethod { NameEn = "Other regions", NameAr = "المناطق الأخرى", Fee = 80, MinDays = 5, MaxDays = 7 });
+        else
+            await db.ShippingMethods
+                .Where(method => method.NameEn == "Other governorates" && method.NameAr == "المحافظات الأخرى")
+                .ExecuteUpdateAsync(update => update
+                    .SetProperty(method => method.NameEn, "Other regions")
+                    .SetProperty(method => method.NameAr, "المناطق الأخرى"));
         await db.SaveChangesAsync();
         if (await db.Categories.AnyAsync()) return;
         await using var transaction = await db.Database.BeginTransactionAsync();
