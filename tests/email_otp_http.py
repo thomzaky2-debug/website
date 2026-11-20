@@ -77,8 +77,8 @@ with tempfile.TemporaryDirectory() as directory:
                    Database__DevelopmentSqlitePath=str(folder / 'otp.db'),
                    AdminSettings__Email=admin_email, AdminSettings__Password=password,
                    StoreWorker__ReconcilePayments='false', NilePay__Enabled='false',
-                   NilePay__PublicUrl=base, Smtp__Enabled='true', Smtp__Host='localhost', Smtp__Port=str(smtp.server_address[1]),
-                   Smtp__EnableSsl='true', Smtp__From='sender@example.test',
+                   NilePay__PublicUrl=base, Smtp__Enabled='true', Smtp__Host='  localhost  ', Smtp__Port=str(smtp.server_address[1]),
+                   Smtp__EnableSsl='true', Smtp__From='  sender@example.test  ',
                    Smtp__Username='', Smtp__Password='', SSL_CERT_FILE=str(cert))
         with (folder / 'server.log').open('w') as log:
             proc = subprocess.Popen(['.dotnet/dotnet', 'bin/Debug/net10.0/NileShop.dll'],

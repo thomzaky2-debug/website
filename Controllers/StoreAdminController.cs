@@ -212,6 +212,7 @@ public class StoreAdminController(ApplicationDbContext db, CustomerAdminService 
         var mail=await db.StoreMailSettings.FirstAsync();
         mail.Enabled=model.Enabled;mail.Host=model.Host?.Trim()??"";mail.Port=model.Port;mail.Username=model.Username?.Trim()??"";mail.From=model.From?.Trim()??"";mail.EnableSsl=model.EnableSsl;
         if(!string.IsNullOrEmpty(model.NewPassword))mail.EncryptedPassword=protection.CreateProtector("NileShop.SMTP.v1").Protect(model.NewPassword);
+        await db.SaveChangesAsync();
         await audit.LogAsync("SMTP_SETTINGS","Store","Updated mail delivery settings");TempData["Success"]="Admin_Saved";return RedirectToAction(nameof(Settings),new{anchor="email"});
     }
     [HttpPost,ValidateAntiForgeryToken]

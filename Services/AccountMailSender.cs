@@ -1,5 +1,7 @@
 using System.Net;
 using System.Net.Mail;
+using System.Net.Sockets;
+using System.Security.Authentication;
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
@@ -16,12 +18,12 @@ public sealed class AccountMailSender(
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(TimeSpan.FromSeconds(20));
+        var smtp = defaults.Value;
         try
         {
-            var smtp = defaults.Value;
             // Hosting configuration can restore account email access without an admin sign-in.
             var settings = smtp.Enabled ? null :
-                await db.StoreMailSettings.AsNoTracking().FirstOrDefaultAsync(timeout.Token);
+                await db.StoreMailSettings.AsNoTracking().OrderBy(s => s.Id).FirstOrDefaultAsync(timeout.Token);
             if (settings is { Enabled: true })
             {
                 smtp = new SmtpOptions
@@ -38,19 +40,39 @@ public sealed class AccountMailSender(
                 logger.LogWarning("Account email requires enabled SMTP, STARTTLS, a host and a sender address.");
                 return false;
             }
-            using var transport = new SmtpClient(smtp.Host, smtp.Port) { EnableSsl = true };
+            // Hosting fields are often pasted with surrounding whitespace. Never trim passwords.
+            using var transport = new SmtpClient(smtp.Host.Trim(), smtp.Port)
+            { EnableSsl = true, UseDefaultCredentials = false };
             if (!string.IsNullOrEmpty(smtp.Username))
-                transport.Credentials = new NetworkCredential(smtp.Username, smtp.Password);
-            using var message = new MailMessage(smtp.From, recipient) { Subject = subject, Body = body };
+                transport.Credentials = new NetworkCredential(smtp.Username.Trim(), smtp.Password);
+            using var message = new MailMessage(smtp.From.Trim(), recipient) { Subject = subject, Body = body };
             await transport.SendMailAsync(message, timeout.Token);
         }
         catch (SmtpException error)
         {
-            logger.LogWarning("Account email SMTP submission failed with status {StatusCode}.", (int)error.StatusCode);
+            // Do not log raw SMTP responses, addresses, credentials, or message contents.
+            var cause = error.GetBaseException();
+            var reason = cause switch
+            {
+                SocketException socket => $"Network/{socket.SocketErrorCode}",
+                AuthenticationException => "TLS certificate or handshake failure",
+                _ when (int)error.StatusCode == 535 => "SMTP credentials rejected",
+                _ when error.StatusCode == SmtpStatusCode.MustIssueStartTlsFirst => "SMTP authentication or STARTTLS required",
+                _ when error is SmtpFailedRecipientException => "Recipient rejected",
+                _ => cause.GetType().Name
+            };
+            logger.LogWarning("Account email SMTP submission failed with status {StatusCode}. Reason {Reason}. Port {Port}.",
+                (int)error.StatusCode, reason, smtp.Port);
+            return false;
+        }
+        catch (OperationCanceledException)
+        {
+            logger.LogWarning("Account email could not be sent ({Reason}).",
+                cancellationToken.IsCancellationRequested ? "Request cancelled" : "SMTP operation exceeded 20 seconds; check outbound connectivity");
             return false;
         }
         catch (Exception error) when (error is CryptographicException or FormatException
-            or ArgumentException or InvalidOperationException or OperationCanceledException)
+            or ArgumentException or InvalidOperationException)
         {
             logger.LogWarning("Account email could not be sent ({ErrorType}).", error.GetType().Name);
             return false;
