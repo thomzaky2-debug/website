@@ -92,7 +92,10 @@ builder.Services.AddSession(o => {
 });
 builder.Services.AddAntiforgery(o => o.Cookie.SecurePolicy = CookieSecurePolicy.Always);
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddDataProtection().SetApplicationName("NileShop");
+var dataProtection = builder.Services.AddDataProtection().SetApplicationName("NileShop");
+var keyDirectory = builder.Configuration["DataProtection:KeysPath"];
+if (!string.IsNullOrWhiteSpace(keyDirectory))
+    dataProtection.PersistKeysToFileSystem(new DirectoryInfo(keyDirectory));
 builder.Services.AddScoped<AuditService>();
 builder.Services.AddScoped<CartService>();
 builder.Services.AddScoped<CatalogService>();

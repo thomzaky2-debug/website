@@ -42,7 +42,7 @@ public class StoreWorker(IServiceScopeFactory scopes, IConfiguration config, ILo
         var smtp = services.GetRequiredService<IOptions<SmtpOptions>>().Value;
         var site = services.GetRequiredService<IOptions<NilePayOptions>>().Value.PublicUrl;
         var db = services.GetRequiredService<ApplicationDbContext>();
-        var saved = await db.StoreMailSettings.AsNoTracking().FirstOrDefaultAsync(ct);
+        var saved = smtp.Enabled ? null : await db.StoreMailSettings.AsNoTracking().FirstOrDefaultAsync(ct);
         if (saved is not null) {
             if (!saved.Enabled) return;
             var password = string.IsNullOrEmpty(saved.EncryptedPassword) ? "" : services.GetRequiredService<IDataProtectionProvider>().CreateProtector("NileShop.SMTP.v1").Unprotect(saved.EncryptedPassword);
