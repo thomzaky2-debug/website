@@ -29,6 +29,14 @@
 <a class="skip" href="#main">@Localizer["Skip_Content"]</a>
 <header class="site-header @(admin ? "admin-header" : "")"><div class="container nav">
   <a class="brand" href="@(admin ? "/Admin/Dashboard" : "/")" aria-label="Chic &amp; Unique"><img src="~/assets/img/logo.png" alt="Chic &amp; Unique" class="brand-logo-img"/><span>Chic &amp; Unique</span></a>
+  @if (!admin && !LanguagePreferences.IsAdminContext(Context))
+  {
+      <form class="header-search" asp-controller="Home" asp-action="Shop" method="get" role="search">
+          <label class="sr-only" for="header-search-query">@Localizer["Search"]</label>
+          <input id="header-search-query" name="q" type="search" maxlength="100" required placeholder="@Localizer["Search"]"/>
+          <button type="submit" aria-label="@Localizer["Search"]"><partial name="_StoreIcon" model='@("search")'/></button>
+      </form>
+  }
   <button class="menu-toggle" type="button" aria-controls="site-nav" aria-expanded="false" aria-label="@Localizer["Menu"]" data-open-label="@Localizer["Menu"]" data-close-label="@Localizer["Close_Menu"]"><span></span><span></span><span></span></button>
   <nav id="site-nav" class="site-nav" aria-label="@Localizer["Menu"]">
     @if(!admin){

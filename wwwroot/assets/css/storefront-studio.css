@@ -222,3 +222,41 @@ html.dark-mode .storefront-site { --studio-paper: #101a26; --studio-soft: #16233
  .storefront-site .catalog-toolbar .catalog-filters { padding: 10px 12px; gap: 10px; }
  .storefront-site .catalog-toolbar .catalog-filters .field label { margin-block: 0 4px; }
 }
+
+.storefront-site .site-header .header-search {
+  display: flex;
+  align-items: center;
+  flex: 0 1 13rem;
+  min-width: 0;
+  margin-inline-end: auto;
+  border: 1px solid var(--studio-edge);
+  border-radius: 9px;
+  background: var(--studio-soft);
+}
+.header-search input {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  padding: 6px 8px;
+  background: transparent;
+  font-size: .875rem;
+}
+.header-search button {
+  display: grid;
+  place-items: center;
+  flex: 0 0 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  color: var(--teal);
+  background: transparent;
+}
+.header-search .store-icon { width: 18px; height: 18px; }
+
+@media (max-width: 520px) {
+  .storefront-site .site-header .nav:has(.header-search) { gap: 8px; }
+  .storefront-site .site-header .nav:has(.header-search) .brand { font-size: 1rem; gap: 6px; }
+  .storefront-site .site-header .header-search { flex: 1 1 7rem; }
+  .header-search input { padding-inline: 6px 0; }
+}
