@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;
 namespace NileShop.Controllers;
 [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-public class CartController(CartService cart, ApplicationDbContext db, CheckoutService checkout, NilePayClient nilePay, WalletService wallet, IStringLocalizer<SharedResource> localizer, UserManager<IdentityUser> users) : Controller
+public class CartController(CartService cart, ApplicationDbContext db, CheckoutService checkout, NilePayClient nilePay, NilePayService payments, WalletService wallet, IStringLocalizer<SharedResource> localizer, UserManager<IdentityUser> users) : Controller
 {
     public async Task<IActionResult> Index() => View(await cart.ViewAsync());
     [HttpPost, ValidateAntiForgeryToken]
@@ -92,6 +92,19 @@ public class CartController(CartService cart, ApplicationDbContext db, CheckoutS
             HttpContext.Session.SetString("LastOrder", order.OrderNumber);
             HttpContext.Session.SetString("LastCheckoutToken", model.CheckoutToken);
             HttpContext.Session.Remove("CheckoutToken");
+            if (order.PaymentStatus == "Unpaid" && order.PayableAmount > 0 && nilePay.Ready) {
+                try {
+                    var attempt = await payments.StartAsync(order, HttpContext.RequestAborted);
+                    await payments.ReconcileAsync(attempt.Id, HttpContext.RequestAborted);
+                    var fresh = await db.Orders.AsNoTracking().SingleAsync(o => o.Id == order.Id, HttpContext.RequestAborted);
+                    var state = await db.PaymentAttempts.AsNoTracking().SingleAsync(p => p.Id == attempt.Id, HttpContext.RequestAborted);
+                    if (fresh.PaymentStatus == "Unpaid" && state.GatewayStatus is not ("EXPIRED" or "CANCELLED" or "FAILED") && nilePay.ValidCheckoutUrl(attempt.CheckoutUrl)) {
+                        return Redirect(attempt.CheckoutUrl!);
+                    }
+                } catch (Exception) {
+                    // Fall back to return page where user can click Pay or track
+                }
+            }
             return RedirectToAction("Return", "Payment", new { token = order.PaymentAccessToken });
         } catch (CheckoutException ex) { ModelState.AddModelError("", localizer[ex.Message]); return View(model); }
     }
