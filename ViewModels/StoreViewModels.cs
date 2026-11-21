@@ -81,7 +81,7 @@ public class ProductFormViewModel : IValidatableObject
     [Required, StringLength(200), RegularExpression("^[a-z0-9]+(?:-[a-z0-9]+)*$", ErrorMessage = "Validation_Slug")] public string Slug { get; set; } = "";
     [Range(typeof(decimal), "0.01", "99999999", ParseLimitsInInvariantCulture = true, ConvertValueInInvariantCulture = true)] public decimal Price { get; set; }
     [Range(typeof(decimal), "0.01", "99999999", ParseLimitsInInvariantCulture = true, ConvertValueInInvariantCulture = true)] public decimal? OldPrice { get; set; }
-    [Range(0, 1000000)] public int StockQuantity { get; set; }
+    [Range(0, 1000000)] public int StockQuantity { get; set; } = 10;
     [StringLength(500), RegularExpression(@"^/assets/[a-zA-Z0-9_./-]+\.(jpg|jpeg|png|webp|gif)$", ErrorMessage = "Validation_Image")] public string? ImageUrl { get; set; }
     [Range(1, int.MaxValue)] public int CategoryId { get; set; }
     public bool IsActive { get; set; } = true;
