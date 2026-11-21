@@ -29,6 +29,12 @@ public class PaymentController(ApplicationDbContext db, NilePayService payments,
         var gateway = attempt?.GatewayStatus ?? "NOT_CREATED";
         if (isSessionExpired && gateway is not ("CONFIRMED" or "PAID")) gateway = "EXPIRED";
 
+        if ((isSessionExpired || gateway is "EXPIRED" or "CANCELLED" or "FAILED" or "UNDERPAID") && !order.InventoryReleased && order.PaymentStatus == "Unpaid" && order.PaidAt == null)
+        {
+            await payments.ReleaseInventoryIfUnpaidAsync(order.Id, $"Session {gateway.ToLowerInvariant()} on return", HttpContext.RequestAborted);
+            order = await Owned(token) ?? order;
+        }
+
         ViewData["GatewayStatus"] = gateway;
         ViewData["ExpiresAt"] = expiresAt.ToString("o");
         ViewData["RemainingSeconds"] = remainingSeconds;
@@ -76,6 +82,13 @@ public class PaymentController(ApplicationDbContext db, NilePayService payments,
         var expiresAt = createdAt.AddMinutes(lifetimeMinutes);
         var remainingSeconds = Math.Max(0, (int)(expiresAt - DateTime.UtcNow).TotalSeconds);
         if (remainingSeconds <= 0 && fresh.PaymentStatus == "Unpaid" && gateway is not ("CONFIRMED" or "PAID")) gateway = "EXPIRED";
+
+        if ((remainingSeconds <= 0 || gateway is "EXPIRED" or "CANCELLED" or "FAILED" or "UNDERPAID") && !fresh.InventoryReleased && fresh.PaymentStatus == "Unpaid" && fresh.PaidAt == null)
+        {
+            await payments.ReleaseInventoryIfUnpaidAsync(fresh.Id, $"Session {gateway.ToLowerInvariant()} on status check", ct);
+            fresh = await db.Orders.AsNoTracking().SingleAsync(o => o.Id == order.Id, ct);
+        }
+
         return Json(new { paymentStatus = fresh.PaymentStatus, orderStatus = fresh.Status, gatewayStatus = gateway, review = fresh.NeedsPaymentReview, remainingSeconds });
     }
     [HttpPost("/webhooks/nilepay"), IgnoreAntiforgeryToken, RequestSizeLimit(65536)]

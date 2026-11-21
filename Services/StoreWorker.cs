@@ -33,6 +33,27 @@ public class StoreWorker(IServiceScopeFactory scopes, IConfiguration config, ILo
                         catch (Exception e) when (!stoppingToken.IsCancellationRequested) { logger.LogWarning("Payment reconciliation failed for attempt {Id}: {Type}", id, e.GetType().Name); }
                     }
                 }
+
+                // Auto-release inventory for any unpaid orders whose session has expired
+                var lifetime = await db.StoreSettings.AsNoTracking().OrderBy(s => s.Id).Select(s => s.CheckoutSessionLifetimeMinutes).FirstOrDefaultAsync(stoppingToken);
+                if (lifetime <= 0) lifetime = 15;
+                var expiredOrders = await db.Orders.AsNoTracking()
+                    .Where(o => o.PaymentStatus == "Unpaid" && !o.InventoryReleased && o.PaidAt == null)
+                    .Select(o => new { o.Id, o.CreatedAt, AttemptCreated = db.PaymentAttempts.Where(p => p.OrderId == o.Id).OrderByDescending(p => p.Id).Select(p => (DateTime?)p.CreatedAt).FirstOrDefault() })
+                    .Take(20)
+                    .ToListAsync(stoppingToken);
+
+                foreach (var exp in expiredOrders) {
+                    var sessionStart = exp.AttemptCreated ?? exp.CreatedAt;
+                    if (DateTime.UtcNow > sessionStart.AddMinutes(lifetime)) {
+                        try {
+                            await scope.ServiceProvider.GetRequiredService<NilePayService>().ReleaseInventoryIfUnpaidAsync(exp.Id, "Expired session worker cleanup", stoppingToken);
+                        } catch (Exception e) when (!stoppingToken.IsCancellationRequested) {
+                            logger.LogWarning("Worker inventory release failed for order {OrderId}: {Type}", exp.Id, e.GetType().Name);
+                        }
+                    }
+                }
+
                 await SendEmailsAsync(scope.ServiceProvider, stoppingToken);
             } catch (Exception e) when (!stoppingToken.IsCancellationRequested) { logger.LogWarning(e, "Store background processing failed; will retry"); }
         }

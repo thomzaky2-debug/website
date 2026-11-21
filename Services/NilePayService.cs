@@ -216,7 +216,94 @@ public class NilePayService(ApplicationDbContext db, NilePayClient client, IOpti
         {
             await db.PaymentAttempts.Where(p => p.Id == attempt.Id && p.GatewayStatus != "CONFIRMED" && p.GatewayStatus != "OVERPAID")
                 .ExecuteUpdateAsync(s => s.SetProperty(p => p.GatewayStatus, transaction.Status), ct);
+
+            if (transaction.Status is "EXPIRED" or "CANCELLED" or "FAILED" or "UNDERPAID")
+            {
+                var trackedOrder = await db.Orders.Include(o => o.Items).SingleOrDefaultAsync(o => o.Id == attempt.OrderId, ct);
+                if (trackedOrder is not null && trackedOrder.PaidAt == null && trackedOrder.PaymentStatus == "Unpaid")
+                {
+                    if (!trackedOrder.InventoryReleased)
+                    {
+                        foreach (var item in trackedOrder.Items.OrderBy(i => i.ProductId))
+                        {
+                            await db.Products.Where(p => p.Id == item.ProductId)
+                                .ExecuteUpdateAsync(s => s.SetProperty(p => p.StockQuantity, p => p.StockQuantity + item.Quantity), ct);
+                        }
+                        trackedOrder.InventoryReleased = true;
+                    }
+                    trackedOrder.Status = OrderStatuses.Cancelled;
+                    if (transaction.Status == "UNDERPAID")
+                    {
+                        trackedOrder.PaymentStatus = "Underpaid";
+                        trackedOrder.DetectedAmountEgp = detected;
+                        trackedOrder.NeedsPaymentReview = true;
+                    }
+
+                    if (trackedOrder.WalletAmountUsed > 0 && !string.IsNullOrWhiteSpace(trackedOrder.CustomerUserId))
+                    {
+                        await wallet.RecordIdempotentAsync(
+                            trackedOrder.CustomerUserId,
+                            trackedOrder.WalletAmountUsed,
+                            WalletTransactionKinds.OrderWalletRefund,
+                            $"refund-wallet:order:{trackedOrder.Id}",
+                            trackedOrder.Id,
+                            $"Wallet balance restored from cancelled order {trackedOrder.OrderNumber}",
+                            ct);
+                    }
+
+                    db.AuditLogs.Add(new AuditLog {
+                        Action = "INVENTORY_RELEASED",
+                        EntityName = "Order",
+                        Details = $"{trackedOrder.OrderNumber}: Restocked {trackedOrder.Items.Sum(i => i.Quantity)} items back into stock ({transaction.Status})"
+                    });
+                    db.OrderUpdates.Add(new OrderUpdate { OrderId = trackedOrder.Id, Status = "Cancelled" });
+                }
+            }
         }
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return true;
+    }
+
+    public async Task<bool> ReleaseInventoryIfUnpaidAsync(int orderId, string reason, CancellationToken ct = default)
+    {
+        await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
+        var order = await db.Orders.Include(o => o.Items).SingleOrDefaultAsync(o => o.Id == orderId, ct);
+        if (order is null) { await tx.RollbackAsync(ct); return false; }
+        if (order.InventoryReleased || order.PaidAt != null || order.PaymentStatus is "Paid" or "Overpaid")
+        {
+            await tx.RollbackAsync(ct);
+            return false;
+        }
+
+        foreach (var item in order.Items.OrderBy(i => i.ProductId))
+        {
+            await db.Products.Where(p => p.Id == item.ProductId)
+                .ExecuteUpdateAsync(s => s.SetProperty(p => p.StockQuantity, p => p.StockQuantity + item.Quantity), ct);
+        }
+        order.InventoryReleased = true;
+        order.Status = OrderStatuses.Cancelled;
+
+        if (order.WalletAmountUsed > 0 && !string.IsNullOrWhiteSpace(order.CustomerUserId))
+        {
+            var wallet = new WalletService(db);
+            await wallet.RecordIdempotentAsync(
+                order.CustomerUserId,
+                order.WalletAmountUsed,
+                WalletTransactionKinds.OrderWalletRefund,
+                $"refund-wallet:order:{order.Id}",
+                order.Id,
+                $"Wallet balance restored from cancelled/expired order {order.OrderNumber}",
+                ct);
+        }
+
+        order.Updates.Add(new OrderUpdate { Status = "Cancelled" });
+        db.AuditLogs.Add(new AuditLog {
+            Action = "INVENTORY_RELEASED",
+            EntityName = "Order",
+            Details = $"{order.OrderNumber}: Restocked {order.Items.Sum(i => i.Quantity)} items back into product stock ({reason})"
+        });
+
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+        return true;
     }
 }
