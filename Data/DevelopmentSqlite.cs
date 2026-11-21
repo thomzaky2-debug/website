@@ -44,6 +44,14 @@ public static class DevelopmentSqlite
                 await db.Database.ExecuteSqlRawAsync("ALTER TABLE StoreSettings ADD COLUMN WhatsAppUrl TEXT NULL;");
             if (!settingsColumns.Contains("CheckoutSessionLifetimeMinutes"))
                 await db.Database.ExecuteSqlRawAsync("ALTER TABLE StoreSettings ADD COLUMN CheckoutSessionLifetimeMinutes INTEGER NOT NULL DEFAULT 15;");
+            if (!settingsColumns.Contains("FreeDeliveryOfferEnabled"))
+                await db.Database.ExecuteSqlRawAsync("ALTER TABLE StoreSettings ADD COLUMN FreeDeliveryOfferEnabled INTEGER NOT NULL DEFAULT 0;");
+            if (!settingsColumns.Contains("FreeDeliveryOfferThreshold"))
+                await db.Database.ExecuteSqlRawAsync("ALTER TABLE StoreSettings ADD COLUMN FreeDeliveryOfferThreshold REAL NOT NULL DEFAULT 0;");
+            if (!settingsColumns.Contains("FreeDeliveryOfferLabelEn"))
+                await db.Database.ExecuteSqlRawAsync("ALTER TABLE StoreSettings ADD COLUMN FreeDeliveryOfferLabelEn TEXT NULL;");
+            if (!settingsColumns.Contains("FreeDeliveryOfferLabelAr"))
+                await db.Database.ExecuteSqlRawAsync("ALTER TABLE StoreSettings ADD COLUMN FreeDeliveryOfferLabelAr TEXT NULL;");
             var orderColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             await using (var cmd = conn.CreateCommand())
             {

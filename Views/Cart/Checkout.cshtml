@@ -74,6 +74,42 @@
         </div>
     }
 
+    @if (Model.FreeDeliveryOfferEnabled)
+    {
+        @if (Model.IsFreeDeliveryQualified)
+        {
+            <div class="checkout-offer-banner qualified" role="region" aria-label="@Localizer["Free_Delivery_Offer"]">
+                <div class="checkout-offer-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"/><path d="M4 6v12c0 1.1.9 2 2 2h14v-4"/><path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4z"/></svg>
+                </div>
+                <div class="checkout-offer-content">
+                    <div class="checkout-offer-head">
+                        <strong>@(string.IsNullOrWhiteSpace(Model.FreeDeliveryOfferLabel) ? Localizer["Free_Delivery_Offer_Qualified_Title"].Value : Model.FreeDeliveryOfferLabel)</strong>
+                        <span class="free-delivery-badge">@Localizer["Free_Delivery_Offer_Badge"]</span>
+                    </div>
+                    <p>@Localizer["Free_Delivery_Offer_Qualified_Desc"]</p>
+                </div>
+            </div>
+        }
+        else
+        {
+            var remaining = Model.FreeDeliveryOfferThreshold - Model.Cart.Total;
+            <div class="checkout-offer-banner promo" role="region" aria-label="@Localizer["Free_Delivery_Offer"]">
+                <div class="checkout-offer-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8Z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                </div>
+                <div class="checkout-offer-content">
+                    <div class="checkout-offer-head">
+                        <strong>@Localizer["Free_Delivery_Offer_Promo_Title"]</strong>
+                        <span class="free-delivery-badge-sub">@Localizer["Free_Delivery_Offer"]</span>
+                    </div>
+                    <p>@string.Format(Localizer["Free_Delivery_Offer_Promo_Desc"].Value, remaining.ToString("N2"))</p>
+                </div>
+                <a class="checkout-offer-action" asp-controller="Products" asp-action="Index">@Localizer["Continue_Shopping"] →</a>
+            </div>
+        }
+    }
+
     <h2>@Localizer["Delivery"]</h2>
     <div class="checkout-fields">
         <div class="field checkout-wide">
@@ -151,13 +187,27 @@
     </div>
 </form>
 
-<aside class="panel checkout-summary">
+<aside class="panel checkout-summary" data-free-delivery-qualified="@(Model.IsFreeDeliveryQualified ? "true" : "false")">
     <h2>@Localizer["Order_Summary"]</h2>
     @foreach (var line in Model.Cart.Lines)
     {
         <div class="order-total-row"><span>@line.Product.Name <small>@line.Size @line.Color × @line.Quantity</small></span><strong>@line.Total.ToString("N2") EGP</strong></div>
     }
-    <div class="order-total-row"><span>@Localizer["Shipping_Fee"]</span><strong><span id="shipping-fee">@Model.ShippingFee.ToString("N2")</span> EGP</strong></div>
+    <div class="order-total-row">
+        <span>@Localizer["Shipping_Fee"]</span>
+        <strong>
+            @if (Model.IsFreeDeliveryQualified)
+            {
+                <span class="free-badge">@Localizer["Free"]</span>
+                <del class="muted shipping-orig-del"><span id="shipping-orig-fee">@Model.StandardShippingFee.ToString("N2")</span> EGP</del>
+                <span class="free-shipping-zero"><span id="shipping-fee">0.00</span> EGP</span>
+            }
+            else
+            {
+                <span id="shipping-fee">@Model.ShippingFee.ToString("N2")</span> <text>EGP</text>
+            }
+        </strong>
+    </div>
     <div class="order-total-row wallet-summary-row" id="wallet-credit-row" hidden="@(Model.WalletAppliedPreview <= 0 ? "hidden" : null)"><span>@Localizer["Wallet_Credit_Applied"]</span><strong>−<span id="wallet-applied">@Model.WalletAppliedPreview.ToString("N2")</span> EGP</strong></div>
     <div class="order-total-row grand"><span>@Localizer["Total"]</span><strong><span id="checkout-total" data-subtotal="@Model.Cart.Total.ToString(CultureInfo.InvariantCulture)">@Model.TotalWithShipping.ToString("N2")</span> EGP</strong></div>
     <div class="order-total-row payable-summary-row" id="checkout-payable-row" hidden="@(Model.WalletAppliedPreview <= 0 ? "hidden" : null)"><span>@Localizer["Remaining_To_Pay"]</span><strong><span id="checkout-payable">@Model.PayablePreview.ToString("N2")</span> EGP</strong></div>

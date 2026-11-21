@@ -10,6 +10,10 @@ public class StoreSettings
     [MaxLength(500)] public string? AddressAr { get; set; }
     [Range(1, 90)] public int ReturnDays { get; set; } = 14;
     [Range(1, 1440)] public int CheckoutSessionLifetimeMinutes { get; set; } = 15;
+    public bool FreeDeliveryOfferEnabled { get; set; } = false;
+    [Range(typeof(decimal), "0", "1000000", ParseLimitsInInvariantCulture = true)] public decimal FreeDeliveryOfferThreshold { get; set; } = 0m;
+    [MaxLength(200)] public string? FreeDeliveryOfferLabelEn { get; set; }
+    [MaxLength(200)] public string? FreeDeliveryOfferLabelAr { get; set; }
     [MaxLength(6000)] public string? DeliveryPolicyEn { get; set; }
     [MaxLength(6000)] public string? DeliveryPolicyAr { get; set; }
     [MaxLength(6000)] public string? ReturnsPolicyEn { get; set; }

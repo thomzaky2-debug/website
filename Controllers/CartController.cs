@@ -53,10 +53,16 @@ public class CartController(CartService cart, ApplicationDbContext db, CheckoutS
         var methods = await db.ShippingMethods.AsNoTracking().Where(s => s.IsActive).OrderBy(s => s.Id).ToListAsync();
         var userId = users.GetUserId(User);
         var walletBalance = await wallet.GetBalanceAsync(userId);
+        var settings = await db.StoreSettings.AsNoTracking().OrderBy(s => s.Id).FirstOrDefaultAsync();
+        var isArabic = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "ar";
+        var offerLabel = isArabic ? settings?.FreeDeliveryOfferLabelAr : settings?.FreeDeliveryOfferLabelEn;
         var model = new CheckoutViewModel {
             Cart = view, CheckoutToken = token, ShippingMethods = methods,
             ShippingMethodId = methods.FirstOrDefault()?.Id ?? 0,
-            CustomerUserId = userId, WalletBalance = walletBalance, UseWallet = walletBalance > 0
+            CustomerUserId = userId, WalletBalance = walletBalance, UseWallet = walletBalance > 0,
+            FreeDeliveryOfferEnabled = settings?.FreeDeliveryOfferEnabled ?? false,
+            FreeDeliveryOfferThreshold = settings?.FreeDeliveryOfferThreshold ?? 0m,
+            FreeDeliveryOfferLabel = offerLabel
         };
         await FillSavedContact(model, prefillAddress: true); return View(model);
     }
@@ -74,6 +80,11 @@ public class CartController(CartService cart, ApplicationDbContext db, CheckoutS
         await FillSavedContact(model, prefillAddress: false);
         model.Cart = await cart.ViewAsync();
         model.ShippingMethods = await db.ShippingMethods.AsNoTracking().Where(s => s.IsActive).ToListAsync();
+        var settings = await db.StoreSettings.AsNoTracking().OrderBy(s => s.Id).FirstOrDefaultAsync();
+        var isArabic = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "ar";
+        model.FreeDeliveryOfferEnabled = settings?.FreeDeliveryOfferEnabled ?? false;
+        model.FreeDeliveryOfferThreshold = settings?.FreeDeliveryOfferThreshold ?? 0m;
+        model.FreeDeliveryOfferLabel = isArabic ? settings?.FreeDeliveryOfferLabelAr : settings?.FreeDeliveryOfferLabelEn;
         var fullyCoveredByWallet = model.UseWallet && model.WalletBalance > 0 && model.TotalWithShipping > 0 && model.WalletBalance >= model.TotalWithShipping;
         if (fullyCoveredByWallet) ModelState.Remove(nameof(model.InstaPayUsername));
         if (!fullyCoveredByWallet && !nilePay.Ready) ModelState.AddModelError("", localizer["Payment_Unavailable"]);

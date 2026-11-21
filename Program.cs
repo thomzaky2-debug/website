@@ -177,6 +177,22 @@ await using (var scope = app.Services.CreateAsyncScope()) {
                 BEGIN
                     ALTER TABLE StoreSettings ADD CheckoutSessionLifetimeMinutes INT NOT NULL CONSTRAINT DF_StoreSettings_Lifetime DEFAULT 15;
                 END
+                IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('StoreSettings') AND name = 'FreeDeliveryOfferEnabled')
+                BEGIN
+                    ALTER TABLE StoreSettings ADD FreeDeliveryOfferEnabled BIT NOT NULL CONSTRAINT DF_StoreSettings_FreeDeliveryEnabled DEFAULT 0;
+                END
+                IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('StoreSettings') AND name = 'FreeDeliveryOfferThreshold')
+                BEGIN
+                    ALTER TABLE StoreSettings ADD FreeDeliveryOfferThreshold DECIMAL(18,2) NOT NULL CONSTRAINT DF_StoreSettings_FreeDeliveryThreshold DEFAULT 0;
+                END
+                IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('StoreSettings') AND name = 'FreeDeliveryOfferLabelEn')
+                BEGIN
+                    ALTER TABLE StoreSettings ADD FreeDeliveryOfferLabelEn NVARCHAR(200) NULL;
+                END
+                IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('StoreSettings') AND name = 'FreeDeliveryOfferLabelAr')
+                BEGIN
+                    ALTER TABLE StoreSettings ADD FreeDeliveryOfferLabelAr NVARCHAR(200) NULL;
+                END
             """);
         } catch { }
     }

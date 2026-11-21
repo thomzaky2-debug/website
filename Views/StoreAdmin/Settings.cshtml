@@ -47,6 +47,15 @@
         <span class="status-pill @(gatewayReady?"":"off")">@Localizer[gatewayReady?"Gateway_Ready":"Gateway_Setup"]</span>
       </div>
     </a>
+    <a class="settings-kpi panel" href="#free-delivery">
+      <span class="settings-kpi-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      </span>
+      <div>
+        <small>@Localizer["Free_Delivery_Offer"]</small>
+        <span class="status-pill @(Model.FreeDeliveryOfferEnabled?"":"off")">@Localizer[Model.FreeDeliveryOfferEnabled?"Active":"Inactive"]</span>
+      </div>
+    </a>
   </div>
 
   <div class="settings-shell">
@@ -62,6 +71,10 @@
       <a href="#social">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.59 13.51 6.83 3.98M15.41 6.51l-6.82 3.98"/></svg>
         <span>@Localizer["Social_Media"]</span>
+      </a>
+      <a href="#free-delivery">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        <span>@Localizer["Free_Delivery_Offer"]</span>
       </a>
       <a href="#delivery">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M16 13H8M16 17H8"/></svg>
@@ -194,6 +207,46 @@
               </label>
               <input asp-for="WhatsAppUrl" type="text" maxlength="500" placeholder="https://wa.me/201012345678 or 01012345678" dir="ltr"/>
               <span asp-validation-for="WhatsAppUrl"></span>
+            </div>
+          </div>
+        </section>
+
+        <section id="free-delivery" class="settings-section panel settings-card">
+          <header class="settings-card-head settings-card-head-split">
+            <div class="settings-card-title-group">
+              <span class="settings-card-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8Z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+              </span>
+              <div>
+                <h2>@Localizer["Free_Delivery_Offer"]</h2>
+                <p class="muted">@Localizer["Free_Delivery_Offer_Toggle_Help"]</p>
+              </div>
+            </div>
+            <span class="status-pill @(Model.FreeDeliveryOfferEnabled ? "" : "off")">@Localizer[Model.FreeDeliveryOfferEnabled ? "Active" : "Inactive"]</span>
+          </header>
+          <div class="settings-grid">
+            <div class="settings-field wide">
+              <label class="settings-checkbox-card">
+                <input asp-for="FreeDeliveryOfferEnabled" type="checkbox"/>
+                <div class="settings-checkbox-copy">
+                  <strong>@Localizer["Free_Delivery_Offer_Toggle"]</strong>
+                  <small class="muted">@Localizer["Free_Delivery_Offer_Toggle_Help"]</small>
+                </div>
+              </label>
+            </div>
+            <div class="settings-field wide settings-compact-field">
+              <label asp-for="FreeDeliveryOfferThreshold">@Localizer["Free_Delivery_Offer_Threshold"] (EGP)</label>
+              <input asp-for="FreeDeliveryOfferThreshold" type="number" step="1" min="0" max="1000000" placeholder="0"/>
+              <small class="muted">@Localizer["Free_Delivery_Offer_Threshold_Help"]</small>
+            </div>
+            <div class="settings-field">
+              <label asp-for="FreeDeliveryOfferLabelEn">@Localizer["Free_Delivery_Offer_Label_En"]</label>
+              <input asp-for="FreeDeliveryOfferLabelEn" maxlength="200" placeholder="@Localizer["Free_Delivery_Offer_Qualified_Title"]" dir="ltr"/>
+              <small class="muted">@Localizer["Free_Delivery_Offer_Label_Help"]</small>
+            </div>
+            <div class="settings-field">
+              <label asp-for="FreeDeliveryOfferLabelAr">@Localizer["Free_Delivery_Offer_Label_Ar"]</label>
+              <input asp-for="FreeDeliveryOfferLabelAr" maxlength="200" placeholder="@Localizer["Free_Delivery_Offer_Qualified_Title"]" dir="rtl"/>
             </div>
           </div>
         </section>

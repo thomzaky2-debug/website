@@ -42,7 +42,11 @@ public class CheckoutService(ApplicationDbContext db)
             if (changed != 1) throw new CheckoutException("Error_StockChanged");
             order.Items.Add(new OrderItem { SelectedSize = selection.Size, SelectedColor = selection.Color, ProductName = CatalogService.Name(p), ProductId = id, Quantity = quantity, UnitPrice = p.Price });
         }
-        order.TotalAmount = order.Items.Sum(x => x.Quantity * x.UnitPrice) + order.ShippingFee;
+        var itemsTotal = order.Items.Sum(x => x.Quantity * x.UnitPrice);
+        var storeSettings = await db.StoreSettings.AsNoTracking().OrderBy(s => s.Id).FirstOrDefaultAsync();
+        var qualifiesForFreeDelivery = storeSettings?.FreeDeliveryOfferEnabled == true && itemsTotal >= storeSettings.FreeDeliveryOfferThreshold;
+        order.ShippingFee = qualifiesForFreeDelivery ? 0m : (shipping?.Fee ?? 0);
+        order.TotalAmount = itemsTotal + order.ShippingFee;
         if (order.TotalAmount <= 0 || order.TotalAmount > 10000000) throw new CheckoutException("Payment_Limit");
 
         var wallet = new WalletService(db);

@@ -34,10 +34,14 @@ const shipping=document.querySelector('#shipping-method');
 const useWalletToggle=document.querySelector('#use-wallet');
 function updateShipping(){
  if(!shipping)return;
- const fee=Number(shipping.selectedOptions[0]?.dataset.fee||0);
+ const isFreeQualified = document.querySelector('.checkout-summary[data-free-delivery-qualified="true"]') !== null;
+ const originalFee = Number(shipping.selectedOptions[0]?.dataset.fee||0);
+ const fee = isFreeQualified ? 0 : originalFee;
  const totalEl=document.querySelector('#checkout-total');
  const feeEl=document.querySelector('#shipping-fee');
+ const origFeeEl=document.querySelector('#shipping-orig-fee');
  if(feeEl)feeEl.textContent=fee.toFixed(2);
+ if(origFeeEl)origFeeEl.textContent=originalFee.toFixed(2);
  if(!totalEl)return;
  const grand=Number(totalEl.dataset.subtotal||0)+fee;
  totalEl.textContent=grand.toFixed(2);

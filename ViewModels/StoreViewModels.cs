@@ -42,7 +42,12 @@ public class CheckoutViewModel : IValidatableObject
     public bool UseWallet { get; set; }
     public int ShippingMethodId { get; set; }
     public IReadOnlyList<ShippingMethod> ShippingMethods { get; set; } = [];
-    public decimal ShippingFee => ShippingMethods.FirstOrDefault(s => s.Id == ShippingMethodId)?.Fee ?? 0;
+    public bool FreeDeliveryOfferEnabled { get; set; }
+    public decimal FreeDeliveryOfferThreshold { get; set; }
+    public string? FreeDeliveryOfferLabel { get; set; }
+    public bool IsFreeDeliveryQualified => FreeDeliveryOfferEnabled && Cart.Total >= FreeDeliveryOfferThreshold;
+    public decimal StandardShippingFee => ShippingMethods.FirstOrDefault(s => s.Id == ShippingMethodId)?.Fee ?? 0;
+    public decimal ShippingFee => IsFreeDeliveryQualified ? 0m : StandardShippingFee;
     public decimal TotalWithShipping => Cart.Total + ShippingFee;
     public decimal WalletAppliedPreview => UseWallet ? Math.Min(WalletBalance, TotalWithShipping) : 0m;
     public decimal PayablePreview => Math.Max(0m, TotalWithShipping - WalletAppliedPreview);
