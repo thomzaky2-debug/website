@@ -4383,3 +4383,130 @@ html.dark-mode .settings-checkbox-card {
 html.dark-mode .settings-checkbox-copy strong {
   color: #e2e8f0;
 }
+
+/* Topbar Desktop Navigation - Strict Single Row */
+@media (min-width: 1201px) {
+  .site-header {
+    width: 100%;
+  }
+
+  .site-header .container.nav,
+  .site-header .container {
+    max-width: 1680px !important;
+    width: 100% !important;
+    padding-inline: clamp(16px, 2vw, 36px) !important;
+  }
+
+  .site-header .nav {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    flex-wrap: nowrap !important;
+    gap: clamp(8px, 1vw, 16px) !important;
+    min-height: 68px !important;
+  }
+
+  .site-header .brand {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+  }
+
+  .storefront-site .site-header .header-search {
+    flex: 0 1 12rem !important;
+    min-width: 90px !important;
+    max-width: 190px !important;
+    margin-inline-end: 0 !important;
+    flex-shrink: 1 !important;
+  }
+
+  .site-header #site-nav {
+    display: flex !important;
+    align-items: center !important;
+    flex-wrap: nowrap !important;
+    white-space: nowrap !important;
+    gap: clamp(4px, 0.65vw, 11px) !important;
+    margin-inline-start: auto !important;
+    flex-shrink: 0 !important;
+    overflow: visible !important;
+  }
+
+  .site-header #site-nav > a,
+  .site-header #site-nav button,
+  .site-header #site-nav form,
+  .site-header #site-nav .language-switch {
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+  }
+
+  .site-header #site-nav > a {
+    font-size: 0.82rem !important;
+    padding: 6px 4px !important;
+    min-height: auto !important;
+    line-height: 1.2 !important;
+  }
+
+  .site-header #site-nav form {
+    display: inline-flex !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .site-header #site-nav form button {
+    min-height: auto !important;
+    padding: 6px 5px !important;
+    font-size: 0.82rem !important;
+  }
+
+  .site-header #site-nav .cart-link {
+    display: inline-flex !important;
+    align-items: center !important;
+    padding: 5px 9px !important;
+    font-size: 0.81rem !important;
+    min-height: auto !important;
+    border-radius: 999px !important;
+  }
+
+  .site-header #site-nav .cart-count {
+    min-width: 19px !important;
+    height: 19px !important;
+    font-size: 0.7rem !important;
+    line-height: 19px !important;
+  }
+
+  .site-header #site-nav .dark-mode-toggle {
+    width: 32px !important;
+    height: 32px !important;
+    min-height: auto !important;
+    padding: 5px !important;
+    margin: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: 0 !important;
+    background: transparent !important;
+  }
+
+  .site-header #site-nav .dark-mode-toggle svg {
+    width: 17px !important;
+    height: 17px !important;
+  }
+
+  .site-header #site-nav .language-switch {
+    display: inline-flex !important;
+    align-items: center !important;
+    padding: 4px 8px !important;
+    font-size: 0.81rem !important;
+    font-weight: 600 !important;
+    border-radius: 7px !important;
+    background: var(--surface, #f4f9f8) !important;
+    border: 1px solid var(--line, #dce8e7) !important;
+    min-height: auto !important;
+    color: var(--ink, #073349) !important;
+  }
+
+  html.dark-mode .site-header #site-nav .language-switch {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+    color: #e2e8f0 !important;
+  }
+}

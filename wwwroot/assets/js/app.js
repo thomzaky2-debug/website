@@ -129,7 +129,7 @@ const paymentForm=document.querySelector('#payment-status-form');
 if(paymentForm){let checks=0;let active=false;async function refreshPayment(){if(document.hidden||active||checks++>=60)return;active=true;try{const response=await fetch(paymentForm.action,{method:'POST',body:new FormData(paymentForm),credentials:'same-origin',headers:{'Accept':'application/json'}});if(response.ok){const state=await response.json();if(typeof state.remainingSeconds==='number'&&timerWrap){timerRemaining=state.remainingSeconds;updateTimerDisplay();}if(state.paymentStatus!=='Unpaid'||['EXPIRED','CANCELLED','FAILED'].includes(state.gatewayStatus)){window.NileShopAsync.refresh();}}}catch{}finally{active=false}}setInterval(refreshPayment,10000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshPayment()}, { signal: lifecycle.signal });}
 const menuToggle=document.querySelector('.menu-toggle');
 // Reset disclosure state when rotating a device or moving to the desktop header.
-const compactNavigation=window.matchMedia('(max-width: 1280px)');
+const compactNavigation=window.matchMedia('(max-width: 1200px)');
 compactNavigation.addEventListener('change',closeSiteMenu, { signal: lifecycle.signal });
 menuToggle?.addEventListener('click',()=>{const open=menuToggle.getAttribute('aria-expanded')==='true';menuToggle.setAttribute('aria-expanded',String(!open));menuToggle.setAttribute('aria-label',open?menuToggle.dataset.openLabel:menuToggle.dataset.closeLabel);document.querySelector('#site-nav')?.classList.toggle('is-open',!open);}, { signal: lifecycle.signal });
 document.querySelectorAll('#site-nav a').forEach(link=>link.addEventListener('click',closeSiteMenu, { signal: lifecycle.signal }));
