@@ -36,16 +36,20 @@
 
         @if (pending && !terminal && !cancelled)
         {
-            <div class="session-timer-card" id="sessionTimerWrap" data-remaining="@remainingSeconds" data-total="@(lifetimeMinutes * 60)">
+            var initMins = remainingSeconds / 60;
+            var initSecs = remainingSeconds % 60;
+            var initDisplay = remainingSeconds > 0 ? $"{(initMins < 10 ? "0" : "")}{initMins}:{(initSecs < 10 ? "0" : "")}{initSecs}" : "00:00";
+            var initPct = lifetimeMinutes > 0 ? Math.Max(0, Math.Min(100, (remainingSeconds / (double)(lifetimeMinutes * 60)) * 100)) : 0;
+            <div class="session-timer-card" id="sessionTimerWrap" data-remaining="@remainingSeconds" data-total="@(lifetimeMinutes * 60)" data-expired-text="@Localizer["Payment_Session_Expired"]">
                 <div class="timer-dial">
-                    <span class="timer-pulse-dot" id="timerPulse" aria-hidden="true"></span>
+                    <span class="timer-pulse-dot" id="timerPulse" aria-hidden="true" style="@(remainingSeconds <= 0 ? "display:none;" : "")"></span>
                     <div class="timer-content">
-                        <span class="timer-label" id="timerLabel">@Localizer["Payment_Session_Expires_In"]</span>
-                        <strong class="timer-digits" id="timerDigits">--:--</strong>
+                        <span class="timer-label" id="timerLabel">@Localizer[remainingSeconds <= 0 ? "Payment_Session_Expired" : "Payment_Session_Expires_In"]</span>
+                        <strong class="timer-digits @(remainingSeconds <= 0 ? "is-expired" : "")" id="timerDigits">@initDisplay</strong>
                     </div>
                 </div>
                 <div class="timer-progress-bar">
-                    <div class="timer-progress-fill" id="timerBar" style="width: 100%;"></div>
+                    <div class="timer-progress-fill" id="timerBar" style="width: @(initPct.ToString("0.##", CultureInfo.InvariantCulture))%;"></div>
                 </div>
             </div>
         }
@@ -89,7 +93,7 @@
                         <span>@Localizer["Reference_Note"]</span>
                         <div class="copy-input-group">
                             <code dir="ltr" id="orderRefCode">Order #@Model.OrderNumber</code>
-                            <button type="button" class="btn-copy-sm" id="btnCopyRef">@Localizer["Copy"]</button>
+                            <button type="button" class="btn-copy-sm" id="btnCopyRef" data-copy-text="Order #@Model.OrderNumber" data-copied-text="@Localizer["Copied"]">@Localizer["Copy"]</button>
                         </div>
                     </div>
                 </div>
@@ -152,60 +156,4 @@
 @if (Model.PaymentStatus == "Unpaid" && !terminal && !cancelled)
 {
     <form id="payment-status-form" asp-action="Status" method="post" hidden><input type="hidden" name="token" value="@Model.PaymentAccessToken"/></form>
-}
-
-@section Scripts {
-<script>
-(function() {
-    var timerWrap = document.getElementById('sessionTimerWrap');
-    var timerDigits = document.getElementById('timerDigits');
-    var timerBar = document.getElementById('timerBar');
-    var timerLabel = document.getElementById('timerLabel');
-    var timerPulse = document.getElementById('timerPulse');
-    var copyBtn = document.getElementById('btnCopyRef');
-
-    if (copyBtn) {
-        copyBtn.addEventListener('click', function() {
-            var text = 'Order #@Model.OrderNumber';
-            navigator.clipboard.writeText(text).then(function() {
-                var prev = copyBtn.innerText;
-                copyBtn.innerText = '@Localizer["Copied"]';
-                setTimeout(function() { copyBtn.innerText = prev; }, 2000);
-            });
-        });
-    }
-
-    if (timerWrap && timerDigits) {
-        var remaining = parseInt(timerWrap.getAttribute('data-remaining') || '0', 10);
-        var total = parseInt(timerWrap.getAttribute('data-total') || '900', 10);
-
-        function updateDisplay() {
-            if (remaining <= 0) {
-                timerDigits.innerText = '00:00';
-                timerDigits.classList.add('is-expired');
-                if (timerBar) timerBar.style.width = '0%';
-                if (timerLabel) timerLabel.innerText = '@Localizer["Payment_Session_Expired"]';
-                if (timerPulse) timerPulse.style.display = 'none';
-                return;
-            }
-            var mins = Math.floor(remaining / 60);
-            var secs = remaining % 60;
-            timerDigits.innerText = (mins < 10 ? '0' : '') + mins + ':' + (secs < 10 ? '0' : '') + secs;
-            if (timerBar && total > 0) {
-                var pct = Math.max(0, Math.min(100, (remaining / total) * 100));
-                timerBar.style.width = pct + '%';
-            }
-        }
-
-        updateDisplay();
-        var timerInterval = setInterval(function() {
-            remaining--;
-            updateDisplay();
-            if (remaining <= 0) {
-                clearInterval(timerInterval);
-            }
-        }, 1000);
-    }
-})();
-</script>
 }

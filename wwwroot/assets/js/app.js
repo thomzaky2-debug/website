@@ -73,8 +73,60 @@ function updateShipping(){
 shipping?.addEventListener('change',updateShipping, { signal: lifecycle.signal });
 useWalletToggle?.addEventListener('change',updateShipping, { signal: lifecycle.signal });
 updateShipping();
+const timerWrap = document.querySelector('#sessionTimerWrap');
+const timerDigits = document.querySelector('#timerDigits');
+const timerBar = document.querySelector('#timerBar');
+const timerLabel = document.querySelector('#timerLabel');
+const timerPulse = document.querySelector('#timerPulse');
+let timerRemaining = timerWrap ? parseInt(timerWrap.dataset.remaining || '0', 10) : 0;
+const timerTotal = timerWrap ? parseInt(timerWrap.dataset.total || '900', 10) : 900;
+const timerExpiredText = timerWrap?.dataset.expiredText || 'Payment session has expired';
+
+function updateTimerDisplay() {
+ if (!timerDigits) return;
+ if (timerRemaining <= 0) {
+  timerDigits.textContent = '00:00';
+  timerDigits.classList.add('is-expired');
+  if (timerBar) timerBar.style.width = '0%';
+  if (timerLabel) timerLabel.textContent = timerExpiredText;
+  if (timerPulse) timerPulse.style.display = 'none';
+  return;
+ }
+ const mins = Math.floor(timerRemaining / 60);
+ const secs = timerRemaining % 60;
+ timerDigits.textContent = (mins < 10 ? '0' : '') + mins + ':' + (secs < 10 ? '0' : '') + secs;
+ if (timerBar && timerTotal > 0) {
+  const pct = Math.max(0, Math.min(100, (timerRemaining / timerTotal) * 100));
+  timerBar.style.width = pct.toFixed(1) + '%';
+ }
+}
+
+if (timerWrap && timerDigits) {
+ updateTimerDisplay();
+ const timerInterval = setInterval(() => {
+  timerRemaining--;
+  updateTimerDisplay();
+  if (timerRemaining <= 0) {
+   clearInterval(timerInterval);
+  }
+ }, 1000);
+}
+
+const copyRefBtn = document.querySelector('#btnCopyRef');
+if (copyRefBtn) {
+ copyRefBtn.addEventListener('click', () => {
+  const text = copyRefBtn.dataset.copyText || document.querySelector('#orderRefCode')?.textContent?.trim() || '';
+  if (!text) return;
+  navigator.clipboard?.writeText(text).then(() => {
+   const prev = copyRefBtn.textContent;
+   copyRefBtn.textContent = copyRefBtn.dataset.copiedText || 'Copied!';
+   setTimeout(() => { copyRefBtn.textContent = prev; }, 2000);
+  }).catch(() => {});
+ }, { signal: lifecycle.signal });
+}
+
 const paymentForm=document.querySelector('#payment-status-form');
-if(paymentForm){let checks=0;let active=false;async function refreshPayment(){if(document.hidden||active||checks++>=60)return;active=true;try{const response=await fetch(paymentForm.action,{method:'POST',body:new FormData(paymentForm),credentials:'same-origin',headers:{'Accept':'application/json'}});if(response.ok){const state=await response.json();if(state.paymentStatus!=='Unpaid'||['EXPIRED','CANCELLED','FAILED'].includes(state.gatewayStatus)){window.NileShopAsync.refresh();}}}catch{}finally{active=false}}setInterval(refreshPayment,10000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshPayment()}, { signal: lifecycle.signal });}
+if(paymentForm){let checks=0;let active=false;async function refreshPayment(){if(document.hidden||active||checks++>=60)return;active=true;try{const response=await fetch(paymentForm.action,{method:'POST',body:new FormData(paymentForm),credentials:'same-origin',headers:{'Accept':'application/json'}});if(response.ok){const state=await response.json();if(typeof state.remainingSeconds==='number'&&timerWrap){timerRemaining=state.remainingSeconds;updateTimerDisplay();}if(state.paymentStatus!=='Unpaid'||['EXPIRED','CANCELLED','FAILED'].includes(state.gatewayStatus)){window.NileShopAsync.refresh();}}}catch{}finally{active=false}}setInterval(refreshPayment,10000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshPayment()}, { signal: lifecycle.signal });}
 const menuToggle=document.querySelector('.menu-toggle');
 // Reset disclosure state when rotating a device or moving to the desktop header.
 const compactNavigation=window.matchMedia('(max-width: 1280px)');
