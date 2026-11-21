@@ -15,6 +15,7 @@ public class OrdersController(ApplicationDbContext db) : Controller
         var order = await db.Orders.AsNoTracking().Include(o => o.Items).Include(o => o.Updates).AsSplitQuery().SingleOrDefaultAsync(o => o.PaymentAccessToken == token);
         if (order is null) return NotFound();
         await OrderStatusPresentation.LoadAsync(db, new[] { order });
+        ViewData["Attempt"] = await db.PaymentAttempts.AsNoTracking().Where(p => p.OrderId == order.Id).OrderByDescending(p => p.Id).FirstOrDefaultAsync();
         return View(order);
     }
 }

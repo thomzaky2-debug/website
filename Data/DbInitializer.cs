@@ -27,6 +27,7 @@ public static class DbInitializer
         }
         if (!await db.StoreMailSettings.AnyAsync()) db.StoreMailSettings.Add(new StoreMailSettings());
         if (!await db.StoreSettings.AnyAsync()) db.StoreSettings.Add(new StoreSettings {
+            CheckoutSessionLifetimeMinutes = 15,
             DeliveryPolicyEn = """
                 Order Processing & Confirmation
                 • Orders are processed after NilePay payment confirmation is received.

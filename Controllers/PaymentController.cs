@@ -17,7 +17,23 @@ public class PaymentController(ApplicationDbContext db, NilePayService payments,
     {
         Response.Headers["Referrer-Policy"] = "no-referrer";
         var order = await Owned(token); if (order is null) return NotFound();
-        ViewData["GatewayStatus"] = await db.PaymentAttempts.Where(p => p.OrderId == order.Id).Select(p => p.GatewayStatus).SingleOrDefaultAsync() ?? "NOT_CREATED";
+        var attempt = await db.PaymentAttempts.AsNoTracking().Where(p => p.OrderId == order.Id).OrderByDescending(p => p.Id).FirstOrDefaultAsync();
+        var lifetimeMinutes = await db.StoreSettings.AsNoTracking().OrderBy(s => s.Id).Select(s => s.CheckoutSessionLifetimeMinutes).FirstOrDefaultAsync();
+        if (lifetimeMinutes <= 0) lifetimeMinutes = 15;
+
+        var createdAt = attempt?.CreatedAt ?? order.CreatedAt;
+        var expiresAt = createdAt.AddMinutes(lifetimeMinutes);
+        var remainingSeconds = Math.Max(0, (int)(expiresAt - DateTime.UtcNow).TotalSeconds);
+        var isSessionExpired = remainingSeconds <= 0 && order.PaymentStatus == "Unpaid";
+
+        var gateway = attempt?.GatewayStatus ?? "NOT_CREATED";
+        if (isSessionExpired && gateway is not ("CONFIRMED" or "PAID")) gateway = "EXPIRED";
+
+        ViewData["GatewayStatus"] = gateway;
+        ViewData["ExpiresAt"] = expiresAt.ToString("o");
+        ViewData["RemainingSeconds"] = remainingSeconds;
+        ViewData["LifetimeMinutes"] = lifetimeMinutes;
+        ViewData["Attempt"] = attempt;
         return View(order);
     }
     [HttpPost("/payment/pay"), ValidateAntiForgeryToken, Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("payment-status")]
@@ -54,7 +70,13 @@ public class PaymentController(ApplicationDbContext db, NilePayService payments,
             try { await payments.ReconcileAsync(attempt.Id, ct); } catch (NilePayException) { logger.LogWarning("Payment status refresh failed for order {OrderId}", order.Id); }
         var fresh = await db.Orders.AsNoTracking().SingleAsync(o => o.Id == order.Id, ct);
         var gateway = attempt is null ? "NOT_CREATED" : await db.PaymentAttempts.AsNoTracking().Where(p => p.Id == attempt.Id).Select(p => p.GatewayStatus).SingleAsync(ct);
-        return Json(new { paymentStatus = fresh.PaymentStatus, orderStatus = fresh.Status, gatewayStatus = gateway, review = fresh.NeedsPaymentReview });
+        var lifetimeMinutes = await db.StoreSettings.AsNoTracking().OrderBy(s => s.Id).Select(s => s.CheckoutSessionLifetimeMinutes).FirstOrDefaultAsync(ct);
+        if (lifetimeMinutes <= 0) lifetimeMinutes = 15;
+        var createdAt = attempt?.CreatedAt ?? fresh.CreatedAt;
+        var expiresAt = createdAt.AddMinutes(lifetimeMinutes);
+        var remainingSeconds = Math.Max(0, (int)(expiresAt - DateTime.UtcNow).TotalSeconds);
+        if (remainingSeconds <= 0 && fresh.PaymentStatus == "Unpaid" && gateway is not ("CONFIRMED" or "PAID")) gateway = "EXPIRED";
+        return Json(new { paymentStatus = fresh.PaymentStatus, orderStatus = fresh.Status, gatewayStatus = gateway, review = fresh.NeedsPaymentReview, remainingSeconds });
     }
     [HttpPost("/webhooks/nilepay"), IgnoreAntiforgeryToken, RequestSizeLimit(65536)]
     public async Task<IActionResult> Webhook(CancellationToken ct)

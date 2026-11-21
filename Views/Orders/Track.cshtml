@@ -1,4 +1,205 @@
 @model Order
-@{ViewData["Title"] = Localizer["Track_Order"];}
-<div class="section-head"><div><span class="eyebrow">Chic & Unique · @Localizer["Orders"]</span><h1>@Localizer["Track_Order"]</h1><p class="muted">@Model.OrderNumber</p></div><a asp-controller="Home" asp-action="Shop">← @Localizer["Nav_Shop"]</a></div>
-<div class="tracking-layout"><div><section class="panel"><h2>@Localizer["Status"]</h2><div class="order-state-strip"><span class="status-pill @(OrderStatusPresentation.IsWarning(Model)?"off":"")">@Localizer[OrderStatusPresentation.Key(Model)]</span><span class="status-pill @(Model.PaymentStatus is "Unpaid" or "Underpaid"?"off":"")">@Localizer[Model.PaymentStatus]</span></div><ol class="timeline">@foreach(var update in Model.Updates.OrderBy(u=>u.CreatedAt)){<li><strong>@Localizer[update.Status]</strong><time>@update.CreatedAt.ToString("g")</time></li>}</ol>@if(!string.IsNullOrEmpty(Model.TrackingNumber)){<div class="tracking-carrier"><strong>@Localizer["Carrier"]: @Model.Carrier</strong><p>@Localizer["Tracking_Number"]: @Model.TrackingNumber</p>@if(!string.IsNullOrEmpty(Model.TrackingUrl)){<a href="@Model.TrackingUrl" rel="noreferrer noopener" target="_blank">@Localizer["Carrier_Tracking"] ↗</a>}</div>}</section><section class="panel"><h2>@Localizer["Orders"]</h2><div class="order-items">@foreach(var item in Model.Items){<div><span>@item.ProductName <small>@item.SelectedSize @item.SelectedColor · ×@item.Quantity</small></span><strong>@((item.UnitPrice*item.Quantity).ToString("N2")) EGP</strong></div>}</div></section></div><aside class="panel"><h2>@Localizer["Order_Summary"]</h2><div class="order-total-row"><span>@Localizer["Shipping_Area"]</span><strong>@Model.ShippingMethodName</strong></div><div class="order-total-row"><span>@Localizer["Shipping_Fee"]</span><strong>@Model.ShippingFee.ToString("N2") EGP</strong></div>@if(Model.WalletAmountUsed>0){<div class="order-total-row"><span>@Localizer["Wallet_Credit_Applied"]</span><strong>−@Model.WalletAmountUsed.ToString("N2") EGP</strong></div>}<div class="order-total-row"><span>@Localizer["Business_Days"]</span><strong>@Model.DeliveryMinDays–@Model.DeliveryMaxDays</strong></div><div class="order-total-row grand"><span>@Localizer["Total"]</span><strong>@Model.TotalAmount.ToString("N2") EGP</strong></div><a class="action-link" asp-controller="Payment" asp-action="Return" asp-route-token="@Model.PaymentAccessToken">@Localizer["Payment_Check"]</a></aside></div>
+@{
+    ViewData["Title"] = Localizer["Track_Order"];
+    var isPaid = Model.PaymentStatus is "Paid" or "Overpaid";
+    var isUnpaid = Model.PaymentStatus is "Unpaid" or "Underpaid";
+    var isCancelled = Model.Status == OrderStatuses.Cancelled;
+    var isShipped = Model.Status is "Shipped" or "Delivered";
+    var isDelivered = Model.Status == "Delivered";
+    var isProcessing = Model.Status is "Processing" or "Shipped" or "Delivered";
+    
+    // Determine stepper states
+    var step1Done = true;
+    var step2Done = isPaid;
+    var step2Active = isUnpaid && !isCancelled;
+    var step3Done = isProcessing && isPaid;
+    var step3Active = isPaid && Model.Status == "Processing";
+    var step4Done = isShipped;
+    var step4Active = Model.Status == "Shipped";
+    var step5Done = isDelivered;
+}
+<div class="tracking-page-container">
+    <div class="section-head track-header-card panel">
+        <div class="track-order-num-group">
+            <span class="order-eyebrow">Chic &amp; Unique · @Localizer["Orders"]</span>
+            <h1>
+                <span dir="ltr">@Model.OrderNumber</span>
+                <button type="button" class="btn-copy-sm" id="btnCopyOrder" aria-label="Copy order number">@Localizer["Copy"]</button>
+            </h1>
+            <small class="muted">@Model.CreatedAt.ToString("f")</small>
+        </div>
+        <div class="order-state-strip">
+            <span class="status-pill @(OrderStatusPresentation.IsWarning(Model)?"off":"")">@Localizer[OrderStatusPresentation.Key(Model)]</span>
+            <span class="status-pill @(isUnpaid?"off":"")">@Localizer[Model.PaymentStatus]</span>
+        </div>
+    </div>
+
+    <!-- Stepper Tracker -->
+    <section class="panel track-stepper-panel">
+        <h2>@Localizer["Order_Progress"]</h2>
+        <ol class="order-stepper">
+            <li class="step-item @(step1Done ? "is-completed" : "")">
+                <span class="step-icon-wrap" aria-hidden="true">✓</span>
+                <span class="step-label">@Localizer["Step_OrderPlaced"]</span>
+                <span class="step-time">@Model.CreatedAt.ToString("MMM d")</span>
+            </li>
+            <li class="step-item @(step2Done ? "is-completed" : step2Active ? "is-warning" : isCancelled ? "is-warning" : "")">
+                <span class="step-icon-wrap" aria-hidden="true">@(step2Done ? "✓" : step2Active ? "◷" : isCancelled ? "✕" : "2")</span>
+                <span class="step-label">@Localizer["Step_PaymentConfirmed"]</span>
+                @if (isPaid && Model.PaidAt.HasValue)
+                {
+                    <span class="step-time">@Model.PaidAt.Value.ToString("MMM d")</span>
+                }
+            </li>
+            <li class="step-item @(step3Done ? "is-completed" : step3Active ? "is-active" : "")">
+                <span class="step-icon-wrap" aria-hidden="true">@(step3Done ? "✓" : "3")</span>
+                <span class="step-label">@Localizer["Step_Processing"]</span>
+            </li>
+            <li class="step-item @(step4Done ? "is-completed" : step4Active ? "is-active" : "")">
+                <span class="step-icon-wrap" aria-hidden="true">@(step4Done ? "✓" : "4")</span>
+                <span class="step-label">@Localizer["Step_Shipped"]</span>
+            </li>
+            <li class="step-item @(step5Done ? "is-completed" : "")">
+                <span class="step-icon-wrap" aria-hidden="true">@(step5Done ? "✓" : "5")</span>
+                <span class="step-label">@Localizer["Step_Delivered"]</span>
+            </li>
+        </ol>
+    </section>
+
+    @if (isUnpaid && !isCancelled)
+    {
+        <div class="unpaid-callout-banner">
+            <div class="unpaid-callout-text">
+                <span class="unpaid-callout-icon" aria-hidden="true">⏱</span>
+                <div>
+                    <strong>@Localizer["Payment_Pending"]</strong>
+                    <small>@Localizer["Payment_Explain"]</small>
+                </div>
+            </div>
+            <a class="primary-button" asp-controller="Payment" asp-action="Return" asp-route-token="@Model.PaymentAccessToken">@Localizer["Complete_Payment"] →</a>
+        </div>
+    }
+
+    <!-- Detailed Cards Grid -->
+    <div class="track-grid-details">
+        <!-- Customer & Shipping -->
+        <div class="track-detail-card panel">
+            <h3>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8Z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                <span>@Localizer["Shipping_Details"]</span>
+            </h3>
+            <div class="track-data-list">
+                <div class="track-data-row"><span>@Localizer["CustomerName"]</span><strong>@Model.CustomerName</strong></div>
+                <div class="track-data-row"><span>@Localizer["CustomerPhone"]</span><strong dir="ltr">@Model.CustomerPhone</strong></div>
+                @if (!string.IsNullOrWhiteSpace(Model.CustomerEmail))
+                {
+                    <div class="track-data-row"><span>@Localizer["CustomerEmail"]</span><strong>@Model.CustomerEmail</strong></div>
+                }
+                <div class="track-data-row"><span>@Localizer["Delivery_Address"]</span><strong>@Model.ShippingAddress</strong></div>
+                <div class="track-data-row"><span>@Localizer["Shipping_Area"]</span><strong>@Model.ShippingMethodName</strong></div>
+                <div class="track-data-row"><span>@Localizer["Business_Days"]</span><strong>@Model.DeliveryMinDays–@Model.DeliveryMaxDays</strong></div>
+                @if(!string.IsNullOrEmpty(Model.TrackingNumber)){
+                    <div class="track-data-row"><span>@Localizer["Carrier"]</span><strong>@Model.Carrier</strong></div>
+                    <div class="track-data-row"><span>@Localizer["Tracking_Number"]</span><strong dir="ltr">@Model.TrackingNumber</strong></div>
+                    @if(!string.IsNullOrEmpty(Model.TrackingUrl)){
+                        <div class="track-data-row"><span></span><a href="@Model.TrackingUrl" rel="noreferrer noopener" target="_blank" class="action-link">@Localizer["Carrier_Tracking"] ↗</a></div>
+                    }
+                }
+            </div>
+        </div>
+
+        <!-- Payment & Financials -->
+        <div class="track-detail-card panel">
+            <h3>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+                <span>@Localizer["Order_Summary"]</span>
+            </h3>
+            <div class="track-data-list">
+                <div class="track-data-row"><span>@Localizer["Subtotal"]</span><strong>@((Model.TotalAmount - Model.ShippingFee).ToString("N2")) EGP</strong></div>
+                <div class="track-data-row"><span>@Localizer["Shipping_Fee"]</span><strong>@Model.ShippingFee.ToString("N2") EGP</strong></div>
+                @if(Model.WalletAmountUsed > 0){
+                    <div class="track-data-row" style="color: #10b981;"><span>@Localizer["Wallet_Credit_Applied"]</span><strong>−@Model.WalletAmountUsed.ToString("N2") EGP</strong></div>
+                    <div class="track-data-row"><span>@Localizer["Remaining_To_Pay"]</span><strong>@Model.PayableAmount.ToString("N2") EGP</strong></div>
+                }
+                <div class="track-data-row grand" style="font-size: 1.1rem; font-weight: 800; border-top: 1px solid var(--line); padding-top: 8px;">
+                    <span>@Localizer["Total"]</span><strong>@Model.TotalAmount.ToString("N2") EGP</strong>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(Model.InstaPaySenderHandle))
+                {
+                    <div class="track-data-row"><span>@Localizer["InstaPay_Username"]</span><strong dir="ltr">@Model.InstaPaySenderHandle</strong></div>
+                }
+                <div class="track-data-row"><span>@Localizer["Status"]</span><span class="status-pill @(isUnpaid?"off":"")">@Localizer[Model.PaymentStatus]</span></div>
+            </div>
+            @if (isUnpaid && !isCancelled)
+            {
+                <div style="margin-top: 16px;">
+                    <a class="action-link" asp-controller="Payment" asp-action="Return" asp-route-token="@Model.PaymentAccessToken">@Localizer["Payment_Check"] →</a>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Items Breakdown -->
+    <section class="panel track-detail-card" style="margin-bottom: 24px;">
+        <h3>
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+            <span>@Localizer["Order_Items"] (@Model.Items.Count)</span>
+        </h3>
+        <div class="order-items-list">
+            @foreach(var item in Model.Items)
+            {
+                <div class="order-item-row" style="border-bottom: 1px solid var(--line); padding: 10px 0;">
+                    <div class="item-meta">
+                        <strong style="font-size: 1rem;">@item.ProductName</strong>
+                        @if (!string.IsNullOrWhiteSpace(item.SelectedSize) || !string.IsNullOrWhiteSpace(item.SelectedColor))
+                        {
+                            <small class="muted">@item.SelectedSize @item.SelectedColor</small>
+                        }
+                    </div>
+                    <div class="item-qty-price">
+                        <span class="muted">×@item.Quantity</span>
+                        <strong style="font-size: 1rem;">@((item.UnitPrice * item.Quantity).ToString("N2")) EGP</strong>
+                    </div>
+                </div>
+            }
+        </div>
+    </section>
+
+    <!-- Activity Timeline -->
+    @if (Model.Updates.Any())
+    {
+        <section class="panel track-detail-card" style="margin-bottom: 24px;">
+            <h3>@Localizer["Logs"]</h3>
+            <ol class="timeline">
+                @foreach(var update in Model.Updates.OrderByDescending(u => u.CreatedAt))
+                {
+                    <li>
+                        <strong>@Localizer[update.Status]</strong>
+                        <time class="muted">@update.CreatedAt.ToString("g")</time>
+                    </li>
+                }
+            </ol>
+        </section>
+    }
+
+    <div style="text-align: center; margin-top: 20px;">
+        <a asp-controller="Home" asp-action="Shop">← @Localizer["Nav_Shop"]</a>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+(function() {
+    var copyBtn = document.getElementById('btnCopyOrder');
+    if (copyBtn) {
+        copyBtn.addEventListener('click', function() {
+            navigator.clipboard.writeText('@Model.OrderNumber').then(function() {
+                var prev = copyBtn.innerText;
+                copyBtn.innerText = '@Localizer["Copied"]';
+                setTimeout(function() { copyBtn.innerText = prev; }, 2000);
+            });
+        });
+    }
+})();
+</script>
+}

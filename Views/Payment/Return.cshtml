@@ -8,6 +8,9 @@
     var isOverpaid = Model.PaymentStatus == "Overpaid";
     var isUnderpaid = Model.PaymentStatus == "Underpaid";
     var cancelled = Model.Status == OrderStatuses.Cancelled;
+    var remainingSeconds = (int)(ViewData["RemainingSeconds"] ?? 0);
+    var expiresAt = ViewData["ExpiresAt"] as string ?? "";
+    var lifetimeMinutes = (int)(ViewData["LifetimeMinutes"] ?? 15);
     var excessCredited = isOverpaid && Model.DetectedAmountEgp.HasValue
         ? Math.Max(0m, Model.DetectedAmountEgp.Value - Model.PayableAmount)
         : 0m;
@@ -17,6 +20,7 @@
     <div class="status-card panel">
         <div class="status-icon @(settled ? "is-paid" : "")" aria-hidden="true">@(settled ? "✓" : isUnderpaid ? "!" : "◷")</div>
         <h1>@Localizer[Model.PaymentStatus == "Refunded" ? "Refunded" : isOverpaid ? "Payment_Overpaid_Title" : Model.PaymentStatus == "Paid" ? "Payment_Paid" : isUnderpaid ? "Payment_Underpaid_Title" : cancelled ? "Cancelled" : gateway=="EXPIRED" ? "Order_Payment_Expired" : gateway=="CANCELLED" ? "Order_Payment_Cancelled" : gateway=="FAILED" ? "Order_Payment_Failed" : "Payment_Pending"]</h1>
+        
         @if (isOverpaid)
         {
             <p class="muted">@Localizer["Payment_Overpaid_Note"]</p>
@@ -30,8 +34,24 @@
             <p class="muted">@Localizer[terminal || cancelled ? "Payment_Expired" : "Payment_Explain"]</p>
         }
 
+        @if (pending && !terminal && !cancelled)
+        {
+            <div class="session-timer-card" id="sessionTimerWrap" data-remaining="@remainingSeconds" data-total="@(lifetimeMinutes * 60)">
+                <div class="timer-dial">
+                    <span class="timer-pulse-dot" id="timerPulse" aria-hidden="true"></span>
+                    <div class="timer-content">
+                        <span class="timer-label" id="timerLabel">@Localizer["Payment_Session_Expires_In"]</span>
+                        <strong class="timer-digits" id="timerDigits">--:--</strong>
+                    </div>
+                </div>
+                <div class="timer-progress-bar">
+                    <div class="timer-progress-fill" id="timerBar" style="width: 100%;"></div>
+                </div>
+            </div>
+        }
+
         <div class="status-facts">
-            <div><span>@Localizer["Orders"]</span><strong>@Model.OrderNumber</strong></div>
+            <div><span>@Localizer["Orders"]</span><strong dir="ltr">@Model.OrderNumber</strong></div>
             <div><span>@Localizer["Total"]</span><strong>@Model.TotalAmount.ToString("N2") EGP</strong></div>
             @if (Model.WalletAmountUsed > 0)
             {
@@ -56,6 +76,60 @@
             }
         </div>
 
+        @if (pending && !terminal && !cancelled && !string.IsNullOrWhiteSpace(Model.InstaPaySenderHandle))
+        {
+            <div class="transfer-reference-panel panel">
+                <h4>@Localizer["Payment_Instructions"]</h4>
+                <div class="reference-fields">
+                    <div class="ref-field">
+                        <span>@Localizer["InstaPay_Username"] (From)</span>
+                        <strong dir="ltr">@Model.InstaPaySenderHandle</strong>
+                    </div>
+                    <div class="ref-field">
+                        <span>@Localizer["Reference_Note"]</span>
+                        <div class="copy-input-group">
+                            <code dir="ltr" id="orderRefCode">Order #@Model.OrderNumber</code>
+                            <button type="button" class="btn-copy-sm" id="btnCopyRef">@Localizer["Copy"]</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (Model.Items.Count > 0)
+        {
+            <div class="order-items-preview panel">
+                <h3>@Localizer["Order_Items"]</h3>
+                <div class="order-items-list">
+                    @foreach(var item in Model.Items)
+                    {
+                        <div class="order-item-row">
+                            <div class="item-meta">
+                                <strong>@item.ProductName</strong>
+                                @if(!string.IsNullOrWhiteSpace(item.SelectedSize) || !string.IsNullOrWhiteSpace(item.SelectedColor))
+                                {
+                                    <small class="muted">@item.SelectedSize @item.SelectedColor</small>
+                                }
+                            </div>
+                            <div class="item-qty-price">
+                                <span class="muted">×@item.Quantity</span>
+                                <strong>@((item.UnitPrice * item.Quantity).ToString("N2")) EGP</strong>
+                            </div>
+                        </div>
+                    }
+                </div>
+                <div class="order-subtotals">
+                    <div class="subtotal-row"><span>@Localizer["Subtotal"]</span><strong>@((Model.TotalAmount - Model.ShippingFee).ToString("N2")) EGP</strong></div>
+                    <div class="subtotal-row"><span>@Localizer["Shipping_Fee"] (@Model.ShippingMethodName)</span><strong>@Model.ShippingFee.ToString("N2") EGP</strong></div>
+                    @if (Model.WalletAmountUsed > 0)
+                    {
+                        <div class="subtotal-row wallet"><span>@Localizer["Wallet_Credit_Applied"]</span><strong>−@Model.WalletAmountUsed.ToString("N2") EGP</strong></div>
+                    }
+                    <div class="subtotal-row total"><span>@Localizer["Total"]</span><strong>@Model.PayableAmount.ToString("N2") EGP</strong></div>
+                </div>
+            </div>
+        }
+
         <div class="status-actions">
             @if (pending)
             {
@@ -74,7 +148,64 @@
         <a asp-controller="Home" asp-action="Shop">← @Localizer["Nav_Shop"]</a>
     </div>
 </div>
+
 @if (Model.PaymentStatus == "Unpaid" && !terminal && !cancelled)
 {
     <form id="payment-status-form" asp-action="Status" method="post" hidden><input type="hidden" name="token" value="@Model.PaymentAccessToken"/></form>
+}
+
+@section Scripts {
+<script>
+(function() {
+    var timerWrap = document.getElementById('sessionTimerWrap');
+    var timerDigits = document.getElementById('timerDigits');
+    var timerBar = document.getElementById('timerBar');
+    var timerLabel = document.getElementById('timerLabel');
+    var timerPulse = document.getElementById('timerPulse');
+    var copyBtn = document.getElementById('btnCopyRef');
+
+    if (copyBtn) {
+        copyBtn.addEventListener('click', function() {
+            var text = 'Order #@Model.OrderNumber';
+            navigator.clipboard.writeText(text).then(function() {
+                var prev = copyBtn.innerText;
+                copyBtn.innerText = '@Localizer["Copied"]';
+                setTimeout(function() { copyBtn.innerText = prev; }, 2000);
+            });
+        });
+    }
+
+    if (timerWrap && timerDigits) {
+        var remaining = parseInt(timerWrap.getAttribute('data-remaining') || '0', 10);
+        var total = parseInt(timerWrap.getAttribute('data-total') || '900', 10);
+
+        function updateDisplay() {
+            if (remaining <= 0) {
+                timerDigits.innerText = '00:00';
+                timerDigits.classList.add('is-expired');
+                if (timerBar) timerBar.style.width = '0%';
+                if (timerLabel) timerLabel.innerText = '@Localizer["Payment_Session_Expired"]';
+                if (timerPulse) timerPulse.style.display = 'none';
+                return;
+            }
+            var mins = Math.floor(remaining / 60);
+            var secs = remaining % 60;
+            timerDigits.innerText = (mins < 10 ? '0' : '') + mins + ':' + (secs < 10 ? '0' : '') + secs;
+            if (timerBar && total > 0) {
+                var pct = Math.max(0, Math.min(100, (remaining / total) * 100));
+                timerBar.style.width = pct + '%';
+            }
+        }
+
+        updateDisplay();
+        var timerInterval = setInterval(function() {
+            remaining--;
+            updateDisplay();
+            if (remaining <= 0) {
+                clearInterval(timerInterval);
+            }
+        }, 1000);
+    }
+})();
+</script>
 }

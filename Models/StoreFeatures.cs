@@ -9,6 +9,7 @@ public class StoreSettings
     [MaxLength(500)] public string? AddressEn { get; set; }
     [MaxLength(500)] public string? AddressAr { get; set; }
     [Range(1, 90)] public int ReturnDays { get; set; } = 14;
+    [Range(1, 1440)] public int CheckoutSessionLifetimeMinutes { get; set; } = 15;
     [MaxLength(6000)] public string? DeliveryPolicyEn { get; set; }
     [MaxLength(6000)] public string? DeliveryPolicyAr { get; set; }
     [MaxLength(6000)] public string? ReturnsPolicyEn { get; set; }

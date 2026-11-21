@@ -165,6 +165,7 @@ public class StoreAdminController(ApplicationDbContext db, CustomerAdminService 
         model.ReturnsPolicyEn = ReturnPolicyWindow.Apply(model.ReturnsPolicyEn, model.ReturnDays, arabic: false);
         model.ReturnsPolicyAr = ReturnPolicyWindow.Apply(model.ReturnsPolicyAr, model.ReturnDays, arabic: true);
         var settings=await db.StoreSettings.OrderBy(s => s.Id).FirstAsync();model.Id=settings.Id;model.HeroImageUrl=settings.HeroImageUrl;db.Entry(settings).CurrentValues.SetValues(model);
+        await db.SaveChangesAsync();
         await audit.LogAsync("STORE_SETTINGS","Store","Updated contact, social and policy settings");TempData["Success"]="Admin_Saved";return RedirectToAction(nameof(Settings));
     }
     string? NormalizeSocialUrl(string? raw, string field, bool allowPhone = false)

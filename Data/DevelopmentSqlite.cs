@@ -42,6 +42,8 @@ public static class DevelopmentSqlite
                 await db.Database.ExecuteSqlRawAsync("ALTER TABLE StoreSettings ADD COLUMN TwitterUrl TEXT NULL;");
             if (!settingsColumns.Contains("WhatsAppUrl"))
                 await db.Database.ExecuteSqlRawAsync("ALTER TABLE StoreSettings ADD COLUMN WhatsAppUrl TEXT NULL;");
+            if (!settingsColumns.Contains("CheckoutSessionLifetimeMinutes"))
+                await db.Database.ExecuteSqlRawAsync("ALTER TABLE StoreSettings ADD COLUMN CheckoutSessionLifetimeMinutes INTEGER NOT NULL DEFAULT 15;");
             var orderColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             await using (var cmd = conn.CreateCommand())
             {

@@ -171,6 +171,14 @@ await using (var scope = app.Services.CreateAsyncScope()) {
     }
     else {
         if (builder.Configuration.GetValue("Database:ApplyMigrationsOnStartup", false)) await db.Database.MigrateAsync();
+        try {
+            await db.Database.ExecuteSqlRawAsync("""
+                IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('StoreSettings') AND name = 'CheckoutSessionLifetimeMinutes')
+                BEGIN
+                    ALTER TABLE StoreSettings ADD CheckoutSessionLifetimeMinutes INT NOT NULL CONSTRAINT DF_StoreSettings_Lifetime DEFAULT 15;
+                END
+            """);
+        } catch { }
     }
     await DbInitializer.InitializeAsync(scope.ServiceProvider, builder.Configuration);
 }

@@ -41,11 +41,17 @@ public class NilePayService(ApplicationDbContext db, NilePayClient client, IOpti
                 if (lines.Count > 100 || lines.Sum(i => i.quantity * i.unitPrice) != payable) throw new NilePayException("Payment_Mismatch");
                 linesPayload = lines;
             }
-            var rawNote = "NileShop order " + order.OrderNumber
+            var lifetimeMinutes = await db.StoreSettings.AsNoTracking().OrderBy(s => s.Id).Select(s => s.CheckoutSessionLifetimeMinutes).FirstOrDefaultAsync(ct);
+            if (lifetimeMinutes <= 0) lifetimeMinutes = 15;
+            var rawNote = $"Order #{order.OrderNumber}"
                 + (string.IsNullOrWhiteSpace(order.ShippingMethodName) ? "" : " | " + order.ShippingMethodName)
                 + (currentOrder.WalletAmountUsed > 0 ? $" | Wallet credit -{currentOrder.WalletAmountUsed:0.00} EGP" : "");
             attempt = new PaymentAttempt { OrderId = order.Id, IdempotencyKey = "bts-" + order.CheckoutToken,
                 RequestJson = JsonSerializer.Serialize(new { amountEgp = payable, senderHandle = order.InstaPaySenderHandle,
+                    orderNumber = order.OrderNumber,
+                    orderNo = order.OrderNumber,
+                    lifetimeMinutes = lifetimeMinutes,
+                    expiresInMinutes = lifetimeMinutes,
                     note = rawNote[..Math.Min(1000, rawNote.Length)],
                     productCategory = "Retail products", items = linesPayload,
                     returnUrl = options.Value.PublicUrl.TrimEnd('/') + "/payment/return?token=" + order.PaymentAccessToken }) };

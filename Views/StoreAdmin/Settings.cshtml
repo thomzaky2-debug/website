@@ -249,6 +249,11 @@
               <label asp-for="ReturnDays">@Localizer["Returns_Window"] (@Localizer["Days"])</label>
               <input asp-for="ReturnDays" type="number" min="1" max="90"/>
             </div>
+            <div class="settings-field wide settings-compact-field">
+              <label asp-for="CheckoutSessionLifetimeMinutes">@Localizer["Checkout_Lifetime"] (@Localizer["Minutes"])</label>
+              <input asp-for="CheckoutSessionLifetimeMinutes" type="number" min="1" max="1440"/>
+              <small class="muted">@Localizer["Checkout_Lifetime_Help"]</small>
+            </div>
             <div class="settings-field">
               <label asp-for="ReturnsPolicyEn">@Localizer["Returns_Policy_En"]</label>
               <textarea asp-for="ReturnsPolicyEn" dir="ltr" data-return-window-pattern="@ReturnPolicyWindow.EnglishPattern"></textarea>
