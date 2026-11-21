@@ -38,15 +38,6 @@
         <strong>@Model.ReturnDays @Localizer["Days"]</strong>
       </div>
     </a>
-    <a class="settings-kpi panel" href="#email">
-      <span class="settings-kpi-icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>
-      </span>
-      <div>
-        <small>@Localizer["Email_Settings"]</small>
-        <span class="status-pill @(mail.Enabled?"":"off")">@Localizer[mail.Enabled?"Active":"Inactive"]</span>
-      </div>
-    </a>
     <a class="settings-kpi panel" href="#payment">
       <span class="settings-kpi-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
@@ -83,10 +74,6 @@
       <a href="#shipping">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8Z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
         <span>@Localizer["Shipping_Area"]</span>
-      </a>
-      <a href="#email">
-        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>
-        <span>@Localizer["Email_Settings"]</span>
       </a>
       <a href="#payment">
         <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
@@ -366,62 +353,7 @@
         </details>
       </section>
 
-      <!-- 4. Order Emails / SMTP -->
-      <section id="email" class="settings-section panel settings-card">
-        <header class="settings-card-head settings-card-head-split">
-          <div class="settings-card-title-group">
-            <span class="settings-card-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>
-            </span>
-            <div>
-              <h2>@Localizer["Email_Settings"]</h2>
-              <p class="muted">@Localizer["Settings_Email_Help"]</p>
-            </div>
-          </div>
-          <span class="status-pill @(mail.Enabled?"":"off")">@Localizer[mail.Enabled?"Active":"Inactive"]</span>
-        </header>
-
-        <form asp-action="Mail" method="post" data-async-form>
-          <div class="settings-toggle-banner">
-            <label class="settings-toggle-check">
-              <input name="Enabled" type="checkbox" value="true" checked="@mail.Enabled"/>
-              <span>@Localizer["Enable_Email"]</span>
-            </label>
-            <label class="settings-toggle-check">
-              <input name="EnableSsl" type="checkbox" value="true" checked="@mail.EnableSsl"/>
-              <span>@Localizer["SMTP_TLS"]</span>
-            </label>
-          </div>
-          <div class="settings-grid">
-            <div class="settings-field">
-              <label>@Localizer["SMTP_Host"]</label>
-              <input name="Host" value="@mail.Host" maxlength="255" autocomplete="off" placeholder="smtp.example.com" dir="ltr"/>
-            </div>
-            <div class="settings-field">
-              <label>@Localizer["SMTP_Port"]</label>
-              <input name="Port" type="number" min="1" max="65535" value="@mail.Port" dir="ltr"/>
-            </div>
-            <div class="settings-field">
-              <label>@Localizer["SMTP_Username"]</label>
-              <input name="Username" value="@mail.Username" maxlength="255" autocomplete="off" dir="ltr"/>
-            </div>
-            <div class="settings-field">
-              <label>@Localizer["SMTP_Password"]</label>
-              <input name="NewPassword" type="password" maxlength="500" autocomplete="new-password" placeholder="@(mail.HasPassword?Localizer["Password_Saved"].Value:"")"/>
-              <small class="account-field-hint muted">@Localizer["Password_Leave_Blank"]</small>
-            </div>
-            <div class="settings-field wide">
-              <label>@Localizer["SMTP_From"]</label>
-              <input name="From" type="email" value="@mail.From" maxlength="254" placeholder="orders@example.com" dir="ltr"/>
-            </div>
-          </div>
-          <div class="settings-card-footer">
-            <button type="submit" class="primary-button">@Localizer["Save_Email_Settings"]</button>
-          </div>
-        </form>
-      </section>
-
-      <!-- 5. Payment Gateway (NilePay) -->
+      <!-- 4. Payment Gateway (NilePay) -->
       <section id="payment" class="settings-section panel settings-card">
         <header class="settings-card-head settings-card-head-split">
           <div class="settings-card-title-group">
