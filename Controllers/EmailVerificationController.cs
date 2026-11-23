@@ -41,7 +41,7 @@ public sealed class EmailVerificationController(
         }
 
         AuthSession.ClearCheckout(HttpContext);
-        await signIn.SignInAsync(user, isPersistent: false);
+        await signIn.SignInAsync(user, isPersistent: true);
         if (verified.Admin)
         {
             HttpContext.User = await signIn.CreateUserPrincipalAsync(user);

@@ -163,7 +163,7 @@ public class AccountController(UserManager<IdentityUser> users, SignInManager<Id
             var isAdminHost = SubdomainRouting.IsAdminHost(HttpContext, opts);
             var result = otp.Enabled
                 ? await signIn.CheckPasswordSignInAsync(user, model.Password, lockoutOnFailure: true)
-                : await signIn.PasswordSignInAsync(user, model.Password, false, lockoutOnFailure: true);
+                : await signIn.PasswordSignInAsync(user, model.Password, isPersistent: true, lockoutOnFailure: true);
             if(result.Succeeded) {
                 if (otp.Enabled)
                 {
@@ -224,7 +224,7 @@ public class AccountController(UserManager<IdentityUser> users, SignInManager<Id
             TempData["Error"] = "Otp_Signup_Send_Failed";
             return RedirectToAction(nameof(Login), new { returnUrl = SafeReturn(model.ReturnUrl) });
         }
-        await signIn.SignInAsync(user,isPersistent:false);
+        await signIn.SignInAsync(user, isPersistent: true);
         return LocalRedirect(SafeReturn(model.ReturnUrl));
     }
     [HttpPost,ValidateAntiForgeryToken]

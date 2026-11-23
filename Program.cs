@@ -40,10 +40,15 @@ builder.Services.AddDefaultIdentity<IdentityUser>(options => {
     options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
     options.User.RequireUniqueEmail = true;
 }).AddRoles<IdentityRole>().AddEntityFrameworkStores<ApplicationDbContext>();
-builder.Services.Configure<SecurityStampValidatorOptions>(o => o.ValidationInterval = TimeSpan.FromMinutes(5));
+builder.Services.Configure<SecurityStampValidatorOptions>(o => o.ValidationInterval = TimeSpan.FromHours(8));
 builder.Services.ConfigureApplicationCookie(o => {
-    o.Cookie.HttpOnly = true; o.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-    o.Cookie.SameSite = SameSiteMode.Lax; o.ExpireTimeSpan = TimeSpan.FromHours(2);
+    o.Cookie.HttpOnly = true;
+    o.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    o.Cookie.SameSite = SameSiteMode.Lax;
+    o.Cookie.IsEssential = true;
+    o.Cookie.MaxAge = TimeSpan.FromDays(60);
+    o.ExpireTimeSpan = TimeSpan.FromDays(60);
+    o.SlidingExpiration = true;
     o.LoginPath = "/Account/Login";
     o.Events.OnRedirectToLogin = context => {
         var admin = context.Request.Path.StartsWithSegments("/Admin") || context.Request.Path.StartsWithSegments("/StoreAdmin");
@@ -88,15 +93,19 @@ builder.Services.AddMemoryCache();
 builder.Services.AddScoped<EmailOtp>();
 builder.Services.AddScoped<AccountMailSender>();
 builder.Services.AddSession(o => {
-    o.IdleTimeout = TimeSpan.FromMinutes(30); o.Cookie.HttpOnly = true;
-    o.Cookie.IsEssential = true; o.Cookie.SecurePolicy = CookieSecurePolicy.Always; o.Cookie.SameSite = SameSiteMode.Lax;
+    o.IdleTimeout = TimeSpan.FromDays(7);
+    o.Cookie.HttpOnly = true;
+    o.Cookie.IsEssential = true;
+    o.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    o.Cookie.SameSite = SameSiteMode.Lax;
 });
 builder.Services.AddAntiforgery(o => o.Cookie.SecurePolicy = CookieSecurePolicy.Always);
 builder.Services.AddHttpContextAccessor();
 var dataProtection = builder.Services.AddDataProtection().SetApplicationName("NileShop");
 var keyDirectory = builder.Configuration["DataProtection:KeysPath"];
-if (!string.IsNullOrWhiteSpace(keyDirectory))
-    dataProtection.PersistKeysToFileSystem(new DirectoryInfo(keyDirectory));
+if (string.IsNullOrWhiteSpace(keyDirectory))
+    keyDirectory = Path.Combine(builder.Environment.ContentRootPath, ".dataprotection-keys");
+dataProtection.PersistKeysToFileSystem(new DirectoryInfo(keyDirectory));
 builder.Services.AddScoped<AuditService>();
 builder.Services.AddScoped<CartService>();
 builder.Services.AddScoped<CatalogService>();

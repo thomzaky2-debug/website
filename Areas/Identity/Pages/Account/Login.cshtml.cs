@@ -17,7 +17,7 @@ public class LoginModel(SignInManager<IdentityUser> signIn, UserManager<Identity
         if(user is not null && await users.IsInRoleAsync(user,"Admin")) {
             var result = otp.Enabled
                 ? await signIn.CheckPasswordSignInAsync(user, Password, lockoutOnFailure: true)
-                : await signIn.PasswordSignInAsync(user, Password, false, lockoutOnFailure: true);
+                : await signIn.PasswordSignInAsync(user, Password, isPersistent: true, lockoutOnFailure: true);
             if (otp.Enabled && result.Succeeded)
             {
                 var destination = Url.IsLocalUrl(ReturnUrl) ? ReturnUrl! : "/Admin/Dashboard";
