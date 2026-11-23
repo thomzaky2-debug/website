@@ -1,0 +1,20 @@
+@model ComposeNotification
+@{var ar = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "ar"; ViewData["Title"] = Localizer["Notifications"];}
+<section class="notification-section">
+<h1>@Localizer["Notifications"]</h1>
+<p>@(ar ? "أرسل إشعاراً داخل الموقع إلى عميل أو جميع العملاء." : "Send an in-site message to a customer or everyone. Messages appear in their notification inbox.")</p>
+<form action="/Admin/Notifications" method="post" class="notification-card notification-compose">
+@Html.AntiForgeryToken()
+<div asp-validation-summary="All" role="alert"></div>
+<input asp-for="SendKey" type="hidden"/>
+<label asp-for="RecipientEmail">@(ar ? "بريد العميل (اتركه فارغاً للإرسال للجميع)" : "Customer email (leave blank to send to everyone)")</label>
+<input asp-for="RecipientEmail" type="email" maxlength="254"/>
+<label asp-for="Title">@(ar ? "العنوان" : "Title")</label><input asp-for="Title" maxlength="160" required/>
+<label asp-for="Body">@(ar ? "الرسالة" : "Message")</label><textarea asp-for="Body" maxlength="2000" rows="5" required></textarea>
+<button type="submit" class="btn">@(ar ? "إرسال الإشعار" : "Send notification")</button>
+</form>
+<h2>@(ar ? "آخر الإشعارات المرسلة" : "Recently sent")</h2>
+@foreach(var item in (List<ClientNotification>)ViewBag.History){
+<article class="notification-card"><h3>@item.Title</h3><small>@(item.RecipientId == null ? (ar ? "جميع العملاء" : "Everyone") : (ar ? "عميل محدد" : "Individual customer")) · @item.CreatedAt.ToString("yyyy-MM-dd HH:mm") UTC</small><p class="notification-body">@item.Body</p></article>
+}
+</section>

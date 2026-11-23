@@ -18,6 +18,18 @@ public static class DevelopmentSqlite
         if (shouldClose) await conn.OpenAsync();
         try
         {
+            await db.Database.ExecuteSqlRawAsync("""
+                CREATE TABLE IF NOT EXISTS ClientNotifications (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT, SendKey TEXT NOT NULL,
+                    RecipientId TEXT NULL REFERENCES AspNetUsers(Id), Title TEXT NOT NULL,
+                    Body TEXT NOT NULL, CreatedAt TEXT NOT NULL);
+                CREATE UNIQUE INDEX IF NOT EXISTS IX_ClientNotifications_SendKey ON ClientNotifications(SendKey);
+                CREATE INDEX IF NOT EXISTS IX_ClientNotifications_RecipientId_Id ON ClientNotifications(RecipientId, Id);
+                CREATE TABLE IF NOT EXISTS NotificationReads (
+                    NotificationId INTEGER NOT NULL REFERENCES ClientNotifications(Id) ON DELETE CASCADE,
+                    UserId TEXT NOT NULL REFERENCES AspNetUsers(Id), PRIMARY KEY (NotificationId, UserId));
+                CREATE INDEX IF NOT EXISTS IX_NotificationReads_UserId ON NotificationReads(UserId);
+                """);
             var categoryColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             await using (var cmd = conn.CreateCommand()) {
                 cmd.CommandText = "PRAGMA table_info('Categories');";

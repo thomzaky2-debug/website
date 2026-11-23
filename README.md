@@ -81,3 +81,11 @@ Read [SECURITY.md](SECURITY.md) for the review findings, checks and deployment r
 Authentication, session and antiforgery cookies require HTTPS. Behind a reverse proxy, configure forwarding only for trusted proxy addresses and retain HTTPS awareness. Persist ASP.NET Core Data Protection keys outside the webroot with access restricted to the application identity (and protected shared keys for multiple instances). An in-memory cart/session and per-process rate limiter are suitable for one application instance; use shared session storage and an edge/distributed limiter before scaling across instances.
 
 Existing administrator passwords are never reset from configuration during startup. Remove the bootstrap password after initial provisioning. Any credential previously committed must be rotated at its provider; deleting it from the current tree does not remove it from Git history. Keep deployment secrets, private certificates and local configuration out of publish archives.
+
+### Client notifications deployment
+
+Admin → Notifications sends plain-text in-site messages to everyone or a customer email address. Signed-in clients have an unread badge (refreshes every minute while the tab is visible), a paginated inbox, and asynchronous mark-as-read. Notifications do not use SMTP or browser push and do not appear outside the website. Broadcasts remain visible to future registered customers. Admin sending history shows the latest 30 messages.
+
+Before deploying this release, apply the `20261123195250_ClientNotifications` EF migration to SQL Server using a deployment identity. It creates the notification tables and reconciles the delivery settings/Delivered constraint previously added at startup. Schema alterations no longer run unconditionally on application startup. Generate a reviewed script with `.dotnet/dotnet ef migrations script 20261120010635_SupportedLtsSecurityBaseline 20261123195250_ClientNotifications --idempotent --output notifications-deploy.sql`. Back up the database before applying. The local SQLite development schema is upgraded automatically.
+
+Verification uses `.dotnet/dotnet run --project tests/CheckoutChecks.csproj` and `python3 tests/email_otp_http.py` after building. The latter uses an isolated local TLS mail server and database; it does not send messages to real customers.

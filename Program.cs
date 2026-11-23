@@ -40,7 +40,7 @@ builder.Services.AddDefaultIdentity<IdentityUser>(options => {
     options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
     options.User.RequireUniqueEmail = true;
 }).AddRoles<IdentityRole>().AddEntityFrameworkStores<ApplicationDbContext>();
-builder.Services.Configure<SecurityStampValidatorOptions>(o => o.ValidationInterval = TimeSpan.FromHours(8));
+builder.Services.Configure<SecurityStampValidatorOptions>(o => o.ValidationInterval = TimeSpan.FromMinutes(5));
 builder.Services.ConfigureApplicationCookie(o => {
     o.Cookie.HttpOnly = true;
     o.Cookie.SecurePolicy = CookieSecurePolicy.Always;
@@ -180,35 +180,7 @@ await using (var scope = app.Services.CreateAsyncScope()) {
     }
     else {
         if (builder.Configuration.GetValue("Database:ApplyMigrationsOnStartup", false)) await db.Database.MigrateAsync();
-        try {
-            await db.Database.ExecuteSqlRawAsync("""
-                IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('StoreSettings') AND name = 'CheckoutSessionLifetimeMinutes')
-                BEGIN
-                    ALTER TABLE StoreSettings ADD CheckoutSessionLifetimeMinutes INT NOT NULL CONSTRAINT DF_StoreSettings_Lifetime DEFAULT 15;
-                END
-                IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('StoreSettings') AND name = 'FreeDeliveryOfferEnabled')
-                BEGIN
-                    ALTER TABLE StoreSettings ADD FreeDeliveryOfferEnabled BIT NOT NULL CONSTRAINT DF_StoreSettings_FreeDeliveryEnabled DEFAULT 0;
-                END
-                IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('StoreSettings') AND name = 'FreeDeliveryOfferThreshold')
-                BEGIN
-                    ALTER TABLE StoreSettings ADD FreeDeliveryOfferThreshold DECIMAL(18,2) NOT NULL CONSTRAINT DF_StoreSettings_FreeDeliveryThreshold DEFAULT 0;
-                END
-                IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('StoreSettings') AND name = 'FreeDeliveryOfferLabelEn')
-                BEGIN
-                    ALTER TABLE StoreSettings ADD FreeDeliveryOfferLabelEn NVARCHAR(200) NULL;
-                END
-                IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('StoreSettings') AND name = 'FreeDeliveryOfferLabelAr')
-                BEGIN
-                    ALTER TABLE StoreSettings ADD FreeDeliveryOfferLabelAr NVARCHAR(200) NULL;
-                END
-                IF EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_Order_Status' AND definition NOT LIKE '%Delivered%')
-                BEGIN
-                    ALTER TABLE [Orders] DROP CONSTRAINT [CK_Order_Status];
-                    ALTER TABLE [Orders] ADD CONSTRAINT [CK_Order_Status] CHECK ([Status] IN ('Pending','Processing','Shipped','Delivered','Cancelled'));
-                END
-            """);
-        } catch { }
+
     }
     await DbInitializer.InitializeAsync(scope.ServiceProvider, builder.Configuration);
 }

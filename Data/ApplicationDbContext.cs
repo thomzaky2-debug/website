@@ -4,6 +4,8 @@ using Microsoft.EntityFrameworkCore;
 namespace NileShop.Data;
 public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : IdentityDbContext(options)
 {
+    public DbSet<ClientNotification> ClientNotifications => Set<ClientNotification>();
+    public DbSet<NotificationRead> NotificationReads => Set<NotificationRead>();
     public DbSet<SavedProduct> SavedProducts => Set<SavedProduct>();
     public DbSet<ProductReview> ProductReviews => Set<ProductReview>();
     public DbSet<WalletTransaction> WalletTransactions => Set<WalletTransaction>();
@@ -24,6 +26,12 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     protected override void OnModelCreating(ModelBuilder b)
     {
         base.OnModelCreating(b);
+        b.Entity<ClientNotification>().HasIndex(n => n.SendKey).IsUnique();
+        b.Entity<ClientNotification>().HasIndex(n => new { n.RecipientId, n.Id });
+        b.Entity<ClientNotification>().HasOne<Microsoft.AspNetCore.Identity.IdentityUser>().WithMany().HasForeignKey(n => n.RecipientId).OnDelete(DeleteBehavior.Restrict);
+        b.Entity<NotificationRead>().HasKey(n => new { n.NotificationId, n.UserId });
+        b.Entity<NotificationRead>().HasOne(n => n.Notification).WithMany(n => n.Reads).HasForeignKey(n => n.NotificationId);
+        b.Entity<NotificationRead>().HasOne<Microsoft.AspNetCore.Identity.IdentityUser>().WithMany().HasForeignKey(n => n.UserId).OnDelete(DeleteBehavior.Restrict);
         b.Entity<SavedProduct>().HasKey(x=>new{x.UserId,x.ProductId});
         b.Entity<SavedProduct>().HasOne<Microsoft.AspNetCore.Identity.IdentityUser>().WithMany().HasForeignKey(x=>x.UserId).OnDelete(DeleteBehavior.Restrict);
         b.Entity<SavedProduct>().HasOne(x=>x.Product).WithMany().OnDelete(DeleteBehavior.Restrict);

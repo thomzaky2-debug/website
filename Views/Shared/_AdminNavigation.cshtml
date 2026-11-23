@@ -9,6 +9,7 @@
     (Controller:"StoreAdmin",Action:"Reviews",Title:"Review_Moderation",Active:controller=="StoreAdmin" && action=="Reviews"),
     (Controller:"StoreAdmin",Action:"Reports",Title:"Sales_Reports",Active:controller=="StoreAdmin" && action=="Reports"),
     (Controller:"StoreAdmin",Action:"Settings",Title:"Store_Settings",Active:controller=="StoreAdmin" && action=="Settings"),
+    (Controller:"Notifications",Action:"Manage",Title:"Notifications",Active:controller=="Notifications"),
     (Controller:"Admin",Action:"AuditLogs",Title:"Logs",Active:controller=="Admin" && action=="AuditLogs")}){
     <a asp-controller="@destination.Controller" asp-action="@destination.Action" aria-current="@(destination.Active?"page":null)">@Localizer[destination.Title]</a>
 }

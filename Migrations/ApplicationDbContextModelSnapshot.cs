@@ -352,6 +352,64 @@ namespace NileShop.Migrations
                         });
                 });
 
+            modelBuilder.Entity("NileShop.Models.ClientNotification", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("RecipientId")
+                        .HasMaxLength(450)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<Guid>("SendKey")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SendKey")
+                        .IsUnique();
+
+                    b.HasIndex("RecipientId", "Id");
+
+                    b.ToTable("ClientNotifications");
+                });
+
+            modelBuilder.Entity("NileShop.Models.NotificationRead", b =>
+                {
+                    b.Property<int>("NotificationId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UserId")
+                        .HasMaxLength(450)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("NotificationId", "UserId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("NotificationReads");
+                });
+
             modelBuilder.Entity("NileShop.Models.Order", b =>
                 {
                     b.Property<int>("Id")
@@ -502,7 +560,7 @@ namespace NileShop.Migrations
 
                     b.ToTable("Orders", t =>
                         {
-                            t.HasCheckConstraint("CK_Order_Status", "[Status] IN ('Pending','Processing','Shipped','Cancelled')");
+                            t.HasCheckConstraint("CK_Order_Status", "[Status] IN ('Pending','Processing','Shipped','Delivered','Cancelled')");
                         });
                 });
 
@@ -1010,6 +1068,9 @@ namespace NileShop.Migrations
                         .IsUnicode(true)
                         .HasColumnType("nvarchar(500)");
 
+                    b.Property<int>("CheckoutSessionLifetimeMinutes")
+                        .HasColumnType("int");
+
                     b.Property<string>("ContactEmail")
                         .HasMaxLength(254)
                         .IsUnicode(true)
@@ -1034,6 +1095,22 @@ namespace NileShop.Migrations
                         .HasMaxLength(500)
                         .IsUnicode(true)
                         .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool>("FreeDeliveryOfferEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("FreeDeliveryOfferLabelAr")
+                        .HasMaxLength(200)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("FreeDeliveryOfferLabelEn")
+                        .HasMaxLength(200)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<decimal>("FreeDeliveryOfferThreshold")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("HeroImageUrl")
                         .HasMaxLength(500)
@@ -1189,6 +1266,31 @@ namespace NileShop.Migrations
                     b.Navigation("Category");
                 });
 
+            modelBuilder.Entity("NileShop.Models.ClientNotification", b =>
+                {
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
+                        .WithMany()
+                        .HasForeignKey("RecipientId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("NileShop.Models.NotificationRead", b =>
+                {
+                    b.HasOne("NileShop.Models.ClientNotification", "Notification")
+                        .WithMany("Reads")
+                        .HasForeignKey("NotificationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Notification");
+                });
+
             modelBuilder.Entity("NileShop.Models.Order", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityUser", null)
@@ -1337,6 +1439,11 @@ namespace NileShop.Migrations
                     b.Navigation("Products");
 
                     b.Navigation("Translations");
+                });
+
+            modelBuilder.Entity("NileShop.Models.ClientNotification", b =>
+                {
+                    b.Navigation("Reads");
                 });
 
             modelBuilder.Entity("NileShop.Models.Order", b =>

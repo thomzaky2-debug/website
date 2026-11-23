@@ -24,6 +24,8 @@
   <meta name="twitter:card" content="summary_large_image" />
   <script nonce="@Context.Items["CspNonce"]" type="application/ld+json">{ "@@context": "https://schema.org", "@@type": "WebSite", "name": "Chic & Unique", "url": "@Context.Request.Scheme://@Context.Request.Host" }</script>
   @if (ViewData["JsonLd"] != null) {<script nonce="@Context.Items["CspNonce"]" type="application/ld+json">@Html.Raw(ViewData["JsonLd"])</script>}
+<link rel="stylesheet" href="~/assets/css/notifications.css" asp-append-version="true"/>
+<script src="~/assets/js/notifications.js" asp-append-version="true" defer></script>
 </head>
 <body class="@(LanguagePreferences.IsAdminContext(Context)?"admin-site":"storefront-site")" data-async-error="@Localizer["Async_Update_Error"]" data-async-session="@Localizer["Async_Session_Expired"]" data-show-password="@Localizer["Show_Password"]" data-hide-password="@Localizer["Hide_Password"]" data-cart-added="@Localizer["Cart_Added"]" data-link-copied="@Localizer["Studio_Link_Copied"]" data-copy-error="@Localizer["Studio_Copy_Error"]">
 <a class="skip" href="#main">@Localizer["Skip_Content"]</a>
@@ -48,6 +50,7 @@
     <a asp-controller="Saved" asp-action="Index" aria-current="@(currentController=="Saved"?"page":null)">@Localizer["Saved_Items"]</a>
     <a class="cart-link" asp-controller="Cart" asp-action="Index" aria-current="@(currentController=="Cart"?"page":null)">@Localizer["Nav_Cart"] <span class="cart-count">@Cart.Count</span></a>
     }
+    @if(!admin && User.Identity?.IsAuthenticated == true){<a href="/Account/Notifications">@Localizer["Notifications"] <span class="notification-badge" data-notification-count aria-live="polite" hidden></span></a>}
     @if(admin){<partial name="_AdminNavigation"/><form asp-area="Identity" asp-page="/Account/Logout" method="post"><button>@Localizer["Nav_Logout"]</button></form>}
     @if(!admin){if(User.Identity?.IsAuthenticated==true){<a asp-controller="Account" asp-action="Orders" aria-current="@(currentController=="Account" && currentAction=="Orders"?"page":null)">@Localizer["My_Orders"]</a><a asp-controller="Account" asp-action="Wallet" aria-current="@(currentController=="Account" && currentAction=="Wallet"?"page":null)">@Localizer["Wallet"]</a><a asp-controller="Account" asp-action="Index" aria-current="@(currentController=="Account" && currentAction=="Index"?"page":null)">@Localizer["Your_Account"]</a><form asp-controller="Account" asp-action="Logout" method="post"><button>@Localizer["Nav_Logout"]</button></form>}else{<a asp-controller="Account" asp-action="Login">@Localizer["Customer_Login"]</a><a class="customer-signup" asp-controller="Account" asp-action="Register">@Localizer["Customer_Signup"]</a>}}
     <button class="dark-mode-toggle" type="button" aria-label="@Localizer["Studio_Theme"]"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>

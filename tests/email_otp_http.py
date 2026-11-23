@@ -59,7 +59,7 @@ class MailFixture(socketserver.StreamRequestHandler):
 def otp_for(email):
     message = Parser(policy=policy.default).parsestr(messages.get(timeout=10))
     assert message['To'] == email
-    return re.search(r'Verification code: (\d{6})', message.get_content())[1]
+    return re.search(r'رمز التحقق: (\d{6})', message.get_content())[1]
 
 
 with tempfile.TemporaryDirectory() as directory:
@@ -139,6 +139,35 @@ with tempfile.TemporaryDirectory() as directory:
                 assert admin.req(route, {'code': otp_for(admin_email),
                                          '__RequestVerificationToken': token(verify)})[2].endswith('/Admin/Dashboard')
                 print('PASS admin dashboard stays restricted until verification', flush=True)
+
+                # Admin-only publishing, durable inboxes, ownership and anti-forgery checks.
+                import uuid
+                assert '/Account/Login' in other.req('/Account/Notifications')[2]
+                assert 'notification-compose' not in customer.req('/Admin/Notifications')[1]
+                _, compose, _ = admin.req('/Admin/Notifications')
+                key = str(uuid.uuid4())
+                payload = {'SendKey': key, 'Title': 'Private <script>alert(1)</script>',
+                           'Body': 'Customer-only message', 'RecipientEmail': customer_email,
+                           '__RequestVerificationToken': token(compose)}
+                assert admin.req('/Admin/Notifications', payload)[0] == 200
+                admin.req('/Admin/Notifications', payload)
+                with sqlite3.connect(folder / 'otp.db') as db:
+                    assert db.execute('SELECT COUNT(*) FROM ClientNotifications').fetchone()[0] == 1
+                    notification_id = db.execute('SELECT Id FROM ClientNotifications').fetchone()[0]
+                _, inbox, _ = customer.req('/Account/Notifications')
+                assert 'Customer-only message' in inbox and '<script>alert(1)</script>' not in inbox
+                assert customer.req('/Account/Notifications/Read', {'id': notification_id})[0] == 400
+                assert admin.req('/Account/Notifications/Read', {'id': notification_id,
+                    '__RequestVerificationToken': token(compose)})[0] == 404
+                assert customer.req('/Account/Notifications/Read', {'id': notification_id,
+                    '__RequestVerificationToken': token(inbox)})[0] == 200
+                import json
+                assert json.loads(customer.req('/Account/Notifications/Unread')[1])['count'] == 0
+                payload.update(SendKey=str(uuid.uuid4()), RecipientEmail='', Title='Store announcement', Body='For everyone')
+                admin.req('/Admin/Notifications', payload)
+                assert json.loads(customer.req('/Account/Notifications/Unread')[1])['count'] == 1
+                assert 'For everyone' in customer.req('/Account/Notifications')[1]
+                print('PASS notification broadcast, targeting, read state, replay protection, escaping and CSRF', flush=True)
 
                 from urllib.parse import parse_qs, urlsplit
 
