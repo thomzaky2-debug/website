@@ -145,6 +145,17 @@ with tempfile.TemporaryDirectory() as directory:
                 assert '/Account/Login' in other.req('/Account/Notifications')[2]
                 assert 'notification-compose' not in customer.req('/Admin/Notifications')[1]
                 _, compose, _ = admin.req('/Admin/Notifications')
+                import json
+                found = json.loads(admin.req('/Admin/Notifications/Customers?q=OTP')[1])
+                assert any(c['email'] == customer_email for c in found)
+                assert all(c['email'] != admin_email for c in found)
+                assert '"email"' not in customer.req('/Admin/Notifications/Customers?q=OTP')[1]
+                _, invalid_recipient, _ = admin.req('/Admin/Notifications', {
+                    'SendKey': str(uuid.uuid4()), 'Audience': 'customer', 'Title': 'Missing recipient',
+                    'Body': 'Must not broadcast', '__RequestVerificationToken': token(compose)})
+                assert 'Choose a customer.' in invalid_recipient
+                with sqlite3.connect(folder / 'otp.db') as db:
+                    assert db.execute('SELECT COUNT(*) FROM ClientNotifications').fetchone()[0] == 0
                 key = str(uuid.uuid4())
                 payload = {'SendKey': key, 'Title': 'Private <script>alert(1)</script>',
                            'Body': 'Customer-only message', 'RecipientEmail': customer_email,
@@ -163,7 +174,7 @@ with tempfile.TemporaryDirectory() as directory:
                     '__RequestVerificationToken': token(inbox)})[0] == 200
                 import json
                 assert json.loads(customer.req('/Account/Notifications/Unread')[1])['count'] == 0
-                payload.update(SendKey=str(uuid.uuid4()), RecipientEmail='', Title='Store announcement', Body='For everyone')
+                payload.update(SendKey=str(uuid.uuid4()), Audience='everyone', RecipientEmail='', Title='Store announcement', Body='For everyone')
                 admin.req('/Admin/Notifications', payload)
                 assert json.loads(customer.req('/Account/Notifications/Unread')[1])['count'] == 1
                 assert 'For everyone' in customer.req('/Account/Notifications')[1]

@@ -1,20 +1,33 @@
 @model ComposeNotification
 @{var ar = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "ar"; ViewData["Title"] = Localizer["Notifications"];}
-<section class="notification-section">
-<h1>@Localizer["Notifications"]</h1>
-<p>@(ar ? "أرسل إشعاراً داخل الموقع إلى عميل أو جميع العملاء." : "Send an in-site message to a customer or everyone. Messages appear in their notification inbox.")</p>
-<form action="/Admin/Notifications" method="post" class="notification-card notification-compose">
+<section class="notification-section notification-admin">
+<header><p class="notification-eyebrow">@(ar ? "تواصل مع عملائك" : "CUSTOMER MESSAGES")</p><h1>@Localizer["Notifications"]</h1><p>@(ar ? "اختر المستلم، اكتب رسالتك، ثم أرسلها إلى صندوق إشعاراته." : "Choose your audience, write a message, and send it to their inbox.")</p></header>
+<div class="notification-workspace">
+<form action="/Admin/Notifications" method="post" class="notification-card notification-compose" data-notification-compose>
 @Html.AntiForgeryToken()
-<div asp-validation-summary="All" role="alert"></div>
-<input asp-for="SendKey" type="hidden"/>
-<label asp-for="RecipientEmail">@(ar ? "بريد العميل (اتركه فارغاً للإرسال للجميع)" : "Customer email (leave blank to send to everyone)")</label>
-<input asp-for="RecipientEmail" type="email" maxlength="254"/>
-<label asp-for="Title">@(ar ? "العنوان" : "Title")</label><input asp-for="Title" maxlength="160" required/>
-<label asp-for="Body">@(ar ? "الرسالة" : "Message")</label><textarea asp-for="Body" maxlength="2000" rows="5" required></textarea>
-<button type="submit" class="btn">@(ar ? "إرسال الإشعار" : "Send notification")</button>
+<div asp-validation-summary="All" role="alert"></div><input asp-for="SendKey" type="hidden"/>
+<fieldset><legend>1 · @(ar ? "إلى من؟" : "Who is this for?")</legend>
+<div class="notification-audiences">
+<label><input asp-for="Audience" type="radio" value="customer"/> <span>@(ar ? "اختر عميلاً" : "Choose a customer")<small>@(ar ? "رسالة خاصة لعميل واحد" : "A private message to one person")</small></span></label>
+<label><input asp-for="Audience" type="radio" value="everyone"/> <span>@(ar ? "جميع العملاء" : "Everyone")<small>@(ar ? "إعلان لجميع العملاء" : "An announcement for all customers")</small></span></label>
+</div>
+<div data-customer-picker>
+<label for="customer-search">@(ar ? "البحث بالاسم أو البريد الإلكتروني" : "Find by name or email")</label>
+<input id="customer-search" type="search" maxlength="100" autocomplete="off" placeholder="@(ar ? "ابدأ كتابة اسم العميل…" : "Start typing a customer's name…")" aria-controls="customer-results"/>
+<div id="customer-results" class="notification-results" aria-live="polite"></div>
+<label asp-for="RecipientEmail">@(ar ? "العميل المختار" : "Selected customer")</label><input asp-for="RecipientEmail" type="email" maxlength="254" placeholder="@(ar ? "اختر نتيجة أو أدخل البريد" : "Choose a result or enter an email")"/>
+</div>
+<p data-broadcast-note hidden>@(ar ? "سيظهر هذا الإعلان لجميع العملاء، بما في ذلك الحسابات الجديدة." : "This announcement will be visible to everyone, including future customers.")</p>
+</fieldset>
+<fieldset><legend>2 · @(ar ? "رسالتك" : "Your message")</legend>
+<label asp-for="Title">@(ar ? "العنوان" : "Title")</label><input asp-for="Title" maxlength="160" required placeholder="@(ar ? "مثال: وصلت مجموعتنا الجديدة" : "For example, our new collection is here")"/>
+<label asp-for="Body">@(ar ? "الرسالة" : "Message")</label><textarea asp-for="Body" maxlength="2000" rows="5" required placeholder="@(ar ? "ما الذي تود إخبار عميلك به؟" : "What would you like your customer to know?")"></textarea><small data-message-count>0 / 2000</small>
+</fieldset>
+<button type="submit" class="notification-send">@(ar ? "إرسال الإشعار" : "Send notification")</button>
 </form>
+<aside class="notification-card notification-preview"><p class="notification-eyebrow">@(ar ? "معاينة مباشرة" : "LIVE PREVIEW")</p><p data-preview-recipient>@(ar ? "اختر المستلم" : "Choose a recipient")</p><h2 data-preview-title>@(ar ? "عنوان الإشعار" : "Your notification title")</h2><p class="notification-body" data-preview-body>@(ar ? "ستظهر رسالتك هنا أثناء الكتابة." : "Your message will appear here as you type.")</p><small>@(ar ? "إشعار داخل الموقع" : "Delivered to the website inbox")</small></aside>
+</div>
 <h2>@(ar ? "آخر الإشعارات المرسلة" : "Recently sent")</h2>
-@foreach(var item in (List<ClientNotification>)ViewBag.History){
-<article class="notification-card"><h3>@item.Title</h3><small>@(item.RecipientId == null ? (ar ? "جميع العملاء" : "Everyone") : (ar ? "عميل محدد" : "Individual customer")) · @item.CreatedAt.ToString("yyyy-MM-dd HH:mm") UTC</small><p class="notification-body">@item.Body</p></article>
-}
+@if(((List<ClientNotification>)ViewBag.History).Count == 0){<p>@(ar ? "لم ترسل أي إشعارات بعد." : "No messages sent yet. Your sent messages will appear here.")</p>}
+@foreach(var item in (List<ClientNotification>)ViewBag.History){<article class="notification-card"><h3>@item.Title</h3><small>@(item.RecipientId == null ? (ar ? "جميع العملاء" : "Everyone") : (((Dictionary<string, string>)ViewBag.Recipients).GetValueOrDefault(item.RecipientId) ?? (ar ? "رسالة خاصة" : "Private message"))) · @item.CreatedAt.ToString("yyyy-MM-dd HH:mm") UTC</small><p class="notification-body">@item.Body</p></article>}
 </section>

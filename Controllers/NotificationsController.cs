@@ -36,10 +36,31 @@ public class NotificationsController(ApplicationDbContext db, UserManager<Identi
         if (Request.Headers.Accept.ToString().Contains("application/json")) return Json(new { success = true });
         return RedirectToAction(nameof(Index));
     }
+    async Task LoadHistory()
+    {
+        var history = await db.ClientNotifications.AsNoTracking().OrderByDescending(n => n.Id).Take(30).ToListAsync();
+        var ids = history.Where(n => n.RecipientId != null).Select(n => n.RecipientId!).Distinct().ToArray();
+        ViewBag.History = history;
+        ViewBag.Recipients = await db.Users.AsNoTracking().Where(u => ids.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.Email ?? "");
+    }
+    [Authorize(Roles = "Admin"), HttpGet("/Admin/Notifications/Customers")]
+    public async Task<IActionResult> Customers(string? q)
+    {
+        q = q?.Trim();
+        if (q?.Length > 100) return BadRequest();
+        var customers = db.Users.AsNoTracking().Where(u => u.Email != null &&
+            !db.UserRoles.Any(ur => ur.UserId == u.Id && db.Roles.Any(r => r.Id == ur.RoleId && r.Name == "Admin")));
+        if (!string.IsNullOrEmpty(q)) customers = customers.Where(u => u.Email!.Contains(q) ||
+            db.UserClaims.Any(c => c.UserId == u.Id && c.ClaimType == NileShop.ViewModels.CustomerProfileViewModel.FullNameClaim && c.ClaimValue != null && c.ClaimValue.Contains(q)));
+        return Json(await customers.OrderBy(u => u.Email).Take(20).Select(u => new {
+            email = u.Email,
+            name = db.UserClaims.Where(c => c.UserId == u.Id && c.ClaimType == NileShop.ViewModels.CustomerProfileViewModel.FullNameClaim).OrderBy(c => c.Id).Select(c => c.ClaimValue).FirstOrDefault() ?? u.Email
+        }).ToListAsync(HttpContext.RequestAborted));
+    }
     [Authorize(Roles = "Admin"), HttpGet("/Admin/Notifications")]
     public async Task<IActionResult> Manage()
     {
-        ViewBag.History = await db.ClientNotifications.AsNoTracking().OrderByDescending(n => n.Id).Take(30).ToListAsync();
+        await LoadHistory();
         return View(new ComposeNotification());
     }
     [Authorize(Roles = "Admin"), HttpPost("/Admin/Notifications")]
@@ -47,14 +68,17 @@ public class NotificationsController(ApplicationDbContext db, UserManager<Identi
     {
         IdentityUser? recipient = null;
         if (model.SendKey == Guid.Empty) ModelState.AddModelError("", "Invalid submission. Reload the page.");
-        if (!string.IsNullOrWhiteSpace(model.RecipientEmail))
+        if (model.Audience == "everyone") model.RecipientEmail = null;
+        if (model.Audience == "customer" && string.IsNullOrWhiteSpace(model.RecipientEmail))
+            ModelState.AddModelError(nameof(model.RecipientEmail), "Choose a customer. / اختر عميلاً");
+        if (model.Audience == "customer" && !string.IsNullOrWhiteSpace(model.RecipientEmail))
         {
             recipient = await users.FindByEmailAsync(model.RecipientEmail.Trim());
             if (recipient is null || await users.IsInRoleAsync(recipient, "Admin")) ModelState.AddModelError(nameof(model.RecipientEmail), "Customer email was not found. / البريد الإلكتروني للعميل غير موجود");
         }
         if (!ModelState.IsValid)
         {
-            ViewBag.History = await db.ClientNotifications.AsNoTracking().OrderByDescending(n => n.Id).Take(30).ToListAsync();
+            await LoadHistory();
             return View("Manage", model);
         }
         if (!await db.ClientNotifications.AnyAsync(n => n.SendKey == model.SendKey))

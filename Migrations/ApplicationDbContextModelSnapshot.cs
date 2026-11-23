@@ -395,17 +395,27 @@ namespace NileShop.Migrations
 
             modelBuilder.Entity("NileShop.Models.NotificationRead", b =>
                 {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
                     b.Property<int>("NotificationId")
                         .HasColumnType("int");
 
                     b.Property<string>("UserId")
+                        .IsRequired()
                         .HasMaxLength(450)
                         .IsUnicode(true)
                         .HasColumnType("nvarchar(450)");
 
-                    b.HasKey("NotificationId", "UserId");
+                    b.HasKey("Id");
 
                     b.HasIndex("UserId");
+
+                    b.HasIndex("NotificationId", "UserId")
+                        .IsUnique();
 
                     b.ToTable("NotificationReads");
                 });

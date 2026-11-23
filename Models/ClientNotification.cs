@@ -19,6 +19,7 @@ public class NotificationRead
 public class ComposeNotification
 {
     public Guid SendKey { get; set; } = Guid.NewGuid();
+    [Required, RegularExpression("^(customer|everyone)$")] public string Audience { get; set; } = "customer";
     [EmailAddress, MaxLength(254)] public string? RecipientEmail { get; set; }
     [Required, StringLength(160)] public string Title { get; set; } = "";
     [Required, StringLength(2000)] public string Body { get; set; } = "";

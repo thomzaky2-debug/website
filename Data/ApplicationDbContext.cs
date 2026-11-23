@@ -29,7 +29,15 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         b.Entity<ClientNotification>().HasIndex(n => n.SendKey).IsUnique();
         b.Entity<ClientNotification>().HasIndex(n => new { n.RecipientId, n.Id });
         b.Entity<ClientNotification>().HasOne<Microsoft.AspNetCore.Identity.IdentityUser>().WithMany().HasForeignKey(n => n.RecipientId).OnDelete(DeleteBehavior.Restrict);
-        b.Entity<NotificationRead>().HasKey(n => new { n.NotificationId, n.UserId });
+        if (Database.IsSqlite())
+            b.Entity<NotificationRead>().HasKey(n => new { n.NotificationId, n.UserId });
+        else
+        {
+            // Keep the clustered/primary key below SQL Server's 900-byte limit.
+            b.Entity<NotificationRead>().Property<int>("Id").ValueGeneratedOnAdd();
+            b.Entity<NotificationRead>().HasKey("Id");
+            b.Entity<NotificationRead>().HasIndex(n => new { n.NotificationId, n.UserId }).IsUnique();
+        }
         b.Entity<NotificationRead>().HasOne(n => n.Notification).WithMany(n => n.Reads).HasForeignKey(n => n.NotificationId);
         b.Entity<NotificationRead>().HasOne<Microsoft.AspNetCore.Identity.IdentityUser>().WithMany().HasForeignKey(n => n.UserId).OnDelete(DeleteBehavior.Restrict);
         b.Entity<SavedProduct>().HasKey(x=>new{x.UserId,x.ProductId});
