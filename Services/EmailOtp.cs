@@ -38,8 +38,8 @@ public sealed class EmailOtp(
         if (string.IsNullOrWhiteSpace(user.Email) || user.SecurityStamp is null) return false;
         var code = RandomNumberGenerator.GetInt32(1_000_000).ToString("D6", CultureInfo.InvariantCulture);
         var key = "email-otp:" + Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
-        var sent = await mail.SendAsync(user.Email, "Chic & Unique | Verification code / رمز التحقق",
-            $"Verification code: {code}\nThis code expires in 10 minutes. If you did not request it, ignore this email.\n\nرمز التحقق: {code}\nتنتهي صلاحية الرمز بعد عشر دقائق. تجاهل الرسالة إذا لم تطلب الرمز.",
+        var sent = await mail.SendAsync(user.Email, "Chic & Unique | رمز التحقق",
+            $"رمز التحقق: {code}\nتنتهي صلاحية الرمز بعد 10 دقائق. تجاهل هذه الرسالة إذا لم تطلب الرمز.",
             context.RequestAborted);
         if (!sent) return false;
         cache.Set(key, new Challenge(new Verified(user.Id, user.SecurityStamp, destination, admin),

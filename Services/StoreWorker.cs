@@ -79,9 +79,20 @@ public class StoreWorker(IServiceScopeFactory scopes, IConfiguration config, ILo
             try {
                 using var transport = new SmtpClient(smtp.Host.Trim(), smtp.Port) { EnableSsl = smtp.EnableSsl, UseDefaultCredentials = false, Timeout = 20000 };
                 if (!string.IsNullOrEmpty(smtp.Username)) transport.Credentials = new NetworkCredential(smtp.Username.Trim(), smtp.Password);
+                var statusAr = email.Kind switch {
+                    "Paid" => "تم تأكيد الدفع",
+                    "Overpaid" => "تم تأكيد الدفع (مبلغ إضافي)",
+                    "Confirmed" => "تم تأكيد الطلب",
+                    "Processing" => "قيد التجهيز",
+                    "Shipped" => "تم الشحن",
+                    "Delivered" => "تم التوصيل",
+                    "Cancelled" => "تم الإلغاء",
+                    "Refunded" => "تم الاسترداد",
+                    _ => email.Kind
+                };
                 using var message = new MailMessage(smtp.From, email.Order.CustomerEmail) {
-                    Subject = $"NileShop · {email.Order.OrderNumber} · {email.Kind}",
-                    Body = $"NileShop\nOrder / الطلب: {email.Order.OrderNumber}\nUpdate / التحديث: {email.Kind}\nTotal / الإجمالي: {email.Order.TotalAmount:0.00} EGP\n\nTrack your order / تتبع طلبك:\n{site.TrimEnd('/')}/orders/track?token={email.Order.PaymentAccessToken}\n\nKeep this private tracking link secure. احتفظ برابط التتبع الخاص بك."
+                    Subject = $"Chic & Unique · الطلب {email.Order.OrderNumber} · {statusAr}",
+                    Body = $"Chic & Unique\nرقم الطلب: {email.Order.OrderNumber}\nحالة الطلب: {statusAr}\nالإجمالي: {email.Order.TotalAmount:0.00} ج.م\n\nتتبع طلبك:\n{site.TrimEnd('/')}/orders/track?token={email.Order.PaymentAccessToken}\n\nاحتفظ برابط التتبع الخاص بك في مكان آمن."
                 };
                 message.Headers.Add("Message-ID", $"<nileshop-order-{email.OrderId}-{email.Kind}@{origin.Host}>");
                 await transport.SendMailAsync(message, ct);
