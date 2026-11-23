@@ -86,7 +86,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             t.HasCheckConstraint("CK_Product_Price", "[Price] >= 0 AND ([OldPrice] IS NULL OR [OldPrice] >= [Price])");
             t.HasCheckConstraint("CK_Product_Stock", "[StockQuantity] >= 0");
         });
-        b.Entity<Order>().ToTable(t => t.HasCheckConstraint("CK_Order_Status", "[Status] IN ('Pending','Processing','Shipped','Cancelled')"));
+        b.Entity<Order>().ToTable(t => t.HasCheckConstraint("CK_Order_Status", "[Status] IN ('Pending','Processing','Shipped','Delivered','Cancelled')"));
         b.Entity<OrderItem>().ToTable(t => t.HasCheckConstraint("CK_OrderItem_Quantity", "[Quantity] > 0 AND [UnitPrice] >= 0"));
         foreach (var p in b.Model.GetEntityTypes().SelectMany(e => e.GetProperties()).Where(p => p.ClrType == typeof(string))) p.SetIsUnicode(true);
     }

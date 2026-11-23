@@ -202,6 +202,11 @@ await using (var scope = app.Services.CreateAsyncScope()) {
                 BEGIN
                     ALTER TABLE StoreSettings ADD FreeDeliveryOfferLabelAr NVARCHAR(200) NULL;
                 END
+                IF EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_Order_Status' AND definition NOT LIKE '%Delivered%')
+                BEGIN
+                    ALTER TABLE [Orders] DROP CONSTRAINT [CK_Order_Status];
+                    ALTER TABLE [Orders] ADD CONSTRAINT [CK_Order_Status] CHECK ([Status] IN ('Pending','Processing','Shipped','Delivered','Cancelled'));
+                END
             """);
         } catch { }
     }
