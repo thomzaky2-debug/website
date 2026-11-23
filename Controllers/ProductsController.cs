@@ -1,5 +1,6 @@
 using NileShop.Services;
 using NileShop.Data;
+using NileShop.Models;
 using System.Security.Claims;
 using System.Text.Json;
 using NileShop.ViewModels;
@@ -27,7 +28,7 @@ public class ProductsController(CatalogService catalog, ApplicationDbContext db)
         var shipping=await db.ShippingMethods.AsNoTracking().Where(s=>s.IsActive).OrderBy(s=>s.Fee).Take(5).ToListAsync();
         ViewData["Reviews"]=await db.ProductReviews.AsNoTracking().Where(r=>r.ProductId==p.Id&&r.IsApproved).OrderByDescending(r=>r.CreatedAt).Take(20).ToListAsync();
         var userId=User.FindFirstValue(ClaimTypes.NameIdentifier);
-        ViewData["CanReview"]=userId!=null && !await db.ProductReviews.AnyAsync(r=>r.ProductId==p.Id&&r.UserId==userId) && await db.Orders.AnyAsync(o=>o.CustomerUserId==userId&&(o.PaymentStatus=="Paid"||o.PaymentStatus=="Overpaid")&&!o.NeedsPaymentReview&&o.Status=="Shipped"&&o.Items.Any(i=>i.ProductId==p.Id));
+        ViewData["CanReview"]=userId!=null && !await db.ProductReviews.AnyAsync(r=>r.ProductId==p.Id&&r.UserId==userId) && await db.Orders.AnyAsync(o=>o.CustomerUserId==userId&&(o.PaymentStatus=="Paid"||o.PaymentStatus=="Overpaid")&&!o.NeedsPaymentReview&&(o.Status==OrderStatuses.Shipped||o.Status==OrderStatuses.Delivered)&&o.Items.Any(i=>i.ProductId==p.Id));
         ViewBag.Ratings = await catalog.GetProductRatingsAsync(db, related.Select(x => x.Id).Append(p.Id).Distinct());
         ViewBag.BestsellerIds = await catalog.GetBestsellerIdsAsync(db);
         if (userId != null)

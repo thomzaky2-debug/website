@@ -46,9 +46,9 @@ public class ProductTranslation
 }
 public static class OrderStatuses
 {
-    public const string Pending = "Pending", Processing = "Processing", Shipped = "Shipped", Cancelled = "Cancelled";
-    public static readonly string[] All = [Pending, Processing, Shipped, Cancelled];
-    public static bool CanTransition(string from, string to) => from == to || (from, to) is (Pending, Processing) or (Pending, Cancelled) or (Processing, Shipped) or (Processing, Cancelled);
+    public const string Pending = "Pending", Processing = "Processing", Shipped = "Shipped", Delivered = "Delivered", Cancelled = "Cancelled";
+    public static readonly string[] All = [Pending, Processing, Shipped, Delivered, Cancelled];
+    public static bool CanTransition(string from, string to) => from == to || (from, to) is (Pending, Processing) or (Pending, Cancelled) or (Processing, Shipped) or (Processing, Cancelled) or (Shipped, Delivered);
 }
 public class Order
 {

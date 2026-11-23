@@ -132,6 +132,19 @@ public class StoreAdminController(ApplicationDbContext db, CustomerAdminService 
         await audit.LogAsync("DISPATCH","Order",order.OrderNumber);await tx.CommitAsync();return RedirectToAction(nameof(Order),new{id});
     }
     [HttpPost,ValidateAntiForgeryToken]
+    public async Task<IActionResult> Deliver(int id)
+    {
+        await using var tx=await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+        var order=await db.Orders.SingleOrDefaultAsync(o=>o.Id==id);if(order is null)return NotFound();
+        if(order.PaymentStatus is not ("Paid" or "Overpaid")||order.NeedsPaymentReview||order.Status!=OrderStatuses.Shipped)return BadRequest();
+        order.Status=OrderStatuses.Delivered;
+        order.Updates.Add(new OrderUpdate{Status=OrderStatuses.Delivered});
+        if(!await db.OrderEmails.AnyAsync(e=>e.OrderId==id && e.Kind=="Delivered"))
+            db.OrderEmails.Add(new OrderEmail{OrderId=id,Kind="Delivered"});
+        await audit.LogAsync("DELIVER","Order",order.OrderNumber);await tx.CommitAsync();
+        TempData["Success"]="Admin_Saved";return RedirectToAction(nameof(Order),new{id});
+    }
+    [HttpPost,ValidateAntiForgeryToken]
     public async Task<IActionResult> RetryEmail(int id)
     {
         var email=await db.OrderEmails.FindAsync(id);if(email is null)return NotFound();

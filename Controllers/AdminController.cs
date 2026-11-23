@@ -213,7 +213,7 @@ public class AdminController(ApplicationDbContext db, AuditService audit, Catalo
         if (status == OrderStatuses.Cancelled || (await db.PaymentAttempts.AnyAsync(p => p.OrderId == orderId) && order.PaymentStatus is not ("Paid" or "Overpaid"))) {
             TempData["Error"] = "Payment_AdminReview"; return RedirectToAction("Index", "StoreAdmin");
         }
-        if ((order.PaymentStatus is not ("Paid" or "Overpaid") || order.NeedsPaymentReview) && (status is OrderStatuses.Processing or OrderStatuses.Shipped)) {
+        if ((order.PaymentStatus is not ("Paid" or "Overpaid") || order.NeedsPaymentReview) && (status is OrderStatuses.Processing or OrderStatuses.Shipped or OrderStatuses.Delivered)) {
             TempData["Error"] = "Payment_AdminReview"; return RedirectToAction("Index", "StoreAdmin");
         }
         var changed = await db.Orders.Where(o => o.Id == orderId && o.Status == order.Status).ExecuteUpdateAsync(s => s.SetProperty(o => o.Status, status));
@@ -222,6 +222,7 @@ public class AdminController(ApplicationDbContext db, AuditService audit, Catalo
             await db.Products.Where(p => p.Id == item.ProductId).ExecuteUpdateAsync(s => s.SetProperty(p => p.StockQuantity, p => p.StockQuantity + item.Quantity));
         db.OrderUpdates.Add(new OrderUpdate { OrderId = orderId, Status = status });
         if (status == OrderStatuses.Shipped && !await db.OrderEmails.AnyAsync(e => e.OrderId == orderId && e.Kind == "Shipped")) db.OrderEmails.Add(new OrderEmail { OrderId = orderId, Kind = "Shipped" });
+        if (status == OrderStatuses.Delivered && !await db.OrderEmails.AnyAsync(e => e.OrderId == orderId && e.Kind == "Delivered")) db.OrderEmails.Add(new OrderEmail { OrderId = orderId, Kind = "Delivered" });
         await audit.LogAsync("ORDER_STATUS", "Order", $"{order.OrderNumber}: {order.Status} -> {status}"); await tx.CommitAsync();
         TempData["Success"] = "Admin_Saved"; return RedirectToAction("Index", "StoreAdmin");
     }
