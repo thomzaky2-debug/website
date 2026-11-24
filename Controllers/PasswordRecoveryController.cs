@@ -16,7 +16,7 @@ namespace NileShop.Controllers;
 [Route("/Account/Login")]
 public sealed class PasswordRecoveryController(
     UserManager<IdentityUser> users, NileShop.Data.ApplicationDbContext db, EmailOtp otp,
-    IStringLocalizer<SharedResource> localizer, IOptions<NilePayOptions> gatewayOptions) : Controller
+    IStringLocalizer<SharedResource> localizer, IOptions<NilePayOptions> gatewayOptions, IHostEnvironment environment) : Controller
 {
     [HttpGet("ForgotPassword")]
     public IActionResult Forgot() => View(new ForgotPasswordViewModel());
@@ -97,6 +97,7 @@ public sealed class PasswordRecoveryController(
             && string.IsNullOrEmpty(configured.Fragment))
             return configured;
 
+        if (!environment.IsDevelopment()) return null;
         // Host filtering in Program.cs limits production requests to configured site hosts.
         return Request.IsHttps ? new Uri($"https://{Request.Host.ToUriComponent()}/") : null;
     }
