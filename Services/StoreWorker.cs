@@ -34,24 +34,30 @@ public class StoreWorker(IServiceScopeFactory scopes, IConfiguration config, ILo
                     }
                 }
 
-                // Auto-release inventory for any unpaid orders whose session has expired
+                // Auto-release inventory for expired unpaid orders in bounded oldest-first batches
                 var lifetime = await db.StoreSettings.AsNoTracking().OrderBy(s => s.Id).Select(s => s.CheckoutSessionLifetimeMinutes).FirstOrDefaultAsync(stoppingToken);
                 if (lifetime <= 0) lifetime = 15;
-                var expiredOrders = await db.Orders.AsNoTracking()
-                    .Where(o => o.PaymentStatus == "Unpaid" && !o.InventoryReleased && o.PaidAt == null)
-                    .Select(o => new { o.Id, o.CreatedAt, AttemptCreated = db.PaymentAttempts.Where(p => p.OrderId == o.Id).OrderByDescending(p => p.Id).Select(p => (DateTime?)p.CreatedAt).FirstOrDefault() })
-                    .Take(20)
-                    .ToListAsync(stoppingToken);
+                var expiryCutoff = DateTime.UtcNow.AddMinutes(-lifetime);
+                const int batchSize = 20;
+                const int maxBatches = 10;
+                for (var batch = 0; batch < maxBatches && !stoppingToken.IsCancellationRequested; batch++) {
+                    var expiredIds = await db.Orders.AsNoTracking()
+                        .Where(o => o.PaymentStatus == "Unpaid" && !o.InventoryReleased && o.PaidAt == null && o.Status == Models.OrderStatuses.Pending && o.CreatedAt <= expiryCutoff)
+                        .OrderBy(o => o.CreatedAt).ThenBy(o => o.Id)
+                        .Select(o => o.Id)
+                        .Take(batchSize)
+                        .ToListAsync(stoppingToken);
 
-                foreach (var exp in expiredOrders) {
-                    var sessionStart = exp.AttemptCreated ?? exp.CreatedAt;
-                    if (DateTime.UtcNow > sessionStart.AddMinutes(lifetime)) {
+                    if (expiredIds.Count == 0) break;
+                    foreach (var expId in expiredIds) {
+                        if (stoppingToken.IsCancellationRequested) break;
                         try {
-                            await scope.ServiceProvider.GetRequiredService<NilePayService>().ReleaseInventoryIfUnpaidAsync(exp.Id, "Expired session worker cleanup", stoppingToken);
+                            await scope.ServiceProvider.GetRequiredService<NilePayService>().ReleaseInventoryIfUnpaidAsync(expId, "Expired session worker cleanup", stoppingToken);
                         } catch (Exception e) when (!stoppingToken.IsCancellationRequested) {
-                            logger.LogWarning("Worker inventory release failed for order {OrderId}: {Type}", exp.Id, e.GetType().Name);
+                            logger.LogWarning("Worker inventory release failed for order {OrderId}: {Type}", expId, e.GetType().Name);
                         }
                     }
+                    if (expiredIds.Count < batchSize) break;
                 }
 
                 await SendEmailsAsync(scope.ServiceProvider, stoppingToken);
