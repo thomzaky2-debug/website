@@ -109,7 +109,7 @@ public class StoreWorker(IServiceScopeFactory scopes, IConfiguration config, ILo
             }
         }
     }
-    internal static async Task SendAccountEmailsAsync(IServiceProvider services, CancellationToken ct)
+    public static async Task SendAccountEmailsAsync(IServiceProvider services, CancellationToken ct)
     {
         var db = services.GetRequiredService<ApplicationDbContext>();
         var mail = services.GetRequiredService<AccountMailSender>();

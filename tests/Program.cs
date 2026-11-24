@@ -2,8 +2,10 @@ using NileShop.Data;
 using NileShop.Models;
 using NileShop.Services;
 using NileShop.ViewModels;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using System.Globalization;
 DevelopmentSqlite.Initialize();
 await using var connection = new SqliteConnection("Data Source=:memory:");
@@ -123,20 +125,178 @@ var secondRel = await nilePaySvc.ReleaseInventoryIfUnpaidAsync(releaseOrder.Id, 
 var stockAfterRelease = (await db.Products.AsNoTracking().SingleAsync(x => x.Id == p.Id)).StockQuantity;
 Check(firstRel && !secondRel && stockAfterRelease == stockBeforeRelease + 1, "unpaid order releases stock exactly once");
 
-// 1. Legacy plaintext scrub & idempotency
-db.AccountEmailQueues.Add(new AccountEmailQueue { RecipientEmail = "legacy@example.com", Subject = "Legacy", Body = "PlaintextCode999", PayloadVersion = 0 });
-db.AccountEmailQueues.Add(new AccountEmailQueue { RecipientEmail = "ambig@example.com", Subject = "Ambig", Body = "dp:v1:ambiguous", PayloadVersion = 0 });
+// 1. Legacy queue dry-run, apply, and reviewed clear (no destructive heuristic)
+var oldFormatCipher = Microsoft.AspNetCore.DataProtection.DataProtectionCommonExtensions.Protect(dpProvider.CreateProtector("NileShop.AccountEmailQueue.v1"), "old-unprefixed-secret");
+var oldCipherRow = new AccountEmailQueue { RecipientEmail = "oldcipher@example.com", Subject = "OldCipher", Body = oldFormatCipher, PayloadVersion = 0 };
+var unprovenRow = new AccountEmailQueue { RecipientEmail = "legacy@example.com", Subject = "Legacy", Body = "PlaintextCode999", PayloadVersion = 0 };
+db.AccountEmailQueues.AddRange(oldCipherRow, unprovenRow);
 await db.SaveChangesAsync();
-var (scrubbed1, skipped1) = await AccountMailSender.ScrubLegacyPlaintextAsync(db);
-var (scrubbed2, skipped2) = await AccountMailSender.ScrubLegacyPlaintextAsync(db);
-var legacyRow = await db.AccountEmailQueues.AsNoTracking().SingleAsync(x => x.RecipientEmail == "legacy@example.com");
-var currentRow = await db.AccountEmailQueues.AsNoTracking().SingleAsync(x => x.RecipientEmail == "regtest@example.com");
-Check(scrubbed1 == 1 && skipped1 == 1, "legacy scrub clears plaintext row and skips ambiguous dp:v1 row");
-Check(legacyRow.Body == "" && legacyRow.SentAtUtc != null && legacyRow.LastError == "LegacyPlaintextScrubbed", "scrubbed row is cleared and non-dispatchable");
-Check(currentRow.PayloadVersion == 1 && currentRow.Body.StartsWith("dp:v1:", StringComparison.Ordinal), "current encrypted row survives scrub untouched");
-Check(scrubbed2 == 0 && skipped2 == 1, "legacy scrub is idempotent across repeated runs");
 
-// 2. Cross-process DataProtection key persistence
+var dryRun = await AccountMailSender.ClassifyLegacyQueueDryRunAsync(db, dpProvider);
+Check(dryRun.ProvenEncrypted.Any(x => x.Id == oldCipherRow.Id) && !dryRun.ProvenEncrypted.Any(x => x.Id == unprovenRow.Id), "dry-run classifies unprefixed ciphertext as proven-encrypted");
+Check(dryRun.UnprovenUndecryptable.Any(x => x.Id == unprovenRow.Id), "dry-run classifies undecryptable row as unproven");
+var afterDryOld = await db.AccountEmailQueues.AsNoTracking().SingleAsync(x => x.Id == oldCipherRow.Id);
+var afterDryUnproven = await db.AccountEmailQueues.AsNoTracking().SingleAsync(x => x.Id == unprovenRow.Id);
+Check(afterDryOld.PayloadVersion == 0 && afterDryOld.Body == oldFormatCipher && afterDryUnproven.Body == "PlaintextCode999", "dry-run modifies zero rows");
+
+var reEnveloped = await AccountMailSender.ApplyLegacyReEnvelopeAsync(db, dpProvider);
+var reEnveloped2 = await AccountMailSender.ApplyLegacyReEnvelopeAsync(db, dpProvider);
+var afterApplyOld = await db.AccountEmailQueues.AsNoTracking().SingleAsync(x => x.Id == oldCipherRow.Id);
+var afterApplyUnproven = await db.AccountEmailQueues.AsNoTracking().SingleAsync(x => x.Id == unprovenRow.Id);
+Check(reEnveloped == 1 && reEnveloped2 == 0, "apply re-envelopes proven row once and is idempotent");
+Check(afterApplyOld.PayloadVersion == 1 && afterApplyOld.Body.StartsWith("dp:v1:", StringComparison.Ordinal) && AccountMailSender.UnprotectBody(dpProvider, afterApplyOld.Body) == "old-unprefixed-secret", "re-enveloped row keeps valid decryptable payload with dp:v1 prefix");
+Check(afterApplyUnproven.PayloadVersion == 0 && afterApplyUnproven.Body == "PlaintextCode999", "apply leaves unproven row body untouched");
+
+var staleClear = await AccountMailSender.ClearReviewedUnprovenRowsAsync(db, [new AccountMailSender.ReviewedClearTarget(unprovenRow.Id, 0, "WRONGHASH")]);
+Check(staleClear.Cleared == 0 && staleClear.SkippedChanged == 1, "reviewed clear skips row when snapshot hash does not match");
+var unprovenEntry = dryRun.UnprovenUndecryptable.Single(x => x.Id == unprovenRow.Id);
+var goodClear = await AccountMailSender.ClearReviewedUnprovenRowsAsync(db, [new AccountMailSender.ReviewedClearTarget(unprovenEntry.Id, unprovenEntry.PayloadVersion, unprovenEntry.BodySha256)]);
+var afterClearUnproven = await db.AccountEmailQueues.AsNoTracking().SingleAsync(x => x.Id == unprovenRow.Id);
+Check(goodClear.Cleared == 1 && goodClear.SkippedChanged == 0 && afterClearUnproven.Body == "" && afterClearUnproven.LastError == "OperatorReviewedClear", "reviewed clear clears only explicitly matched snapshot");
+
+// 2. Quarantine undecryptable row in dispatch (preserves body, excludes from dispatch & 24h purge)
+var quarantineRow = new AccountEmailQueue { RecipientEmail = "q@example.com", Subject = "Q", Body = "lost-key-ciphertext", PayloadVersion = 1, CreatedAtUtc = DateTime.UtcNow.AddHours(-48) };
+var oldExpiredRow = new AccountEmailQueue { RecipientEmail = "exp@example.com", Subject = "Exp", Body = "dp:v1:expired", PayloadVersion = 1, ExpiresAtUtc = DateTime.UtcNow.AddMinutes(-5), CreatedAtUtc = DateTime.UtcNow.AddHours(-48) };
+db.AccountEmailQueues.AddRange(quarantineRow, oldExpiredRow);
+await db.SaveChangesAsync();
+
+var workerServices = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
+workerServices.AddSingleton(db);
+workerServices.AddSingleton<Microsoft.AspNetCore.DataProtection.IDataProtectionProvider>(dpProvider);
+workerServices.AddMemoryCache();
+workerServices.AddLogging();
+workerServices.AddSingleton<Microsoft.Extensions.Configuration.IConfiguration>(new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build());
+workerServices.AddSingleton<Microsoft.Extensions.Hosting.IHostEnvironment>(new LocalTestWebEnv(Path.GetTempPath()));
+workerServices.AddSingleton(Microsoft.Extensions.Options.Options.Create(new SmtpOptions()));
+workerServices.AddSingleton(Microsoft.Extensions.Options.Options.Create(new NilePayOptions()));
+workerServices.AddSingleton<AccountMailSender>();
+workerServices.AddSingleton<EmailOtp>();
+using var workerSp = workerServices.BuildServiceProvider();
+await StoreWorker.SendAccountEmailsAsync(workerSp, CancellationToken.None);
+var afterQ = await db.AccountEmailQueues.AsNoTracking().SingleAsync(x => x.Id == quarantineRow.Id);
+var afterExp = await db.AccountEmailQueues.AsNoTracking().SingleOrDefaultAsync(x => x.Id == oldExpiredRow.Id);
+Check(afterQ.Quarantined && afterQ.LastError == "DecryptFailed" && afterQ.Body == "lost-key-ciphertext", "undecryptable row is quarantined with body preserved and survives 24h purge");
+Check(afterExp is null, "expired terminal row older than 24h is purged");
+
+// 3. True concurrent payment-vs-release race with independent DbContexts
+var raceDbPath = Path.Combine(Path.GetTempPath(), "nileshop-race-" + Guid.NewGuid().ToString("N") + ".db");
+try
+{
+    ApplicationDbContext CreateRaceDb()
+    {
+        var opts = new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlite($"Data Source={raceDbPath};Default Timeout=10").Options;
+        return new ApplicationDbContext(opts);
+    }
+    int raceOrderId;
+    int raceProdId;
+    using (var setupDb = CreateRaceDb())
+    {
+        await setupDb.Database.EnsureCreatedAsync();
+        await setupDb.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;");
+        var rc = new Category { Slug = "race-cat", Translations = [new() { LanguageCode = "en", Name = "Race" }] };
+        setupDb.Categories.Add(rc); await setupDb.SaveChangesAsync();
+        var rp = new Product { Slug = "race-prod", CategoryId = rc.Id, Price = 100m, StockQuantity = 5, Translations = [new() { LanguageCode = "en", Name = "RaceProd", FullDescription = "D" }] };
+        setupDb.Products.Add(rp); await setupDb.SaveChangesAsync();
+        raceProdId = rp.Id;
+        var ro = await new CheckoutService(setupDb).PlaceAsync(new CheckoutViewModel { CheckoutToken = Guid.NewGuid().ToString("N"), CustomerName = "Race", CustomerEmail = "race@example.com", CustomerPhone = "01000000000", ShippingAddress = "Cairo", InstaPayUsername = "raceuser" }, new Dictionary<int, int> { [rp.Id] = 1 });
+        raceOrderId = ro.Id;
+        setupDb.PaymentAttempts.Add(new PaymentAttempt { OrderId = ro.Id, IdempotencyKey = Guid.NewGuid().ToString("N"), SessionId = "race-sess-1", RequestJson = "{}" });
+        await setupDb.SaveChangesAsync();
+    }
+
+    using var barrier = new Barrier(2);
+    var tRelease = Task.Run(async () =>
+    {
+        using var rdb = CreateRaceDb();
+        var svc = new NilePayService(rdb, new NilePayClient(new HttpClient(), Microsoft.Extensions.Options.Options.Create(new NilePayOptions()), null!), Microsoft.Extensions.Options.Options.Create(new NilePayOptions()));
+        barrier.SignalAndWait();
+        try { await svc.ReleaseInventoryIfUnpaidAsync(raceOrderId, "race"); } catch (Microsoft.Data.Sqlite.SqliteException) { }
+    });
+    var tPay = Task.Run(async () =>
+    {
+        using var pdb = CreateRaceDb();
+        var svc = new NilePayService(pdb, new NilePayClient(new HttpClient(), Microsoft.Extensions.Options.Options.Create(new NilePayOptions()), null!), Microsoft.Extensions.Options.Options.Create(new NilePayOptions()));
+        barrier.SignalAndWait();
+        try { await svc.ApplyAsync(new NileCheckout("race-sess-1", "CONFIRMED", 100m, "EGP", null), "race-evt-1", CancellationToken.None); } catch (Microsoft.Data.Sqlite.SqliteException) { }
+    });
+    await Task.WhenAll(tRelease, tPay);
+
+    using (var verifyDb = CreateRaceDb())
+    {
+        var finalOrder = await verifyDb.Orders.AsNoTracking().SingleAsync(x => x.Id == raceOrderId);
+        var finalProd = await verifyDb.Products.AsNoTracking().SingleAsync(x => x.Id == raceProdId);
+        var invariantOk =
+            (finalOrder.PaymentStatus == "Paid" && !finalOrder.InventoryReleased && finalProd.StockQuantity == 4) ||
+            (finalOrder.InventoryReleased && finalOrder.Status == OrderStatuses.Cancelled && finalProd.StockQuantity == 5 && (finalOrder.PaymentStatus == "Unpaid" || finalOrder.NeedsPaymentReview));
+        Check(invariantOk, "concurrent payment-vs-release ends in consistent state without double release or lost funds");
+    }
+}
+finally
+{
+    try { File.Delete(raceDbPath); File.Delete(raceDbPath + "-wal"); File.Delete(raceDbPath + "-shm"); } catch { }
+}
+
+// 4. Controllable-clock SecurityStampValidator interval & Admin 8h absolute cap
+var fakeClock = new FakeTimeProvider(new DateTimeOffset(2026, 11, 24, 10, 0, 0, TimeSpan.Zero));
+var authServices = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
+authServices.AddSingleton<TimeProvider>(fakeClock);
+authServices.AddLogging();
+authServices.AddHttpContextAccessor();
+authServices.AddAuthentication(IdentityConstants.ApplicationScheme).AddIdentityCookies();
+authServices.AddSingleton(db);
+authServices.AddIdentityCore<Microsoft.AspNetCore.Identity.IdentityUser>()
+    .AddRoles<Microsoft.AspNetCore.Identity.IdentityRole>()
+    .AddSignInManager()
+    .AddEntityFrameworkStores<ApplicationDbContext>();
+authServices.Configure<Microsoft.AspNetCore.Identity.SecurityStampValidatorOptions>(o => { o.ValidationInterval = TimeSpan.FromMinutes(5); o.TimeProvider = fakeClock; });
+using var authSp = authServices.BuildServiceProvider();
+var userMgr = authSp.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<Microsoft.AspNetCore.Identity.IdentityUser>>();
+var roleMgr = authSp.GetRequiredService<Microsoft.AspNetCore.Identity.RoleManager<Microsoft.AspNetCore.Identity.IdentityRole>>();
+var signInMgr = authSp.GetRequiredService<Microsoft.AspNetCore.Identity.SignInManager<Microsoft.AspNetCore.Identity.IdentityUser>>();
+if (!await roleMgr.RoleExistsAsync("Admin")) await roleMgr.CreateAsync(new Microsoft.AspNetCore.Identity.IdentityRole("Admin"));
+
+var custUser = new Microsoft.AspNetCore.Identity.IdentityUser { UserName = "stampcust@example.com", Email = "stampcust@example.com", EmailConfirmed = true };
+await userMgr.CreateAsync(custUser, "StrongPass!12345");
+var custPrincipal = await signInMgr.CreateUserPrincipalAsync(custUser);
+var custProps = new Microsoft.AspNetCore.Authentication.AuthenticationProperties { IssuedUtc = fakeClock.GetUtcNow(), ExpiresUtc = fakeClock.GetUtcNow().AddDays(14) };
+var httpCtx = new Microsoft.AspNetCore.Http.DefaultHttpContext { RequestServices = authSp };
+authSp.GetRequiredService<Microsoft.AspNetCore.Http.IHttpContextAccessor>().HttpContext = httpCtx;
+var scheme = new Microsoft.AspNetCore.Authentication.AuthenticationScheme("Identity.Application", null, typeof(Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationHandler));
+var cookieOpts = new Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationOptions { TimeProvider = fakeClock };
+
+await userMgr.UpdateSecurityStampAsync(custUser);
+fakeClock.Advance(TimeSpan.FromMinutes(2));
+var beforeIntervalCtx = new Microsoft.AspNetCore.Authentication.Cookies.CookieValidatePrincipalContext(httpCtx, scheme, cookieOpts, new Microsoft.AspNetCore.Authentication.AuthenticationTicket(custPrincipal, custProps, scheme.Name));
+await AuthCookieEvents.OnValidatePrincipalAsync(beforeIntervalCtx, fakeClock);
+Check(beforeIntervalCtx.Principal is not null, "session remains valid before 5-minute stamp validation interval elapses");
+
+fakeClock.Advance(TimeSpan.FromMinutes(4)); // T+6m
+var afterIntervalCtx = new Microsoft.AspNetCore.Authentication.Cookies.CookieValidatePrincipalContext(httpCtx, scheme, cookieOpts, new Microsoft.AspNetCore.Authentication.AuthenticationTicket(custPrincipal, custProps, scheme.Name));
+await AuthCookieEvents.OnValidatePrincipalAsync(afterIntervalCtx, fakeClock);
+Check(afterIntervalCtx.Principal is null, "chained SecurityStampValidator rejects session after 5-minute interval following stamp change");
+
+var adminUser = new Microsoft.AspNetCore.Identity.IdentityUser { UserName = "stampadmin@example.com", Email = "stampadmin@example.com", EmailConfirmed = true };
+await userMgr.CreateAsync(adminUser, "StrongAdmin!12345");
+await userMgr.AddToRoleAsync(adminUser, "Admin");
+var adminPrincipal = await signInMgr.CreateUserPrincipalAsync(adminUser);
+var adminSignInTime = fakeClock.GetUtcNow();
+var adminProps = new Microsoft.AspNetCore.Authentication.AuthenticationProperties { IssuedUtc = adminSignInTime, IsPersistent = true, AllowRefresh = true };
+var adminSignInCtx = new Microsoft.AspNetCore.Authentication.Cookies.CookieSigningInContext(httpCtx, scheme, cookieOpts, adminPrincipal, adminProps, new Microsoft.AspNetCore.Http.CookieOptions());
+await AuthCookieEvents.OnSigningInAsync(adminSignInCtx, fakeClock);
+var expectedAdminExpiry = adminSignInTime.AddHours(8);
+Check(adminProps.ExpiresUtc == expectedAdminExpiry && adminProps.AllowRefresh == false && adminProps.IsPersistent == false, "admin sign-in anchors 8h absolute expiry and disables refresh");
+
+fakeClock.Advance(TimeSpan.FromMinutes(6)); // triggers SecurityStampValidator renewal check with valid stamp
+var adminRenewCtx = new Microsoft.AspNetCore.Authentication.Cookies.CookieValidatePrincipalContext(httpCtx, scheme, cookieOpts, new Microsoft.AspNetCore.Authentication.AuthenticationTicket(adminPrincipal, adminProps, scheme.Name));
+await AuthCookieEvents.OnValidatePrincipalAsync(adminRenewCtx, fakeClock);
+Check(adminRenewCtx.Principal is not null && adminRenewCtx.Properties.ExpiresUtc == expectedAdminExpiry && adminRenewCtx.Properties.AllowRefresh == false, "admin expiry stays anchored to original T+8h even when stamp validator triggers renewal");
+
+fakeClock.Advance(TimeSpan.FromHours(8)); // past T+8h
+var adminExpiredCtx = new Microsoft.AspNetCore.Authentication.Cookies.CookieValidatePrincipalContext(httpCtx, scheme, cookieOpts, new Microsoft.AspNetCore.Authentication.AuthenticationTicket(adminPrincipal, adminProps, scheme.Name));
+await AuthCookieEvents.OnValidatePrincipalAsync(adminExpiredCtx, fakeClock);
+Check(adminExpiredCtx.Principal is null, "admin session is rejected after T+8h absolute cap");
+
+// 5. Cross-process DataProtection key persistence
 var keyDir = new DirectoryInfo(Path.Combine(Path.GetTempPath(), "nileshop-dp-persist-" + Guid.NewGuid().ToString("N")));
 var dpA = Microsoft.AspNetCore.DataProtection.DataProtectionProvider.Create(keyDir);
 var dpB = Microsoft.AspNetCore.DataProtection.DataProtectionProvider.Create(keyDir);
@@ -161,4 +321,11 @@ sealed class LocalTestWebEnv(string webRoot) : Microsoft.AspNetCore.Hosting.IWeb
     public Microsoft.Extensions.FileProviders.IFileProvider ContentRootFileProvider { get; set; } = null!;
     public string ContentRootPath { get; set; } = webRoot;
     public string EnvironmentName { get; set; } = "Development";
+}
+
+sealed class FakeTimeProvider(DateTimeOffset start) : TimeProvider
+{
+    private DateTimeOffset _now = start;
+    public override DateTimeOffset GetUtcNow() => _now;
+    public void Advance(TimeSpan delta) => _now = _now.Add(delta);
 }
