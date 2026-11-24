@@ -46,10 +46,27 @@ builder.Services.ConfigureApplicationCookie(o => {
     o.Cookie.SecurePolicy = CookieSecurePolicy.Always;
     o.Cookie.SameSite = SameSiteMode.Lax;
     o.Cookie.IsEssential = true;
-    o.Cookie.MaxAge = TimeSpan.FromDays(60);
-    o.ExpireTimeSpan = TimeSpan.FromDays(60);
+    o.ExpireTimeSpan = TimeSpan.FromDays(14);
     o.SlidingExpiration = true;
     o.LoginPath = "/Account/Login";
+    o.Events.OnSigningIn = context => {
+        if (context.Principal?.IsInRole("Admin") == true) {
+            context.Properties.AllowRefresh = false;
+            context.Properties.IsPersistent = false;
+            context.Properties.ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8);
+        }
+        return Task.CompletedTask;
+    };
+    o.Events.OnCheckSlidingExpiration = context => {
+        if (context.Principal?.IsInRole("Admin") == true) context.ShouldRenew = false;
+        return Task.CompletedTask;
+    };
+    o.Events.OnValidatePrincipal = context => {
+        if (context.Principal?.IsInRole("Admin") == true && (context.Properties.ExpiresUtc is null || (context.Properties.IssuedUtc.HasValue && context.Properties.ExpiresUtc.Value - context.Properties.IssuedUtc.Value > TimeSpan.FromHours(8.5)))) {
+            context.RejectPrincipal();
+        }
+        return Task.CompletedTask;
+    };
     o.Events.OnRedirectToLogin = context => {
         var admin = context.Request.Path.StartsWithSegments("/Admin") || context.Request.Path.StartsWithSegments("/StoreAdmin");
         var path = admin ? "/Identity/Account/Login" : "/Account/Login";
