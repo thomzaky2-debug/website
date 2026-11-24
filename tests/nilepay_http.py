@@ -88,7 +88,8 @@ try:
  gateway_payload=json.loads(requests[0][1]);check(gateway_payload['productCategory']=='Retail products' and gateway_payload['note'].startswith('Order #NILE-'),'NilePay receives store and order context')
  check(gateway_payload['items'][0]['category']=='Shoes' and gateway_payload['items'][-1]['category']=='Delivery' and gateway_payload['items'][-1]['unitPrice']==50,'NilePay receives category and explicit delivery charge')
  check(sum(item['quantity']*item['unitPrice'] for item in gateway_payload['items'])==gateway_payload['amountEgp'],'NilePay itemized total matches order amount')
- check(len(sessions)==1 and len(requests)>=2 and all(r==requests[0] for r in requests),'bounded retry reuses exact durable request and key')
+ # Exact create count: 2 from checkout (initial + 1 bounded retry on 503) + 2 from /payment/pay (initial + 1 bounded retry on 503) = 4
+ check(len(sessions)==1 and len(requests)==4 and all(r==requests[0] for r in requests),'bounded retry reuses exact durable request and key')
  checkoutremote=next(iter(sessions.values()))[1];total=checkoutremote['amountEgp'];session=checkoutremote['sessionId']
  check(webhook(session)==503,'early webhook retries before mapping exists')
  proc.terminate();proc.wait(timeout=10);start();mode='conflict'
