@@ -176,9 +176,6 @@ app.UseStatusCodePages(async statusCodeContext => {
 });
 app.UseHttpsRedirection();
 app.Use(async (context, next) => {
-    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
-    context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
-    context.Response.Headers["X-Frame-Options"] = "DENY";
     if (context.Request.Path.StartsWithSegments("/Identity/Account/Register", StringComparison.OrdinalIgnoreCase)) {
         context.Response.Redirect("/Identity/Account/Login"); return;
     }
