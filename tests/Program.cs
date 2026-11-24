@@ -98,3 +98,27 @@ displayOrder.PaymentStatus="Refunded";
 Check(OrderStatusPresentation.Key(displayOrder)=="Refunded","refund status wins over session and fulfilment state");
 displayOrder.NeedsPaymentReview=true;
 Check(OrderStatusPresentation.Key(displayOrder)=="Payment_Review","review flag remains prominent for late or mismatched payments");
+
+// Regression tests: email queue encryption at rest, non-sliding cooldown, and payment release invariants
+await DevelopmentSqlite.EnsureWalletSchemaAsync(db);
+var dpProvider = Microsoft.AspNetCore.DataProtection.DataProtectionProvider.Create(new DirectoryInfo(Path.Combine(Path.GetTempPath(), "nileshop-test-keys-" + Guid.NewGuid().ToString("N"))));
+var secretCode = "654321";
+await AccountMailSender.QueueAsync(db, dpProvider, "regtest@example.com", "Test OTP", $"Code: {secretCode}", "key-1", DateTime.UtcNow.AddMinutes(10));
+var queuedRow = await db.AccountEmailQueues.AsNoTracking().OrderByDescending(x => x.Id).FirstAsync();
+Check(!queuedRow.Body.Contains(secretCode, StringComparison.Ordinal), "queued email payload is encrypted at rest");
+Check(AccountMailSender.UnprotectBody(dpProvider, queuedRow.Body) == $"Code: {secretCode}", "queued email payload decrypts cleanly");
+
+var firstCooldown = await AccountMailSender.CheckAndRecordCooldownAsync(db, "cooldown@example.com", CancellationToken.None);
+var firstEntry = await db.EmailRateLimits.AsNoTracking().SingleAsync(x => x.NormalizedEmail == "COOLDOWN@EXAMPLE.COM");
+var secondCooldown = await AccountMailSender.CheckAndRecordCooldownAsync(db, "cooldown@example.com", CancellationToken.None);
+var secondEntry = await db.EmailRateLimits.AsNoTracking().SingleAsync(x => x.NormalizedEmail == "COOLDOWN@EXAMPLE.COM");
+Check(firstCooldown && !secondCooldown, "per-email cooldown blocks immediate repeat");
+Check(firstEntry.LastSentUtc == secondEntry.LastSentUtc, "rejected cooldown request does not extend LastSentUtc");
+
+var releaseOrder = await service.PlaceAsync(new CheckoutViewModel { CheckoutToken = Guid.NewGuid().ToString("N"), CustomerName = "Rel", CustomerEmail = "rel@example.com", CustomerPhone = "01000000000", ShippingAddress = "Cairo", InstaPayUsername = "rel" }, new Dictionary<int, int> { [p.Id] = 1 });
+var stockBeforeRelease = (await db.Products.AsNoTracking().SingleAsync(x => x.Id == p.Id)).StockQuantity;
+var nilePaySvc = new NilePayService(db, new NilePayClient(new HttpClient(), Microsoft.Extensions.Options.Options.Create(new NilePayOptions()), null!), Microsoft.Extensions.Options.Options.Create(new NilePayOptions()));
+var firstRel = await nilePaySvc.ReleaseInventoryIfUnpaidAsync(releaseOrder.Id, "test");
+var secondRel = await nilePaySvc.ReleaseInventoryIfUnpaidAsync(releaseOrder.Id, "test");
+var stockAfterRelease = (await db.Products.AsNoTracking().SingleAsync(x => x.Id == p.Id)).StockQuantity;
+Check(firstRel && !secondRel && stockAfterRelease == stockBeforeRelease + 1, "unpaid order releases stock exactly once");
