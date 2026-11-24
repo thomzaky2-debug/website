@@ -199,6 +199,15 @@ await using (var scope = app.Services.CreateAsyncScope()) {
     }
     else {
         if (builder.Configuration.GetValue("Database:ApplyMigrationsOnStartup", false)) await db.Database.MigrateAsync();
+        else {
+            var conn = db.Database.GetDbConnection();
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME IN ('EmailRateLimits', 'AccountEmailQueues')";
+            var tableCount = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+            if (tableCount < 2)
+                throw new InvalidOperationException("Database schema is missing EmailRateLimits or AccountEmailQueues. Apply EF Core migrations (dotnet ef database update) before starting the application with Database:ApplyMigrationsOnStartup=false.");
+        }
 
     }
     await DbInitializer.InitializeAsync(scope.ServiceProvider, builder.Configuration);
