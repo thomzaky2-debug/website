@@ -122,3 +122,43 @@ var firstRel = await nilePaySvc.ReleaseInventoryIfUnpaidAsync(releaseOrder.Id, "
 var secondRel = await nilePaySvc.ReleaseInventoryIfUnpaidAsync(releaseOrder.Id, "test");
 var stockAfterRelease = (await db.Products.AsNoTracking().SingleAsync(x => x.Id == p.Id)).StockQuantity;
 Check(firstRel && !secondRel && stockAfterRelease == stockBeforeRelease + 1, "unpaid order releases stock exactly once");
+
+// 1. Legacy plaintext scrub & idempotency
+db.AccountEmailQueues.Add(new AccountEmailQueue { RecipientEmail = "legacy@example.com", Subject = "Legacy", Body = "PlaintextCode999", PayloadVersion = 0 });
+db.AccountEmailQueues.Add(new AccountEmailQueue { RecipientEmail = "ambig@example.com", Subject = "Ambig", Body = "dp:v1:ambiguous", PayloadVersion = 0 });
+await db.SaveChangesAsync();
+var (scrubbed1, skipped1) = await AccountMailSender.ScrubLegacyPlaintextAsync(db);
+var (scrubbed2, skipped2) = await AccountMailSender.ScrubLegacyPlaintextAsync(db);
+var legacyRow = await db.AccountEmailQueues.AsNoTracking().SingleAsync(x => x.RecipientEmail == "legacy@example.com");
+var currentRow = await db.AccountEmailQueues.AsNoTracking().SingleAsync(x => x.RecipientEmail == "regtest@example.com");
+Check(scrubbed1 == 1 && skipped1 == 1, "legacy scrub clears plaintext row and skips ambiguous dp:v1 row");
+Check(legacyRow.Body == "" && legacyRow.SentAtUtc != null && legacyRow.LastError == "LegacyPlaintextScrubbed", "scrubbed row is cleared and non-dispatchable");
+Check(currentRow.PayloadVersion == 1 && currentRow.Body.StartsWith("dp:v1:", StringComparison.Ordinal), "current encrypted row survives scrub untouched");
+Check(scrubbed2 == 0 && skipped2 == 1, "legacy scrub is idempotent across repeated runs");
+
+// 2. Cross-process DataProtection key persistence
+var keyDir = new DirectoryInfo(Path.Combine(Path.GetTempPath(), "nileshop-dp-persist-" + Guid.NewGuid().ToString("N")));
+var dpA = Microsoft.AspNetCore.DataProtection.DataProtectionProvider.Create(keyDir);
+var dpB = Microsoft.AspNetCore.DataProtection.DataProtectionProvider.Create(keyDir);
+var protectedSynthetic = Microsoft.AspNetCore.DataProtection.DataProtectionCommonExtensions.Protect(dpA.CreateProtector("NileShop.AccountEmailQueue.v1"), "synthetic-throwaway-payload");
+Check(Microsoft.AspNetCore.DataProtection.DataProtectionCommonExtensions.Unprotect(dpB.CreateProtector("NileShop.AccountEmailQueue.v1"), protectedSynthetic) == "synthetic-throwaway-payload", "persisted DataProtection key ring decrypts across provider instances");
+
+// 3. Upload validation (magic bytes & random filename)
+var imgSvc = new ProductImageService(new LocalTestWebEnv(Path.GetTempPath()));
+var validPng = new byte[] { 137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13 };
+var savedPaths = await imgSvc.SaveAsync([new Microsoft.AspNetCore.Http.FormFile(new MemoryStream(validPng), 0, validPng.Length, "file", "evil../../name.png")]);
+Check(savedPaths.Count == 1 && savedPaths[0].StartsWith("/assets/uploads/", StringComparison.Ordinal) && !savedPaths[0].Contains("evil"), "valid PNG accepted with server-generated random filename");
+var invalidRejected = false;
+try { await imgSvc.SaveAsync([new Microsoft.AspNetCore.Http.FormFile(new MemoryStream(System.Text.Encoding.ASCII.GetBytes("<script>alert(1)</script>")), 0, 25, "file", "xss.png")]); }
+catch (InvalidDataException) { invalidRejected = true; }
+Check(invalidRejected, "invalid file bytes rejected even with .png extension");
+
+sealed class LocalTestWebEnv(string webRoot) : Microsoft.AspNetCore.Hosting.IWebHostEnvironment
+{
+    public string WebRootPath { get; set; } = webRoot;
+    public Microsoft.Extensions.FileProviders.IFileProvider WebRootFileProvider { get; set; } = null!;
+    public string ApplicationName { get; set; } = "NileShop";
+    public Microsoft.Extensions.FileProviders.IFileProvider ContentRootFileProvider { get; set; } = null!;
+    public string ContentRootPath { get; set; } = webRoot;
+    public string EnvironmentName { get; set; } = "Development";
+}
