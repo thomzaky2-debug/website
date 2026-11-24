@@ -54,36 +54,9 @@ builder.Services.ConfigureApplicationCookie(o => {
     o.ExpireTimeSpan = TimeSpan.FromDays(14);
     o.SlidingExpiration = true;
     o.LoginPath = "/Account/Login";
-    o.Events.OnSigningIn = context => {
-        if (context.Principal?.IsInRole("Admin") == true) {
-            if (!context.Properties.Items.TryGetValue("AdminAbsoluteExpiresUtc", out var rawAbs) ||
-                !DateTimeOffset.TryParse(rawAbs, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.RoundtripKind, out var absExpiry)) {
-                absExpiry = DateTimeOffset.UtcNow.AddHours(8);
-                context.Properties.Items["AdminAbsoluteExpiresUtc"] = absExpiry.ToString("O", System.Globalization.CultureInfo.InvariantCulture);
-            }
-            context.Properties.AllowRefresh = false;
-            context.Properties.IsPersistent = false;
-            context.Properties.ExpiresUtc = absExpiry;
-        }
-        return Task.CompletedTask;
-    };
-    o.Events.OnCheckSlidingExpiration = context => {
-        if (context.Principal?.IsInRole("Admin") == true) context.ShouldRenew = false;
-        return Task.CompletedTask;
-    };
-    o.Events.OnValidatePrincipal = async context => {
-        await SecurityStampValidator.ValidatePrincipalAsync(context);
-        if (context.Principal is null) return;
-        if (context.Principal.IsInRole("Admin")) {
-            if (!context.Properties.Items.TryGetValue("AdminAbsoluteExpiresUtc", out var rawAbs) ||
-                !DateTimeOffset.TryParse(rawAbs, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.RoundtripKind, out var absExpiry) ||
-                DateTimeOffset.UtcNow > absExpiry ||
-                context.Properties.ExpiresUtc is null ||
-                (context.Properties.IssuedUtc.HasValue && context.Properties.ExpiresUtc.Value - context.Properties.IssuedUtc.Value > TimeSpan.FromHours(8.5))) {
-                context.RejectPrincipal();
-            }
-        }
-    };
+    o.Events.OnSigningIn = context => AuthCookieEvents.OnSigningInAsync(context);
+    o.Events.OnCheckSlidingExpiration = context => AuthCookieEvents.OnCheckSlidingExpirationAsync(context);
+    o.Events.OnValidatePrincipal = context => AuthCookieEvents.OnValidatePrincipalAsync(context);
     o.Events.OnRedirectToLogin = context => {
         var admin = context.Request.Path.StartsWithSegments("/Admin") || context.Request.Path.StartsWithSegments("/StoreAdmin");
         var path = admin ? "/Identity/Account/Login" : "/Account/Login";
@@ -223,6 +196,13 @@ await using (var scope = app.Services.CreateAsyncScope()) {
 
     }
     await DbInitializer.InitializeAsync(scope.ServiceProvider, builder.Configuration);
+    var dp = scope.ServiceProvider.GetRequiredService<IDataProtectionProvider>();
+    var dryRun = await AccountMailSender.ClassifyLegacyQueueDryRunAsync(db, dp);
+    if (dryRun.ProvenEncrypted.Count > 0 || dryRun.UnprovenUndecryptable.Count > 0) {
+        app.Logger.LogInformation(
+            "AccountEmailQueues legacy dry-run: {ProvenCount} proven-encrypted, {UnprovenCount} unproven-undecryptable (no rows modified).",
+            dryRun.ProvenEncrypted.Count, dryRun.UnprovenUndecryptable.Count);
+    }
 }
 app.Run();
 public partial class Program { }
