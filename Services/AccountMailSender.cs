@@ -14,6 +14,52 @@ public sealed class AccountMailSender(
     ApplicationDbContext db, IOptions<SmtpOptions> defaults,
     IDataProtectionProvider protection, ILogger<AccountMailSender> logger)
 {
+    public static async Task<bool> CheckAndRecordCooldownAsync(ApplicationDbContext db, string rawEmail, CancellationToken ct)
+    {
+        var normalized = rawEmail.Trim().ToUpperInvariant();
+        if (string.IsNullOrEmpty(normalized)) return false;
+        var now = DateTime.UtcNow;
+        var entry = await db.EmailRateLimits.SingleOrDefaultAsync(x => x.NormalizedEmail == normalized, ct);
+        if (entry is null)
+        {
+            db.EmailRateLimits.Add(new Models.EmailRateLimit {
+                NormalizedEmail = normalized,
+                WindowStartUtc = now,
+                HourCount = 1,
+                LastSentUtc = now
+            });
+            try { await db.SaveChangesAsync(ct); return true; }
+            catch (DbUpdateException) { db.ChangeTracker.Clear(); entry = await db.EmailRateLimits.SingleOrDefaultAsync(x => x.NormalizedEmail == normalized, ct); }
+        }
+        if (entry is null) return false;
+        if (now - entry.LastSentUtc < TimeSpan.FromMinutes(1)) return false;
+        if (now - entry.WindowStartUtc >= TimeSpan.FromHours(1))
+        {
+            entry.WindowStartUtc = now;
+            entry.HourCount = 1;
+        }
+        else
+        {
+            if (entry.HourCount >= 5) return false;
+            entry.HourCount++;
+        }
+        entry.LastSentUtc = now;
+        await db.SaveChangesAsync(ct);
+        return true;
+    }
+
+    public static async Task QueueAsync(ApplicationDbContext db, string recipient, string subject, string body, string? challengeKey = null, DateTime? expiresAtUtc = null, CancellationToken ct = default)
+    {
+        db.AccountEmailQueues.Add(new Models.AccountEmailQueue {
+            RecipientEmail = recipient.Trim(),
+            Subject = subject,
+            Body = body,
+            ChallengeKey = challengeKey,
+            ExpiresAtUtc = expiresAtUtc,
+            NextAttemptAtUtc = DateTime.UtcNow
+        });
+        await db.SaveChangesAsync(ct);
+    }
     public async Task<bool> SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);

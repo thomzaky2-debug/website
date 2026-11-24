@@ -61,6 +61,7 @@ public class StoreWorker(IServiceScopeFactory scopes, IConfiguration config, ILo
                 }
 
                 await SendEmailsAsync(scope.ServiceProvider, stoppingToken);
+                await SendAccountEmailsAsync(scope.ServiceProvider, stoppingToken);
             } catch (Exception e) when (!stoppingToken.IsCancellationRequested) { logger.LogWarning(e, "Store background processing failed; will retry"); }
         }
     }
@@ -106,6 +107,45 @@ public class StoreWorker(IServiceScopeFactory scopes, IConfiguration config, ILo
             } catch (Exception e) when (!ct.IsCancellationRequested) {
                 await db.OrderEmails.Where(x => x.Id == id).ExecuteUpdateAsync(s => s.SetProperty(x => x.LastError, e.GetType().Name).SetProperty(x => x.NextAttemptAt, DateTime.UtcNow.AddMinutes(Math.Min(240, Math.Pow(2, email.Attempts)))), ct);
             }
+        }
+    }
+    static async Task SendAccountEmailsAsync(IServiceProvider services, CancellationToken ct)
+    {
+        var db = services.GetRequiredService<ApplicationDbContext>();
+        var mail = services.GetRequiredService<AccountMailSender>();
+        var otp = services.GetRequiredService<EmailOtp>();
+        var now = DateTime.UtcNow;
+        var items = await db.AccountEmailQueues
+            .Where(e => e.SentAtUtc == null && e.NextAttemptAtUtc <= now && e.Attempts < 5)
+            .OrderBy(e => e.Id)
+            .Take(10)
+            .ToListAsync(ct);
+
+        foreach (var item in items)
+        {
+            if (ct.IsCancellationRequested) break;
+            if ((item.ExpiresAtUtc.HasValue && item.ExpiresAtUtc.Value <= now) ||
+                (!string.IsNullOrEmpty(item.ChallengeKey) && !otp.IsChallengeActive(item.ChallengeKey)))
+            {
+                item.SentAtUtc = now;
+                item.LastError = "SupersededOrExpired";
+                await db.SaveChangesAsync(ct);
+                continue;
+            }
+
+            item.Attempts++;
+            var sent = await mail.SendAsync(item.RecipientEmail, item.Subject, item.Body, ct);
+            if (sent)
+            {
+                item.SentAtUtc = DateTime.UtcNow;
+                item.LastError = null;
+            }
+            else
+            {
+                item.LastError = "DeliveryFailed";
+                item.NextAttemptAtUtc = DateTime.UtcNow.AddMinutes(Math.Min(60, Math.Pow(2, item.Attempts)));
+            }
+            await db.SaveChangesAsync(ct);
         }
     }
 }

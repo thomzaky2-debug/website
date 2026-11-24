@@ -93,6 +93,28 @@ public static class DevelopmentSqlite
                 CREATE INDEX IF NOT EXISTS IX_WalletTransactions_UserId_CreatedAt ON WalletTransactions (UserId, CreatedAt);
                 CREATE UNIQUE INDEX IF NOT EXISTS IX_WalletTransactions_ReferenceKey ON WalletTransactions (ReferenceKey) WHERE ReferenceKey IS NOT NULL;
                 CREATE INDEX IF NOT EXISTS IX_WalletTransactions_OrderId ON WalletTransactions (OrderId);
+                CREATE TABLE IF NOT EXISTS EmailRateLimits (
+                    Id INTEGER NOT NULL CONSTRAINT PK_EmailRateLimits PRIMARY KEY AUTOINCREMENT,
+                    NormalizedEmail TEXT NOT NULL,
+                    WindowStartUtc TEXT NOT NULL,
+                    HourCount INTEGER NOT NULL,
+                    LastSentUtc TEXT NOT NULL
+                );
+                CREATE UNIQUE INDEX IF NOT EXISTS IX_EmailRateLimits_NormalizedEmail ON EmailRateLimits (NormalizedEmail);
+                CREATE TABLE IF NOT EXISTS AccountEmailQueues (
+                    Id INTEGER NOT NULL CONSTRAINT PK_AccountEmailQueues PRIMARY KEY AUTOINCREMENT,
+                    RecipientEmail TEXT NOT NULL,
+                    Subject TEXT NOT NULL,
+                    Body TEXT NOT NULL,
+                    ChallengeKey TEXT NULL,
+                    ExpiresAtUtc TEXT NULL,
+                    Attempts INTEGER NOT NULL DEFAULT 0,
+                    NextAttemptAtUtc TEXT NOT NULL,
+                    SentAtUtc TEXT NULL,
+                    LastError TEXT NULL,
+                    CreatedAtUtc TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS IX_AccountEmailQueues_SentAtUtc_NextAttemptAtUtc ON AccountEmailQueues (SentAtUtc, NextAttemptAtUtc);
                 """);
         }
         finally

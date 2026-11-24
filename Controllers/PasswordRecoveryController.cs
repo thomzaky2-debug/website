@@ -15,7 +15,7 @@ namespace NileShop.Controllers;
 [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
 [Route("/Account/Login")]
 public sealed class PasswordRecoveryController(
-    UserManager<IdentityUser> users, AccountMailSender mail, EmailOtp otp,
+    UserManager<IdentityUser> users, NileShop.Data.ApplicationDbContext db, EmailOtp otp,
     IStringLocalizer<SharedResource> localizer, IOptions<NilePayOptions> gatewayOptions) : Controller
 {
     [HttpGet("ForgotPassword")]
@@ -26,19 +26,23 @@ public sealed class PasswordRecoveryController(
     {
         if (!ModelState.IsValid) return View(model);
 
-        var user = await users.FindByEmailAsync(model.Email.Trim());
-        if (!string.IsNullOrEmpty(user?.Email))
+        var allowed = await AccountMailSender.CheckAndRecordCooldownAsync(db, model.Email, HttpContext.RequestAborted);
+        if (allowed)
         {
-            var token = await users.GeneratePasswordResetTokenAsync(user);
-            var encoded = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
-            var path = Url.Action(nameof(Reset), new { userId = user.Id, token = encoded });
-            var origin = PublicOrigin();
-            if (origin is not null && path is not null)
+            var user = await users.FindByEmailAsync(model.Email.Trim());
+            if (!string.IsNullOrEmpty(user?.Email))
             {
-                var link = new Uri(origin, path).AbsoluteUri;
-                await mail.SendAsync(user.Email, "Chic & Unique | إعادة تعيين كلمة المرور",
-                    $"لإعادة تعيين كلمة المرور، افتح الرابط التالي. تجاهل هذه الرسالة إذا لم تطلب إعادة التعيين.\n\n{link}",
-                    HttpContext.RequestAborted);
+                var token = await users.GeneratePasswordResetTokenAsync(user);
+                var encoded = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
+                var path = Url.Action(nameof(Reset), new { userId = user.Id, token = encoded });
+                var origin = PublicOrigin();
+                if (origin is not null && path is not null)
+                {
+                    var link = new Uri(origin, path).AbsoluteUri;
+                    await AccountMailSender.QueueAsync(db, user.Email, "Chic & Unique | إعادة تعيين كلمة المرور",
+                        $"لإعادة تعيين كلمة المرور، افتح الرابط التالي. تجاهل هذه الرسالة إذا لم تطلب إعادة التعيين.\n\n{link}",
+                        ct: HttpContext.RequestAborted);
+                }
             }
         }
         return RedirectToAction(nameof(Requested));
