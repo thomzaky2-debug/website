@@ -266,21 +266,23 @@ public class NilePayService(ApplicationDbContext db, NilePayClient client, IOpti
     public async Task<bool> ReleaseInventoryIfUnpaidAsync(int orderId, string reason, CancellationToken ct = default)
     {
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
-        var order = await db.Orders.Include(o => o.Items).SingleOrDefaultAsync(o => o.Id == orderId, ct);
-        if (order is null) { await tx.RollbackAsync(ct); return false; }
-        if (order.InventoryReleased || order.PaidAt != null || order.PaymentStatus is "Paid" or "Overpaid")
+        var guarded = await db.Orders
+            .Where(o => o.Id == orderId && !o.InventoryReleased && o.PaidAt == null && o.PaymentStatus == "Unpaid" && o.Status != OrderStatuses.Cancelled)
+            .ExecuteUpdateAsync(s => s.SetProperty(o => o.InventoryReleased, true).SetProperty(o => o.Status, OrderStatuses.Cancelled), ct);
+        if (guarded != 1)
         {
             await tx.RollbackAsync(ct);
             return false;
         }
+
+        var order = await db.Orders.Include(o => o.Items).SingleOrDefaultAsync(o => o.Id == orderId, ct);
+        if (order is null) { await tx.RollbackAsync(ct); return false; }
 
         foreach (var item in order.Items.OrderBy(i => i.ProductId))
         {
             await db.Products.Where(p => p.Id == item.ProductId)
                 .ExecuteUpdateAsync(s => s.SetProperty(p => p.StockQuantity, p => p.StockQuantity + item.Quantity), ct);
         }
-        order.InventoryReleased = true;
-        order.Status = OrderStatuses.Cancelled;
 
         if (order.WalletAmountUsed > 0 && !string.IsNullOrWhiteSpace(order.CustomerUserId))
         {

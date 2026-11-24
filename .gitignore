@@ -9,6 +9,8 @@ _template_ref/
 *.db-wal
 appsettings.Local.json
 appsettings.*.Local.json
+appsettings.Secrets.json
+appsettings.Development.json
 .env
 .env.*
 !.env.example

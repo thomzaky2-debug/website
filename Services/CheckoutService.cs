@@ -6,7 +6,7 @@ using NileShop.ViewModels;
 using Microsoft.EntityFrameworkCore;
 namespace NileShop.Services;
 public class CheckoutException(string key) : Exception(key);
-public class CheckoutService(ApplicationDbContext db)
+public class CheckoutService(ApplicationDbContext db, IConfiguration? config = null, IHttpContextAccessor? http = null)
 {
     public Task<Order> PlaceAsync(CheckoutViewModel customer, IReadOnlyDictionary<int, int> cart) => PlaceSelectionsAsync(customer, cart.Select(x => new CartSelection(x.Key, x.Value)).ToList());
     public async Task<Order> PlaceSelectionsAsync(CheckoutViewModel customer, IReadOnlyList<CartSelection> cart)
@@ -20,6 +20,18 @@ public class CheckoutService(ApplicationDbContext db)
             return existing;
         }
         if (cart.Count is 0 or > 50 || cart.Any(q => q.Quantity is < 1 or > 99)) throw new CheckoutException("Error_CartEmpty");
+        var maxPerAccount = config?.GetValue("Checkout:MaxOpenUnpaidOrdersPerAccount", 3) ?? 3;
+        if (maxPerAccount > 0 && !string.IsNullOrWhiteSpace(customer.CustomerUserId)) {
+            var openCount = await db.Orders.AsNoTracking().CountAsync(o => o.CustomerUserId == customer.CustomerUserId && o.PaymentStatus == "Unpaid" && !o.InventoryReleased && o.Status == OrderStatuses.Pending);
+            if (openCount >= maxPerAccount) throw new CheckoutException("Checkout_TooManyUnpaid");
+        }
+        var clientIp = http?.HttpContext?.Connection.RemoteIpAddress?.ToString();
+        var maxPerIp = config?.GetValue("Checkout:MaxOpenUnpaidOrdersPerIp", 5) ?? 5;
+        if (maxPerIp > 0 && !string.IsNullOrWhiteSpace(clientIp)) {
+            var recentCutoff = DateTime.UtcNow.AddMinutes(-30);
+            var ipCount = await db.AuditLogs.AsNoTracking().CountAsync(a => a.Action == "ORDER_PLACED" && a.IpAddress == clientIp && a.Timestamp >= recentCutoff);
+            if (ipCount >= maxPerIp) throw new CheckoutException("Checkout_TooManyUnpaid");
+        }
         var shipping = await db.ShippingMethods.AsNoTracking().SingleOrDefaultAsync(s => s.Id == customer.ShippingMethodId && s.IsActive);
         if (shipping is null && await db.ShippingMethods.AnyAsync()) throw new CheckoutException("Shipping_Choose");
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable);

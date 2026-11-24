@@ -13,6 +13,11 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true).AddEnvironmentVariables();
 if (!builder.Environment.IsDevelopment() && (string.IsNullOrWhiteSpace(builder.Configuration["AllowedHosts"]) || builder.Configuration["AllowedHosts"]!.Split(';').Any(host => host.Trim() == "*")))
     throw new InvalidOperationException("Configure explicit AllowedHosts for production.");
+if (!builder.Environment.IsDevelopment()) {
+    var pubUrl = builder.Configuration["NilePay:PublicUrl"];
+    if (!Uri.TryCreate(pubUrl, UriKind.Absolute, out var pubUri) || pubUri.Scheme != Uri.UriSchemeHttps || pubUri.AbsolutePath != "/" || !string.IsNullOrEmpty(pubUri.UserInfo) || !string.IsNullOrEmpty(pubUri.Query) || !string.IsNullOrEmpty(pubUri.Fragment))
+        throw new InvalidOperationException("Configure a valid https NilePay:PublicUrl for production.");
+}
 builder.WebHost.ConfigureKestrel(o => { o.AddServerHeader = false; o.Limits.MaxRequestBodySize = 18 * 1024 * 1024; });
 builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(o => { o.MultipartBodyLengthLimit = 16 * 1024 * 1024; o.ValueLengthLimit = 65536; o.ValueCountLimit = 256; });
 var sqlite = builder.Configuration.GetValue<bool>("Database:UseDevelopmentSqlite");
@@ -46,10 +51,27 @@ builder.Services.ConfigureApplicationCookie(o => {
     o.Cookie.SecurePolicy = CookieSecurePolicy.Always;
     o.Cookie.SameSite = SameSiteMode.Lax;
     o.Cookie.IsEssential = true;
-    o.Cookie.MaxAge = TimeSpan.FromDays(60);
-    o.ExpireTimeSpan = TimeSpan.FromDays(60);
+    o.ExpireTimeSpan = TimeSpan.FromDays(14);
     o.SlidingExpiration = true;
     o.LoginPath = "/Account/Login";
+    o.Events.OnSigningIn = context => {
+        if (context.Principal?.IsInRole("Admin") == true) {
+            context.Properties.AllowRefresh = false;
+            context.Properties.IsPersistent = false;
+            context.Properties.ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8);
+        }
+        return Task.CompletedTask;
+    };
+    o.Events.OnCheckSlidingExpiration = context => {
+        if (context.Principal?.IsInRole("Admin") == true) context.ShouldRenew = false;
+        return Task.CompletedTask;
+    };
+    o.Events.OnValidatePrincipal = context => {
+        if (context.Principal?.IsInRole("Admin") == true && (context.Properties.ExpiresUtc is null || (context.Properties.IssuedUtc.HasValue && context.Properties.ExpiresUtc.Value - context.Properties.IssuedUtc.Value > TimeSpan.FromHours(8.5)))) {
+            context.RejectPrincipal();
+        }
+        return Task.CompletedTask;
+    };
     o.Events.OnRedirectToLogin = context => {
         var admin = context.Request.Path.StartsWithSegments("/Admin") || context.Request.Path.StartsWithSegments("/StoreAdmin");
         var path = admin ? "/Identity/Account/Login" : "/Account/Login";
@@ -154,9 +176,6 @@ app.UseStatusCodePages(async statusCodeContext => {
 });
 app.UseHttpsRedirection();
 app.Use(async (context, next) => {
-    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
-    context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
-    context.Response.Headers["X-Frame-Options"] = "DENY";
     if (context.Request.Path.StartsWithSegments("/Identity/Account/Register", StringComparison.OrdinalIgnoreCase)) {
         context.Response.Redirect("/Identity/Account/Login"); return;
     }
