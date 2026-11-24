@@ -24,4 +24,5 @@ public class AccountEmailQueue
     [MaxLength(200)] public string? LastError { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public int PayloadVersion { get; set; } = 0;
+    public bool Quarantined { get; set; } = false;
 }

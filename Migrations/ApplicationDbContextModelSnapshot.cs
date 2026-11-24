@@ -288,6 +288,9 @@ namespace NileShop.Migrations
                     b.Property<int>("PayloadVersion")
                         .HasColumnType("int");
 
+                    b.Property<bool>("Quarantined")
+                        .HasColumnType("bit");
+
                     b.Property<string>("RecipientEmail")
                         .IsRequired()
                         .HasMaxLength(256)

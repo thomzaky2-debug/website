@@ -69,27 +69,98 @@ public sealed class AccountMailSender(
         return protection.CreateProtector("NileShop.AccountEmailQueue.v1").Unprotect(payload);
     }
 
-    public static async Task<(int Scrubbed, int SkippedAmbiguous)> ScrubLegacyPlaintextAsync(ApplicationDbContext db, CancellationToken ct = default)
+    public sealed record LegacyQueueCandidate(int Id, int PayloadVersion, string BodySha256);
+    public sealed record LegacyQueueDryRunReport(IReadOnlyList<LegacyQueueCandidate> ProvenEncrypted, IReadOnlyList<LegacyQueueCandidate> UnprovenUndecryptable);
+    public sealed record ReviewedClearTarget(int Id, int ExpectedPayloadVersion, string ExpectedBodySha256);
+
+    public static string ComputeBodyHash(string body) =>
+        Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(body)));
+
+    public static async Task<LegacyQueueDryRunReport> ClassifyLegacyQueueDryRunAsync(ApplicationDbContext db, IDataProtectionProvider protection, CancellationToken ct = default)
+    {
+        var candidates = await db.AccountEmailQueues.AsNoTracking()
+            .Where(e => e.PayloadVersion == 0 && e.Body != "")
+            .OrderBy(e => e.Id)
+            .Select(e => new { e.Id, e.PayloadVersion, e.Body })
+            .ToListAsync(ct);
+
+        var proven = new List<LegacyQueueCandidate>();
+        var unproven = new List<LegacyQueueCandidate>();
+        foreach (var row in candidates)
+        {
+            var entry = new LegacyQueueCandidate(row.Id, row.PayloadVersion, ComputeBodyHash(row.Body));
+            try
+            {
+                _ = UnprotectBody(protection, row.Body);
+                proven.Add(entry);
+            }
+            catch
+            {
+                unproven.Add(entry);
+            }
+        }
+        return new LegacyQueueDryRunReport(proven, unproven);
+    }
+
+    public static async Task<int> ApplyLegacyReEnvelopeAsync(ApplicationDbContext db, IDataProtectionProvider protection, CancellationToken ct = default)
     {
         var candidates = await db.AccountEmailQueues
             .Where(e => e.PayloadVersion == 0 && e.Body != "")
+            .OrderBy(e => e.Id)
             .ToListAsync(ct);
-        int scrubbed = 0, skipped = 0;
-        var now = DateTime.UtcNow;
+
+        var protector = protection.CreateProtector("NileShop.AccountEmailQueue.v1");
+        int reEnveloped = 0;
         foreach (var row in candidates)
         {
-            if (row.Body.StartsWith("dp:v1:", StringComparison.Ordinal))
+            string plaintext;
+            try
+            {
+                plaintext = UnprotectBody(protection, row.Body);
+            }
+            catch
+            {
+                continue;
+            }
+            row.Body = "dp:v1:" + protector.Protect(plaintext);
+            row.PayloadVersion = 1;
+            row.Quarantined = false;
+            reEnveloped++;
+        }
+        if (reEnveloped > 0) await db.SaveChangesAsync(ct);
+        return reEnveloped;
+    }
+
+    public static async Task<(int Cleared, int SkippedChanged)> ClearReviewedUnprovenRowsAsync(
+        ApplicationDbContext db, IReadOnlyList<ReviewedClearTarget> targets, CancellationToken ct = default)
+    {
+        int cleared = 0, skipped = 0;
+        var now = DateTime.UtcNow;
+        foreach (var target in targets)
+        {
+            var snapshot = await db.AccountEmailQueues.AsNoTracking()
+                .Where(e => e.Id == target.Id && e.PayloadVersion == target.ExpectedPayloadVersion)
+                .Select(e => new { e.Id, e.Body })
+                .SingleOrDefaultAsync(ct);
+
+            if (snapshot is null || !string.Equals(ComputeBodyHash(snapshot.Body), target.ExpectedBodySha256, StringComparison.OrdinalIgnoreCase))
             {
                 skipped++;
                 continue;
             }
-            row.Body = "";
-            row.SentAtUtc ??= now;
-            row.LastError = "LegacyPlaintextScrubbed";
-            scrubbed++;
+
+            var affected = await db.AccountEmailQueues
+                .Where(e => e.Id == target.Id && e.PayloadVersion == target.ExpectedPayloadVersion && e.Body == snapshot.Body)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(e => e.Body, "")
+                    .SetProperty(e => e.SentAtUtc, e => e.SentAtUtc ?? now)
+                    .SetProperty(e => e.LastError, "OperatorReviewedClear")
+                    .SetProperty(e => e.Quarantined, false), ct);
+
+            if (affected == 1) cleared++;
+            else skipped++;
         }
-        if (scrubbed > 0) await db.SaveChangesAsync(ct);
-        return (scrubbed, skipped);
+        return (cleared, skipped);
     }
     public async Task<bool> SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken)
     {

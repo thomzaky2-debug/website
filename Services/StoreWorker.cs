@@ -109,7 +109,7 @@ public class StoreWorker(IServiceScopeFactory scopes, IConfiguration config, ILo
             }
         }
     }
-    static async Task SendAccountEmailsAsync(IServiceProvider services, CancellationToken ct)
+    internal static async Task SendAccountEmailsAsync(IServiceProvider services, CancellationToken ct)
     {
         var db = services.GetRequiredService<ApplicationDbContext>();
         var mail = services.GetRequiredService<AccountMailSender>();
@@ -117,7 +117,7 @@ public class StoreWorker(IServiceScopeFactory scopes, IConfiguration config, ILo
         var protection = services.GetRequiredService<IDataProtectionProvider>();
         var now = DateTime.UtcNow;
         var items = await db.AccountEmailQueues
-            .Where(e => e.SentAtUtc == null && e.NextAttemptAtUtc <= now && e.Attempts < 5)
+            .Where(e => !e.Quarantined && e.SentAtUtc == null && e.NextAttemptAtUtc <= now && e.Attempts < 5)
             .OrderBy(e => e.Id)
             .Take(10)
             .ToListAsync(ct);
@@ -142,9 +142,9 @@ public class StoreWorker(IServiceScopeFactory scopes, IConfiguration config, ILo
             }
             catch
             {
-                item.Attempts = 5;
+                // Fail closed without destroying body: quarantine for human review and exclude from dispatch & purge.
+                item.Quarantined = true;
                 item.LastError = "DecryptFailed";
-                item.Body = "";
                 await db.SaveChangesAsync(ct);
                 continue;
             }
@@ -167,7 +167,7 @@ public class StoreWorker(IServiceScopeFactory scopes, IConfiguration config, ILo
         }
 
         await db.AccountEmailQueues
-            .Where(e => (e.SentAtUtc != null || e.Attempts >= 5) && e.CreatedAtUtc < now.AddHours(-24))
+            .Where(e => !e.Quarantined && (e.SentAtUtc != null || e.Attempts >= 5) && e.CreatedAtUtc < now.AddHours(-24))
             .ExecuteDeleteAsync(ct);
     }
 }
