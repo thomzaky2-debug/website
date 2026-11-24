@@ -42,7 +42,22 @@ Historic secrets remain recoverable from public Git history (`37b2189`, `27a1589
 
 ---
 
-## 4. GitHub Actions & Branch Protection
+## 4. Reviewed Cleanup of Quarantined / Unproven Legacy Queue Rows
+
+`AccountEmailQueues` startup dry-run logs counts only and never destroys undecryptable rows. If dry-run or dispatch reports `UnprovenUndecryptable` or `Quarantined` (`DecryptFailed`) rows:
+
+1. **Back up affected rows first** to a secured, restricted-access file outside the repository (so a wrong review is recoverable):
+   ```sql
+   SELECT Id, PayloadVersion, Quarantined, SentAtUtc, LastError, Body, CreatedAtUtc
+   FROM AccountEmailQueues
+   WHERE (PayloadVersion = 0 AND Body <> '') OR Quarantined = 1;
+   ```
+2. **Apply safe re-envelope for proven rows**: run `AccountMailSender.ApplyLegacyReEnvelopeAsync` (re-verifies decrypt at apply time; re-envelopes proven rows with `"dp:v1:"` and `PayloadVersion = 1`; leaves unproven rows untouched).
+3. **Explicit per-row reviewed clear**: after human review of the dry-run `(Id, PayloadVersion, BodySha256)` list and backup confirmation, invoke `AccountMailSender.ClearReviewedUnprovenRowsAsync` with the exact reviewed `(Id, ExpectedPayloadVersion, ExpectedBodySha256)` targets. Any row modified concurrently is skipped and preserved. Ordinary logs record counts and row IDs only — never body content.
+
+---
+
+## 5. GitHub Actions & Branch Protection
 
 1. Verify `.github/workflows/secret-scan.yml` runs on GitHub Actions (`secret-scan` and `dependency-audit` jobs).
 2. Optionally enable branch protection on `main` requiring `secret-scan` and `dependency-audit` checks to pass before merge.

@@ -19,10 +19,13 @@ public class StoreWorker(IServiceScopeFactory scopes, IConfiguration config, ILo
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(2));
+        var ticks = 0;
         while (await timer.WaitForNextTickAsync(stoppingToken)) {
             try {
                 await using var scope = scopes.CreateAsyncScope();
+                await SendAccountEmailsAsync(scope.ServiceProvider, stoppingToken);
+                if (++ticks % 15 != 0) continue;
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 var client = scope.ServiceProvider.GetRequiredService<NilePayClient>();
                 if (config.GetValue("StoreWorker:ReconcilePayments", true) && client.Ready) {
@@ -61,7 +64,6 @@ public class StoreWorker(IServiceScopeFactory scopes, IConfiguration config, ILo
                 }
 
                 await SendEmailsAsync(scope.ServiceProvider, stoppingToken);
-                await SendAccountEmailsAsync(scope.ServiceProvider, stoppingToken);
             } catch (Exception e) when (!stoppingToken.IsCancellationRequested) { logger.LogWarning(e, "Store background processing failed; will retry"); }
         }
     }
