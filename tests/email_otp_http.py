@@ -123,6 +123,14 @@ with tempfile.TemporaryDirectory() as directory:
                 _, login, _ = customer.req('/Account')
                 customer.req('/Account/Logout', {'__RequestVerificationToken': token(login)})
                 _, login, _ = customer.req('/Account/Login')
+                _, throttled, throttled_url = customer.req('/Account/Login', {
+                    'Email': customer_email, 'Password': password, 'ReturnUrl': '/Account/Orders',
+                    '__RequestVerificationToken': token(login)})
+                assert not throttled_url.endswith(route), 'immediate repeat OTP within 60s must be throttled'
+                print('PASS per-email cooldown throttles immediate repeat OTP over HTTP', flush=True)
+                with sqlite3.connect(folder / 'otp.db') as db:
+                    db.execute('DELETE FROM EmailRateLimits')
+                _, login, _ = customer.req('/Account/Login')
                 _, verify, url = customer.req('/Account/Login', {
                     'Email': customer_email, 'Password': password, 'ReturnUrl': '/Account/Orders',
                     '__RequestVerificationToken': token(login)})
@@ -182,6 +190,8 @@ with tempfile.TemporaryDirectory() as directory:
 
                 from urllib.parse import parse_qs, urlsplit
 
+                with sqlite3.connect(folder / 'otp.db') as db:
+                    db.execute('DELETE FROM EmailRateLimits')
                 recovery = Client(base)
                 forgot = '/Account/Login/ForgotPassword'
                 _, page, _ = recovery.req(forgot)
@@ -210,6 +220,8 @@ with tempfile.TemporaryDirectory() as directory:
                 _, rejected, _ = recovery.req('/Account/Login', {
                     'Email': customer_email, 'Password': password, '__RequestVerificationToken': token(login)})
                 assert 'id="otp-code"' not in rejected and messages.empty()
+                with sqlite3.connect(folder / 'otp.db') as db:
+                    db.execute('DELETE FROM EmailRateLimits')
                 _, verify, url = recovery.req('/Account/Login', {
                     'Email': customer_email, 'Password': new_password, '__RequestVerificationToken': token(rejected)})
                 assert url.endswith(route) and 'id="otp-code"' in verify

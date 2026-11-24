@@ -53,8 +53,9 @@ Added in [tests/Program.cs](tests/Program.cs) and executed locally:
 - `node tests/security_js.cjs`: **PASS**.
 - `python3 scripts/secret-scan.py`: **PASS (0 new secrets)**.
 - `python3 tests/security_http.py`: **All 16 HTTP security checks PASSED** (CSP, fresh nonces, nosniff, DENY, no-store, Secure/HttpOnly cookies, antiforgery, rate limits, production host/SQL guards).
-- `python3 tests/email_otp_http.py`: Signup OTP dispatch + verification + replay rejection **PASSED**; subsequent immediate login for the same email was throttled by the 1-minute per-email cooldown (confirming cooldown enforcement end-to-end).
-- `python3 tests/nilepay_http.py`: Username validation checks passed; order redirect assertion (`line 71`) did not pass under the local test harness (pre-existing harness/test-config mismatch to investigate separately).
+- `python3 tests/email_otp_http.py`: **All 6 checks PASSED** (signup OTP + replay rejection, 60s per-email cooldown throttling immediate repeat over HTTP, customer login OTP, admin OTP restriction, notifications, and one-time password reset).
+- `python3 tests/nilepay_http.py`: **All 58 NilePay mock HTTP checks PASSED** (gateway fallback, bounded idempotent retries, webhook signature/timestamp/amount/currency validation, expired/failed/cancelled labels & admin filters, duplicate confirmation idempotency, polling reconciliation, verified reviews, and refund final state).
+- Added a `build-and-test` job to `.github/workflows/secret-scan.yml` so GitHub Actions runs `dotnet build`, `CheckoutChecks`, `security_js.cjs`, `security_http.py`, `email_otp_http.py`, and `nilepay_http.py` alongside `secret-scan` and `dependency-audit`.
 - **SQL Server pre-existing schema migration check**: Testcontainers/local SQL Server is unavailable in this environment. Local procedure for staging: restore a pre-migration SQL Server backup, seed an old-format unprefixed ciphertext row (`PayloadVersion = 0`), run `dotnet ef database update`, verify startup fail-loud check passes and dry-run classifies the row as `ProvenEncrypted`.
 
 ### 6. Preserved Controls

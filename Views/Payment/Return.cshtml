@@ -19,7 +19,7 @@
     <span class="eyebrow">Chic & Unique · @Localizer["Payment_Gateway"]</span>
     <div class="status-card panel">
         <div class="status-icon @(settled ? "is-paid" : "")" aria-hidden="true">@(settled ? "✓" : isUnderpaid ? "!" : "◷")</div>
-        <h1>@Localizer[Model.PaymentStatus == "Refunded" ? "Refunded" : isOverpaid ? "Payment_Overpaid_Title" : Model.PaymentStatus == "Paid" ? "Payment_Paid" : isUnderpaid ? "Payment_Underpaid_Title" : cancelled ? "Cancelled" : gateway=="EXPIRED" ? "Order_Payment_Expired" : gateway=="CANCELLED" ? "Order_Payment_Cancelled" : gateway=="FAILED" ? "Order_Payment_Failed" : "Payment_Pending"]</h1>
+        <h1>@Localizer[Model.PaymentStatus == "Refunded" ? "Refunded" : isOverpaid ? "Payment_Overpaid_Title" : Model.PaymentStatus == "Paid" ? "Payment_Paid" : isUnderpaid ? "Payment_Underpaid_Title" : gateway=="EXPIRED" ? "Order_Payment_Expired" : gateway=="CANCELLED" ? "Order_Payment_Cancelled" : gateway=="FAILED" ? "Order_Payment_Failed" : cancelled ? "Cancelled" : "Payment_Pending"]</h1>
         
         @if (isOverpaid)
         {

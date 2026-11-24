@@ -9,7 +9,9 @@ public static class OrderStatusPresentation
     {
         if (order.NeedsPaymentReview) return "Payment_Review";
         if (order.PaymentStatus is "Refunded" or "Underpaid") return order.PaymentStatus;
-        if (order.IsSettled || order.Status != OrderStatuses.Pending) return order.Status;
+        if (order.IsSettled) return order.Status;
+        if (order.Status == OrderStatuses.Cancelled && order.PaymentSessionStatus is not ("EXPIRED" or "CANCELLED" or "FAILED")) return order.Status;
+        if (order.Status != OrderStatuses.Pending && order.Status != OrderStatuses.Cancelled) return order.Status;
         return order.PaymentSessionStatus switch {
             "EXPIRED" => "Order_Payment_Expired",
             "CANCELLED" => "Order_Payment_Cancelled",
@@ -39,6 +41,7 @@ public static class OrderStatusPresentation
         if (status == "Incomplete") return pending.Where(order => !db.PaymentAttempts.Any(attempt => attempt.OrderId == order.Id && attempt.SessionId != null));
         if (status == "AwaitingPayment") return pending.Where(order => db.PaymentAttempts.Any(attempt => attempt.OrderId == order.Id && attempt.SessionId != null && attempt.GatewayStatus != "EXPIRED" && attempt.GatewayStatus != "CANCELLED" && attempt.GatewayStatus != "FAILED" && attempt.GatewayStatus != "UNDERPAID" && attempt.GatewayStatus != "OVERPAID"));
         var gateway = status switch { "Expired" => "EXPIRED", "PaymentCancelled" => "CANCELLED", "PaymentFailed" => "FAILED", _ => null };
-        return gateway == null ? orders : pending.Where(order => db.PaymentAttempts.Any(attempt => attempt.OrderId == order.Id && attempt.SessionId != null && attempt.GatewayStatus == gateway));
+        var unpaidTerminalEligible = orders.Where(order => (order.Status == OrderStatuses.Pending || order.Status == OrderStatuses.Cancelled) && order.PaymentStatus == "Unpaid" && !order.NeedsPaymentReview);
+        return gateway == null ? orders : unpaidTerminalEligible.Where(order => db.PaymentAttempts.Any(attempt => attempt.OrderId == order.Id && attempt.SessionId != null && attempt.GatewayStatus == gateway));
     }
 }
