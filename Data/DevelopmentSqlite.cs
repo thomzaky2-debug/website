@@ -112,7 +112,8 @@ public static class DevelopmentSqlite
                     NextAttemptAtUtc TEXT NOT NULL,
                     SentAtUtc TEXT NULL,
                     LastError TEXT NULL,
-                    CreatedAtUtc TEXT NOT NULL
+                    CreatedAtUtc TEXT NOT NULL,
+                    PayloadVersion INTEGER NOT NULL DEFAULT 0
                 );
                 CREATE INDEX IF NOT EXISTS IX_AccountEmailQueues_SentAtUtc_NextAttemptAtUtc ON AccountEmailQueues (SentAtUtc, NextAttemptAtUtc);
                 """);

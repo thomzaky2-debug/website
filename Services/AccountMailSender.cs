@@ -50,20 +50,47 @@ public sealed class AccountMailSender(
 
     public static async Task QueueAsync(ApplicationDbContext db, IDataProtectionProvider protection, string recipient, string subject, string body, string? challengeKey = null, DateTime? expiresAtUtc = null, CancellationToken ct = default)
     {
-        var protectedBody = protection.CreateProtector("NileShop.AccountEmailQueue.v1").Protect(body);
+        var protectedBody = "dp:v1:" + protection.CreateProtector("NileShop.AccountEmailQueue.v1").Protect(body);
         db.AccountEmailQueues.Add(new Models.AccountEmailQueue {
             RecipientEmail = recipient.Trim(),
             Subject = subject,
             Body = protectedBody,
             ChallengeKey = challengeKey,
             ExpiresAtUtc = expiresAtUtc,
-            NextAttemptAtUtc = DateTime.UtcNow
+            NextAttemptAtUtc = DateTime.UtcNow,
+            PayloadVersion = 1
         });
         await db.SaveChangesAsync(ct);
     }
 
-    public static string UnprotectBody(IDataProtectionProvider protection, string protectedBody) =>
-        protection.CreateProtector("NileShop.AccountEmailQueue.v1").Unprotect(protectedBody);
+    public static string UnprotectBody(IDataProtectionProvider protection, string protectedBody)
+    {
+        var payload = protectedBody.StartsWith("dp:v1:", StringComparison.Ordinal) ? protectedBody[6..] : protectedBody;
+        return protection.CreateProtector("NileShop.AccountEmailQueue.v1").Unprotect(payload);
+    }
+
+    public static async Task<(int Scrubbed, int SkippedAmbiguous)> ScrubLegacyPlaintextAsync(ApplicationDbContext db, CancellationToken ct = default)
+    {
+        var candidates = await db.AccountEmailQueues
+            .Where(e => e.PayloadVersion == 0 && e.Body != "")
+            .ToListAsync(ct);
+        int scrubbed = 0, skipped = 0;
+        var now = DateTime.UtcNow;
+        foreach (var row in candidates)
+        {
+            if (row.Body.StartsWith("dp:v1:", StringComparison.Ordinal))
+            {
+                skipped++;
+                continue;
+            }
+            row.Body = "";
+            row.SentAtUtc ??= now;
+            row.LastError = "LegacyPlaintextScrubbed";
+            scrubbed++;
+        }
+        if (scrubbed > 0) await db.SaveChangesAsync(ct);
+        return (scrubbed, skipped);
+    }
     public async Task<bool> SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);

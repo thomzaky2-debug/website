@@ -23,4 +23,5 @@ public class AccountEmailQueue
     public DateTime? SentAtUtc { get; set; }
     [MaxLength(200)] public string? LastError { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public int PayloadVersion { get; set; } = 0;
 }

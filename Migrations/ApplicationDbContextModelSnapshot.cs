@@ -285,6 +285,9 @@ namespace NileShop.Migrations
                     b.Property<DateTime>("NextAttemptAtUtc")
                         .HasColumnType("datetime2");
 
+                    b.Property<int>("PayloadVersion")
+                        .HasColumnType("int");
+
                     b.Property<string>("RecipientEmail")
                         .IsRequired()
                         .HasMaxLength(256)
