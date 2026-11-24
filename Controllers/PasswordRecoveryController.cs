@@ -15,7 +15,7 @@ namespace NileShop.Controllers;
 [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
 [Route("/Account/Login")]
 public sealed class PasswordRecoveryController(
-    UserManager<IdentityUser> users, NileShop.Data.ApplicationDbContext db, EmailOtp otp,
+    UserManager<IdentityUser> users, NileShop.Data.ApplicationDbContext db, Microsoft.AspNetCore.DataProtection.IDataProtectionProvider protection, EmailOtp otp,
     IStringLocalizer<SharedResource> localizer, IOptions<NilePayOptions> gatewayOptions, IHostEnvironment environment) : Controller
 {
     [HttpGet("ForgotPassword")]
@@ -39,9 +39,9 @@ public sealed class PasswordRecoveryController(
                 if (origin is not null && path is not null)
                 {
                     var link = new Uri(origin, path).AbsoluteUri;
-                    await AccountMailSender.QueueAsync(db, user.Email, "Chic & Unique | إعادة تعيين كلمة المرور",
+                    await AccountMailSender.QueueAsync(db, protection, user.Email, "Chic & Unique | إعادة تعيين كلمة المرور",
                         $"لإعادة تعيين كلمة المرور، افتح الرابط التالي. تجاهل هذه الرسالة إذا لم تطلب إعادة التعيين.\n\n{link}",
-                        ct: HttpContext.RequestAborted);
+                        expiresAtUtc: DateTime.UtcNow.AddHours(1), ct: HttpContext.RequestAborted);
                 }
             }
         }

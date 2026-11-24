@@ -114,6 +114,7 @@ public class StoreWorker(IServiceScopeFactory scopes, IConfiguration config, ILo
         var db = services.GetRequiredService<ApplicationDbContext>();
         var mail = services.GetRequiredService<AccountMailSender>();
         var otp = services.GetRequiredService<EmailOtp>();
+        var protection = services.GetRequiredService<IDataProtectionProvider>();
         var now = DateTime.UtcNow;
         var items = await db.AccountEmailQueues
             .Where(e => e.SentAtUtc == null && e.NextAttemptAtUtc <= now && e.Attempts < 5)
@@ -129,23 +130,44 @@ public class StoreWorker(IServiceScopeFactory scopes, IConfiguration config, ILo
             {
                 item.SentAtUtc = now;
                 item.LastError = "SupersededOrExpired";
+                item.Body = "";
+                await db.SaveChangesAsync(ct);
+                continue;
+            }
+
+            string body;
+            try
+            {
+                body = AccountMailSender.UnprotectBody(protection, item.Body);
+            }
+            catch
+            {
+                item.Attempts = 5;
+                item.LastError = "DecryptFailed";
+                item.Body = "";
                 await db.SaveChangesAsync(ct);
                 continue;
             }
 
             item.Attempts++;
-            var sent = await mail.SendAsync(item.RecipientEmail, item.Subject, item.Body, ct);
+            var sent = await mail.SendAsync(item.RecipientEmail, item.Subject, body, ct);
             if (sent)
             {
                 item.SentAtUtc = DateTime.UtcNow;
                 item.LastError = null;
+                item.Body = "";
             }
             else
             {
                 item.LastError = "DeliveryFailed";
                 item.NextAttemptAtUtc = DateTime.UtcNow.AddMinutes(Math.Min(60, Math.Pow(2, item.Attempts)));
+                if (item.Attempts >= 5) item.Body = "";
             }
             await db.SaveChangesAsync(ct);
         }
+
+        await db.AccountEmailQueues
+            .Where(e => (e.SentAtUtc != null || e.Attempts >= 5) && e.CreatedAtUtc < now.AddHours(-24))
+            .ExecuteDeleteAsync(ct);
     }
 }

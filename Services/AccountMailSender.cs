@@ -48,18 +48,22 @@ public sealed class AccountMailSender(
         return true;
     }
 
-    public static async Task QueueAsync(ApplicationDbContext db, string recipient, string subject, string body, string? challengeKey = null, DateTime? expiresAtUtc = null, CancellationToken ct = default)
+    public static async Task QueueAsync(ApplicationDbContext db, IDataProtectionProvider protection, string recipient, string subject, string body, string? challengeKey = null, DateTime? expiresAtUtc = null, CancellationToken ct = default)
     {
+        var protectedBody = protection.CreateProtector("NileShop.AccountEmailQueue.v1").Protect(body);
         db.AccountEmailQueues.Add(new Models.AccountEmailQueue {
             RecipientEmail = recipient.Trim(),
             Subject = subject,
-            Body = body,
+            Body = protectedBody,
             ChallengeKey = challengeKey,
             ExpiresAtUtc = expiresAtUtc,
             NextAttemptAtUtc = DateTime.UtcNow
         });
         await db.SaveChangesAsync(ct);
     }
+
+    public static string UnprotectBody(IDataProtectionProvider protection, string protectedBody) =>
+        protection.CreateProtector("NileShop.AccountEmailQueue.v1").Unprotect(protectedBody);
     public async Task<bool> SendAsync(string recipient, string subject, string body, CancellationToken cancellationToken)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);

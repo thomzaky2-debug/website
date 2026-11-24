@@ -7,7 +7,7 @@ using Microsoft.Extensions.Caching.Memory;
 namespace NileShop.Services;
 
 public sealed class EmailOtp(
-    IMemoryCache cache, NileShop.Data.ApplicationDbContext db, IConfiguration config, IHostEnvironment environment)
+    IMemoryCache cache, NileShop.Data.ApplicationDbContext db, Microsoft.AspNetCore.DataProtection.IDataProtectionProvider protection, IConfiguration config, IHostEnvironment environment)
 {
     private const string SessionKey = "EmailOtpChallenge";
     private static readonly TimeSpan Lifetime = TimeSpan.FromMinutes(10);
@@ -37,16 +37,16 @@ public sealed class EmailOtp(
 
     public async Task<bool> SendAsync(HttpContext context, IdentityUser user, string destination, bool admin)
     {
-        Clear(context.Session);
         if (string.IsNullOrWhiteSpace(user.Email) || user.SecurityStamp is null) return false;
         if (!await AccountMailSender.CheckAndRecordCooldownAsync(db, user.Email, context.RequestAborted))
             return false;
+        Clear(context.Session);
         var code = RandomNumberGenerator.GetInt32(1_000_000).ToString("D6", CultureInfo.InvariantCulture);
         var key = "email-otp:" + Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
         cache.Set(key, new Challenge(new Verified(user.Id, user.SecurityStamp, destination, admin),
             SHA256.HashData(Encoding.ASCII.GetBytes(code))), Lifetime);
         context.Session.SetString(SessionKey, key);
-        await AccountMailSender.QueueAsync(db, user.Email, "Chic & Unique | رمز التحقق",
+        await AccountMailSender.QueueAsync(db, protection, user.Email, "Chic & Unique | رمز التحقق",
             $"رمز التحقق: {code}\nتنتهي صلاحية الرمز بعد 10 دقائق. تجاهل هذه الرسالة إذا لم تطلب الرمز.",
             key, DateTime.UtcNow.Add(Lifetime), context.RequestAborted);
         return true;
