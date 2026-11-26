@@ -4053,6 +4053,7 @@ html.dark-mode .copy-input-group code {
 }
 .btn-copy-sm {
   padding: 5px 12px;
+  margin-top: 0;
   white-space: nowrap;
   flex-shrink: 0;
   align-self: center;
@@ -5049,12 +5050,14 @@ html.dark-mode .card-view-toggle button.active { background: var(--teal); color:
 /* Track header on phones: keep order number and copy button on one tidy row */
 @media (max-width: 600px) {
   .track-header-card { padding: 16px; gap: 10px; }
-  .track-order-num-group h1 { gap: 8px; }
+  .track-order-num-group h1 { gap: 8px; flex-wrap: nowrap; }
   .track-order-num-group h1 span[dir="ltr"] {
-    font-size: 1.02rem;
+    font-size: clamp(0.72rem, 3.5vw, 1rem);
     letter-spacing: 0;
-    overflow-wrap: anywhere;
+    white-space: nowrap;
+    flex-shrink: 0;
     min-width: 0;
   }
   .track-header-card .order-state-strip { gap: 6px; }
+  .panel .btn-copy-sm { margin-top: 0; }
 }
