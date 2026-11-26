@@ -1473,6 +1473,26 @@ html.dark-mode .skeleton {
   color: #fff;
 }
 
+html body .footer-social a[aria-label="Facebook"] {
+  background: #1877f2;
+  color: #fff;
+}
+
+html body .footer-social a[aria-label="WhatsApp"] {
+  background: #25d366;
+  color: #fff;
+}
+
+html body .footer-social a[aria-label="Facebook"]:hover {
+  background: #1464d8;
+  color: #fff;
+}
+
+html body .footer-social a[aria-label="WhatsApp"]:hover {
+  background: #1fb457;
+  color: #fff;
+}
+
 .footer-social svg {
   width: 15px;
   height: 15px;
