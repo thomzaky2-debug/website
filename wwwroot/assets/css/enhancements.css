@@ -501,6 +501,31 @@
   background: #e67e22;
 }
 
+.badge-available {
+  background: #e8f6ef;
+  color: #177245;
+  border: 1px solid #bfe5cf;
+}
+
+.badge-out-of-stock {
+  background: #3a3f4b;
+}
+
+.product.is-sold-out .product-image img {
+  filter: grayscale(.45);
+  opacity: .8;
+}
+
+html.dark-mode .badge-available {
+  background: #12392d;
+  color: #8ee6bd;
+  border-color: #1f6b4f;
+}
+
+html.dark-mode .badge-out-of-stock {
+  background: #565d6e;
+}
+
 /* ---------- B3. Recently Viewed ---------- */
 .recently-viewed-section {
   margin: 40px 0;

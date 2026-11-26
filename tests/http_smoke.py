@@ -26,6 +26,14 @@ try:
  check('catalog-filters' in shop and 'home-hero' not in shop,'shop provides the catalog without the landing hero')
  check(shop.index('id="header-catalog"') < shop.index('class="catalog-filters panel"') < shop.index('</header>') and shop.count('id="catalog-search"')==1,'shop toolbar is in the header with no duplicate search field')
  check('/shop' in req('/?category=shoes')[2],'legacy category URLs redirect to the shop')
+ check('badge-available' in shop,'in-stock product cards show an availability badge')
+ import sqlite3
+ with sqlite3.connect(env['Database__DevelopmentSqlitePath']) as db:
+  original_stock=db.execute('SELECT StockQuantity FROM Products WHERE Id=3').fetchone()[0]
+  db.execute('UPDATE Products SET StockQuantity=0 WHERE Id=3')
+ _,soldout_shop,_=req('/shop')
+ check('badge-out-of-stock' in soldout_shop and 'is-sold-out' in soldout_shop,'out-of-stock product cards show a sold-out badge and dimmed image')
+ with sqlite3.connect(env['Database__DevelopmentSqlitePath']) as db:db.execute('UPDATE Products SET StockQuantity=? WHERE Id=3',(original_stock,))
 
  check(req('/products/everyday-runner')[0]==200,'product details route')
  import json
@@ -79,7 +87,8 @@ try:
  check(status==200 and 'smtp.example.test' in updated and secret not in updated,'SMTP settings saved without exposing password')
  import sqlite3
  status,_,_=req('/StoreAdmin/Settings',{
-  'ReturnDays':'7','ReturnsPolicyEn':'Request a return within 14 days. Refunds take 5 days.',
+  'section':'returns','ReturnDays':'7','CheckoutSessionLifetimeMinutes':'15',
+  'ReturnsPolicyEn':'Request a return within 14 days. Refunds take 5 days.',
   'ReturnsPolicyAr':'يمكنك طلب استرجاع المنتجات خلال ٢ يومًا من تاريخ الاستلام.',
   '__RequestVerificationToken':token(settings)})
  check(status==200 and 'Request a return within 7 days. Refunds take 5 days.' in req('/returns')[1],'return window updates the storefront without changing the refund deadline')
@@ -145,7 +154,6 @@ try:
   generated=[row[0] for row in db.execute("SELECT p.Slug FROM Products p JOIN ProductTranslations t ON t.ProductId=p.Id WHERE t.LanguageCode='en' AND t.Name='Automatic URL Product'")]
  check(len(generated)==2 and len(set(generated))==2 and all(slug.startswith('automatic-url-product') for slug in generated),'automatic product URLs are readable and disambiguate duplicate names')
  Path('wwwroot'+saved_image).unlink(missing_ok=True)
-
 
  _,catalog,_=req('/')
  with sqlite3.connect(env['Database__DevelopmentSqlitePath']) as db:
