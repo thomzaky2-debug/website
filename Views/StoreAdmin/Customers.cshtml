@@ -17,6 +17,6 @@
     <td><span class="status-pill @(customer.IsLocked?"off":"")">@Localizer[customer.IsLocked?"Customer_Locked":"Customer_Active"]</span></td>
     <td><a class="action-link" asp-action="Customer" asp-route-id="@customer.Id">@Localizer["Customer_View_Profile"] →</a></td>
 </tr>}
-</tbody></table>@if(!Model.Customers.Any()){<div class="admin-empty">@Localizer["Empty"]</div>}</div>
+</tbody></table>@if(!Model.Customers.Any()){<div class="admin-empty">@Localizer["Admin_Empty"]</div>}</div>
 <p class="muted customer-value-note">@Localizer["Customer_Paid_Value_Help"]</p>
 <div class="pagination">@if(Model.Page>1){<a asp-route-q="@Model.Search" asp-route-segment="@Model.Segment" asp-route-page="@(Model.Page-1)">@Localizer["Previous"]</a>}@if(Model.Page<Model.Pages){<a asp-route-q="@Model.Search" asp-route-segment="@Model.Segment" asp-route-page="@(Model.Page+1)">@Localizer["Next"]</a>}</div>
