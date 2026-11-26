@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NileShop.Data;
 using NileShop.Models;
@@ -158,6 +159,8 @@ else if (phase == "verify")
     sc.AddSingleton<IHostEnvironment>(new StagingEnv());
     sc.AddSingleton(Options.Create(new SmtpOptions { Enabled = false }));
     sc.AddSingleton(Options.Create(new NilePayOptions()));
+    sc.AddSingleton(Options.Create(new WhatsAppOtpOptions()));
+    sc.AddSingleton(sp2 => new WhatsAppOtpClient(new HttpClient(), sp2.GetRequiredService<IOptions<WhatsAppOtpOptions>>(), sp2.GetRequiredService<ILogger<WhatsAppOtpClient>>()));
     sc.AddSingleton<AccountMailSender>();
     sc.AddSingleton<EmailOtp>();
     using var sp = sc.BuildServiceProvider();
