@@ -4969,3 +4969,11 @@ html.dark-mode .card-view-toggle button.active { background: var(--teal); color:
 
 .admin-category-grid.list-view { grid-template-columns: 1fr; gap: 6px; }
 .admin-category-grid.list-view .admin-category-card { padding: 8px 12px; }
+
+/* Compact admin page header on phones */
+@media (max-width: 600px) {
+  body.admin-site .section-head { margin-bottom: 14px; gap: 8px; }
+  body.admin-site .section-head .eyebrow { font-size: .62rem; letter-spacing: .08em; }
+  body.admin-site .section-head h1 { font-size: 1.4rem; margin-bottom: 4px; }
+  body.admin-site .section-head p.muted { font-size: .78rem; line-height: 1.35; }
+}
