@@ -1386,7 +1386,7 @@ html.dark-mode .skeleton {
 }
 
 .site-footer .footer-grid {
-  grid-template-columns: 1.5fr 1fr 1fr 1.3fr;
+  grid-template-columns: 1.5fr 1fr 1fr;
   gap: 24px;
 }
 
@@ -1444,8 +1444,8 @@ html.dark-mode .skeleton {
 
 @media (max-width: 520px) {
   .site-footer .footer-grid {
-    grid-template-columns: 1fr;
-    gap: 18px;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
   }
 }
 
