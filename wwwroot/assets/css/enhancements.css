@@ -4182,6 +4182,7 @@ html.dark-mode .copy-input-group code {
   font-size: 0.72rem;
   color: var(--subtle);
   margin-top: 3px;
+  white-space: nowrap;
 }
 .unpaid-callout-banner {
   padding: 16px 20px;
