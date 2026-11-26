@@ -26,6 +26,21 @@ window.initializeNileShopPage = function () {
  };
 'use strict';
 document.documentElement.classList.remove('no-js');
+document.querySelectorAll('[data-view-toggle]').forEach(toggle=>{
+ const target=document.querySelector(toggle.dataset.target);
+ if(!target)return;
+ const key='admin-card-view:'+toggle.dataset.target;
+ const apply=view=>{
+  target.classList.toggle('list-view',view==='list');
+  toggle.querySelectorAll('button[data-view]').forEach(b=>{const on=b.dataset.view===view;b.classList.toggle('active',on);b.setAttribute('aria-pressed',String(on));});
+ };
+ toggle.addEventListener('click',e=>{
+  const b=e.target.closest('button[data-view]');
+  if(!b)return;
+  localStorage.setItem(key,b.dataset.view);apply(b.dataset.view);
+ },{signal:lifecycle.signal});
+ apply(localStorage.getItem(key)||'grid');
+});
 document.querySelector('#audit-search')?.addEventListener('input',function(){const q=this.value.toLocaleLowerCase();document.querySelectorAll('#audit-table tbody tr').forEach(r=>r.hidden=!r.textContent.toLocaleLowerCase().includes(q));}, { signal: lifecycle.signal });
 document.querySelectorAll('[data-preview]').forEach(b=>b.addEventListener('click',()=>{document.querySelector('.detail-image').src=b.dataset.preview;document.querySelectorAll('[data-preview]').forEach(node=>node.setAttribute('aria-pressed',String(node===b)));const zoom=document.querySelector('[data-product-zoom]');if(zoom)zoom.href=b.dataset.preview;}, { signal: lifecycle.signal }));
 document.querySelectorAll('[data-confirm]').forEach(f=>f.addEventListener('submit',e=>{if(!confirm(document.documentElement.lang==='ar'?'تأكيد هذا الإجراء؟':'Confirm this action?'))e.preventDefault();}, { signal: lifecycle.signal }));
