@@ -29,5 +29,5 @@
 </div>
 <h2>@(ar ? "آخر الإشعارات المرسلة" : "Recently sent")</h2>
 @if(((List<ClientNotification>)ViewBag.History).Count == 0){<p>@(ar ? "لم ترسل أي إشعارات بعد." : "No messages sent yet. Your sent messages will appear here.")</p>}
-@foreach(var item in (List<ClientNotification>)ViewBag.History){<article class="notification-card"><h3>@item.Title</h3><small>@(item.RecipientId == null ? (ar ? "جميع العملاء" : "Everyone") : (((Dictionary<string, string>)ViewBag.Recipients).GetValueOrDefault(item.RecipientId) ?? (ar ? "رسالة خاصة" : "Private message"))) · @item.CreatedAt.ToString("yyyy-MM-dd HH:mm") UTC</small><p class="notification-body">@item.Body</p></article>}
+@foreach(var item in (List<ClientNotification>)ViewBag.History){<article class="notification-card"><h3>@item.Title</h3><small>@(item.RecipientId == null ? (ar ? "جميع العملاء" : "Everyone") : (((Dictionary<string, string>)ViewBag.Recipients).GetValueOrDefault(item.RecipientId) ?? (ar ? "رسالة خاصة" : "Private message"))) · @item.CreatedAt.ToString("dd/MM/yyyy HH:mm") UTC</small><p class="notification-body">@item.Body</p></article>}
 </section>

@@ -18,7 +18,7 @@
                     <span class="status-pill @(isUnpaidWarn ? "off" : "")">@Localizer[Model.PaymentStatus]</span>
                 </div>
             </div>
-            <p class="muted admin-order-date">@Model.CreatedAt.ToString("f")</p>
+            <p class="muted admin-order-date">@Model.CreatedAt.ToString("dd/MM/yyyy h:mm tt", CultureInfo.InvariantCulture)</p>
         </div>
         <div class="admin-order-hero-actions">
             <a class="action-link" asp-controller="Orders" asp-action="Track" asp-route-token="@Model.PaymentAccessToken" target="_blank" rel="noopener">
@@ -133,7 +133,7 @@
                 {
                     <li>
                         <strong>@Localizer[update.Status]</strong>
-                        <time dir="ltr">@update.CreatedAt.ToString("g")</time>
+                        <time dir="ltr">@update.CreatedAt.ToString("dd/MM/yyyy h:mm tt", CultureInfo.InvariantCulture)</time>
                     </li>
                 }
             </ol>
@@ -259,7 +259,7 @@
                             <span class="admin-email-dot @(email.SentAt.HasValue ? "is-sent" : "is-pending")" aria-hidden="true"></span>
                             <div>
                                 <strong>@Localizer[email.Kind]</strong>
-                                <small dir="ltr">@(email.SentAt?.ToString("g") ?? email.LastError ?? "Pending")</small>
+                                <small dir="ltr">@(email.SentAt?.ToString("dd/MM/yyyy h:mm tt", CultureInfo.InvariantCulture) ?? email.LastError ?? "Pending")</small>
                             </div>
                         </div>
                         @if (email.SentAt is null)

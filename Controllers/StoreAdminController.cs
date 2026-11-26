@@ -286,10 +286,15 @@ public class StoreAdminController(ApplicationDbContext db, CustomerAdminService 
         var refunds=(await db.Orders.AsNoTracking().Where(o=>o.RefundedAt>=start&&o.RefundedAt<until).Select(o=>o.TotalAmount).ToListAsync()).Sum();
         return new(start,end,days,refunds);
     }
-    public async Task<IActionResult> Reports(DateTime? from,DateTime? to)=>View(await Report(from,to));
-    public async Task<IActionResult> Export(DateTime? from,DateTime? to)
+    static DateTime? ParseReportDate(string? value)
     {
-        var report=await Report(from,to);var csv="Date,Orders,CollectedEGP\r\n"+string.Join("\r\n",report.Days.Select(d=>$"{d.Date:yyyy-MM-dd},{d.Orders},{d.Collected.ToString("0.00",System.Globalization.CultureInfo.InvariantCulture)}"));
+        if(System.DateTime.TryParseExact(value,new[]{"dd/MM/yyyy","yyyy-MM-dd"},System.Globalization.CultureInfo.InvariantCulture,System.Globalization.DateTimeStyles.None,out var d))return d;
+        return null;
+    }
+    public async Task<IActionResult> Reports(string? from,string? to)=>View(await Report(ParseReportDate(from),ParseReportDate(to)));
+    public async Task<IActionResult> Export(string? from,string? to)
+    {
+        var report=await Report(ParseReportDate(from),ParseReportDate(to));var csv="Date,Orders,CollectedEGP\r\n"+string.Join("\r\n",report.Days.Select(d=>$"{d.Date:yyyy-MM-dd},{d.Orders},{d.Collected.ToString("0.00",System.Globalization.CultureInfo.InvariantCulture)}"));
         return File(Encoding.UTF8.GetBytes(csv),"text/csv","nileshop-sales.csv");
     }
 }

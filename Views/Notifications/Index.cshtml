@@ -6,7 +6,7 @@
 <div class="notification-list">
 @foreach(var item in Model.Take(20)){
 <article class="notification-card @(read.Contains(item.Id) ? "is-read" : "is-unread")">
-<div><h2>@item.Title</h2><time datetime="@item.CreatedAt.ToString("o")">@item.CreatedAt.ToString("yyyy-MM-dd HH:mm") UTC</time></div>
+<div><h2>@item.Title</h2><time datetime="@item.CreatedAt.ToString("o")">@item.CreatedAt.ToString("dd/MM/yyyy HH:mm") UTC</time></div>
 <p class="notification-body">@item.Body</p>
 @if(!read.Contains(item.Id)) {<form action="/Account/Notifications/Read" method="post" data-notification-read>@Html.AntiForgeryToken()<input type="hidden" name="id" value="@item.Id"/><button type="submit">@(ar ? "تحديد كمقروء" : "Mark as read")</button><span role="status"></span></form>}
 </article>

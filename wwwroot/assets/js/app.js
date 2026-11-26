@@ -956,3 +956,31 @@ document.querySelectorAll('[data-page-toast]:not([hidden])').forEach(notice => {
 
 };
 window.initializeNileShopPage();
+
+/* dd/MM/yyyy date entry: auto-insert slashes and validate (admin report filters) */
+(function () {
+  function mask(el) {
+    var digits = el.value.replace(/\D/g, '').slice(0, 8);
+    var out = digits;
+    if (digits.length > 4) out = digits.slice(0, 2) + '/' + digits.slice(2, 4) + '/' + digits.slice(4);
+    else if (digits.length > 2) out = digits.slice(0, 2) + '/' + digits.slice(2);
+    if (el.value !== out) el.value = out;
+    el.setCustomValidity('');
+  }
+  function validate(el) {
+    var m = el.value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    var ok = false;
+    if (m) {
+      var d = +m[1], mo = +m[2], y = +m[3];
+      var dt = new Date(y, mo - 1, d);
+      ok = mo >= 1 && mo <= 12 && dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === d;
+    }
+    el.setCustomValidity(el.value === '' || ok ? '' : 'DD/MM/YYYY');
+  }
+  document.addEventListener('input', function (e) {
+    if (e.target.matches && e.target.matches('[data-dmy-date]')) mask(e.target);
+  });
+  document.addEventListener('blur', function (e) {
+    if (e.target.matches && e.target.matches('[data-dmy-date]')) validate(e.target);
+  }, true);
+})();
