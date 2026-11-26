@@ -4988,4 +4988,46 @@ html.dark-mode .card-view-toggle button.active { background: var(--teal); color:
   body.storefront-site .store-page-heading h1 { font-size: 1.5rem; margin: 0 0 8px; }
   body.storefront-site .store-page-heading p { font-size: .82rem; }
 }
+
+/* Tidy category cards on phones */
+@media (max-width: 600px) {
+  body.admin-site .admin-category-grid { gap: 8px; }
+  body.admin-site .admin-category-card { gap: 8px; padding: 10px; align-items: flex-start; }
+  body.admin-site .admin-category-card .category-symbol { width: 32px; height: 32px; border-radius: 9px; font-size: .85rem; }
+  body.admin-site .admin-category-card .category-info h3 { font-size: .92rem; margin: 0 0 2px; }
+  body.admin-site .admin-category-card .category-info small { font-size: .68rem; }
+  body.admin-site .admin-category-card .category-visibility-status { margin-top: 2px !important; font-size: .66rem !important; }
+  body.admin-site .admin-category-card .category-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; width: 100%; margin-top: 2px; }
+  body.admin-site .admin-category-card .category-actions form { display: contents; }
+  body.admin-site .admin-category-card .category-actions :where(a, button) { min-height: 34px; padding: 4px 6px; font-size: .74rem; justify-content: center; text-align: center; width: 100%; box-sizing: border-box; }
+}
+
+/* Compact customer detail page on phones */
+@media (max-width: 600px) {
+  body.admin-site .kpis.customer-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-bottom: 16px; }
+  body.admin-site .kpis.customer-summary .panel { padding: 8px 6px; text-align: center; }
+  body.admin-site .kpis.customer-summary .panel > small { font-size: .6rem; line-height: 1.25; display: block; }
+  body.admin-site .kpis.customer-summary h2 { font-size: .92rem; margin-top: 3px; }
+  body.admin-site .kpis.customer-summary h2 small { font-size: .62rem; }
+  body.admin-site .customer-value-note { font-size: .72rem; line-height: 1.45; margin-block: 8px 16px; }
+  body.admin-site .customer-profile-details { padding: 14px; margin-block: 14px 22px; }
+  body.admin-site .customer-profile-details > h2 { font-size: 1.05rem; margin-bottom: 12px; }
+  body.admin-site .customer-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 14px; }
+  body.admin-site .customer-facts dt { font-size: .64rem; margin-bottom: 3px; }
+  body.admin-site .customer-facts dd { font-size: .84rem; }
+  body.admin-site .customer-facts .customer-address { grid-column: 1 / -1; }
+}
+
+/* Compact sales report filter + table on phones */
+@media (max-width: 600px) {
+  body.admin-site .reports-filter-panel { grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px; margin-bottom: 16px; }
+  body.admin-site .reports-filter-panel > .field { width: auto; min-width: 0; flex: none; }
+  body.admin-site .reports-filter-panel .field label { font-size: .66rem; margin: 0 0 4px; }
+  body.admin-site .reports-filter-panel .field input { min-height: 38px; padding: 6px 8px; font-size: .8rem; }
+  body.admin-site .reports-filter-panel > button,
+  body.admin-site .reports-filter-panel > .action-link { width: auto; max-width: none; min-height: 38px; margin: 0; padding: 6px 8px; font-size: .78rem; display: inline-flex; align-items: center; justify-content: center; }
+  body.admin-site .sales-by-day-table table { min-width: 0; }
+  body.admin-site .sales-by-day-table th, body.admin-site .sales-by-day-table td { padding: 9px 10px; }
+  body.admin-site .sales-by-day-table th { font-size: .68rem; }
+  body.admin-site .sales-by-day-table td { font-size: .8rem; }
 }
