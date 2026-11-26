@@ -758,7 +758,6 @@ html.dark-mode .site-header {
   max-width: 150px;
   object-fit: contain;
   border-radius: 8px;
-  background: #000;
   display: inline-block;
   vertical-align: middle;
 }
@@ -769,8 +768,7 @@ html.dark-mode .brand {
 html.dark-mode .brand img,
 html.dark-mode .brand-logo-img {
   background: transparent;
-  box-shadow: 0 0 0 1px rgba(212, 175, 55, .35);
-  border-radius: 8px;
+  filter: brightness(1.3) saturate(1.1);
 }
 
 html.dark-mode .site-nav > a {
