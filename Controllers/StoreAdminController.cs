@@ -168,19 +168,59 @@ public class StoreAdminController(ApplicationDbContext db, CustomerAdminService 
         settings.ReturnsPolicyAr = ReturnPolicyWindow.Apply(settings.ReturnsPolicyAr, settings.ReturnDays, arabic: true);
         return View(settings);
     }
+    // Each settings section posts only its own fields with a section key, so saving
+    // one section can never overwrite the stored values of another.
     [HttpPost,ValidateAntiForgeryToken]
-    public async Task<IActionResult> Settings(StoreSettings model)
+    public async Task<IActionResult> Settings(StoreSettings model, string? section)
     {
-        model.FacebookUrl = NormalizeSocialUrl(model.FacebookUrl, nameof(model.FacebookUrl));
-        model.InstagramUrl = NormalizeSocialUrl(model.InstagramUrl, nameof(model.InstagramUrl));
-        model.TwitterUrl = NormalizeSocialUrl(model.TwitterUrl, nameof(model.TwitterUrl));
-        model.WhatsAppUrl = NormalizeSocialUrl(model.WhatsAppUrl, nameof(model.WhatsAppUrl), allowPhone: true);
-        if(!ModelState.IsValid){await SettingsData();return View(model);}
-        model.ReturnsPolicyEn = ReturnPolicyWindow.Apply(model.ReturnsPolicyEn, model.ReturnDays, arabic: false);
-        model.ReturnsPolicyAr = ReturnPolicyWindow.Apply(model.ReturnsPolicyAr, model.ReturnDays, arabic: true);
-        var settings=await db.StoreSettings.OrderBy(s => s.Id).FirstAsync();model.Id=settings.Id;model.HeroImageUrl=settings.HeroImageUrl;db.Entry(settings).CurrentValues.SetValues(model);
+        if(section=="social")
+        {
+            model.FacebookUrl = NormalizeSocialUrl(model.FacebookUrl, nameof(model.FacebookUrl));
+            model.InstagramUrl = NormalizeSocialUrl(model.InstagramUrl, nameof(model.InstagramUrl));
+            model.TwitterUrl = NormalizeSocialUrl(model.TwitterUrl, nameof(model.TwitterUrl));
+            model.WhatsAppUrl = NormalizeSocialUrl(model.WhatsAppUrl, nameof(model.WhatsAppUrl), allowPhone: true);
+        }
+        if(section=="returns")
+        {
+            model.ReturnsPolicyEn = ReturnPolicyWindow.Apply(model.ReturnsPolicyEn, model.ReturnDays, arabic: false);
+            model.ReturnsPolicyAr = ReturnPolicyWindow.Apply(model.ReturnsPolicyAr, model.ReturnDays, arabic: true);
+        }
+        if(!ModelState.IsValid){await SettingsData();return View(await SettingsPageModel(model,section));}
+        var settings=await db.StoreSettings.OrderBy(s => s.Id).FirstAsync();
+        switch(section)
+        {
+            case "contact":
+                settings.ContactEmail=model.ContactEmail;settings.ContactPhone=model.ContactPhone;settings.AddressEn=model.AddressEn;settings.AddressAr=model.AddressAr;break;
+            case "social":
+                settings.FacebookUrl=model.FacebookUrl;settings.InstagramUrl=model.InstagramUrl;settings.TwitterUrl=model.TwitterUrl;settings.WhatsAppUrl=model.WhatsAppUrl;break;
+            case "free-delivery":
+                settings.FreeDeliveryOfferEnabled=model.FreeDeliveryOfferEnabled;settings.FreeDeliveryOfferThreshold=model.FreeDeliveryOfferThreshold;settings.FreeDeliveryOfferLabelEn=model.FreeDeliveryOfferLabelEn;settings.FreeDeliveryOfferLabelAr=model.FreeDeliveryOfferLabelAr;break;
+            case "delivery":
+                settings.DeliveryPolicyEn=model.DeliveryPolicyEn;settings.DeliveryPolicyAr=model.DeliveryPolicyAr;break;
+            case "returns":
+                settings.ReturnDays=model.ReturnDays;settings.CheckoutSessionLifetimeMinutes=model.CheckoutSessionLifetimeMinutes;settings.ReturnsPolicyEn=model.ReturnsPolicyEn;settings.ReturnsPolicyAr=model.ReturnsPolicyAr;break;
+            default:
+                return BadRequest();
+        }
         await db.SaveChangesAsync();
-        await audit.LogAsync("STORE_SETTINGS","Store","Updated contact, social and policy settings");TempData["Success"]="Admin_Saved";return RedirectToAction(nameof(Settings));
+        await audit.LogAsync("STORE_SETTINGS","Store",$"Updated {section} settings");TempData["Success"]="Admin_Saved";return RedirectToAction(nameof(Settings),new{anchor=section});
+    }
+    // On a validation error the view still needs every section's values: refill from
+    // the database and overlay only the posted section so the admin keeps their input.
+    async Task<StoreSettings> SettingsPageModel(StoreSettings? posted, string? section)
+    {
+        var settings=await db.StoreSettings.AsNoTracking().OrderBy(s => s.Id).FirstAsync();
+        if(posted is not null)switch(section)
+        {
+            case "contact": settings.ContactEmail=posted.ContactEmail;settings.ContactPhone=posted.ContactPhone;settings.AddressEn=posted.AddressEn;settings.AddressAr=posted.AddressAr;break;
+            case "social": settings.FacebookUrl=posted.FacebookUrl;settings.InstagramUrl=posted.InstagramUrl;settings.TwitterUrl=posted.TwitterUrl;settings.WhatsAppUrl=posted.WhatsAppUrl;break;
+            case "free-delivery": settings.FreeDeliveryOfferEnabled=posted.FreeDeliveryOfferEnabled;settings.FreeDeliveryOfferThreshold=posted.FreeDeliveryOfferThreshold;settings.FreeDeliveryOfferLabelEn=posted.FreeDeliveryOfferLabelEn;settings.FreeDeliveryOfferLabelAr=posted.FreeDeliveryOfferLabelAr;break;
+            case "delivery": settings.DeliveryPolicyEn=posted.DeliveryPolicyEn;settings.DeliveryPolicyAr=posted.DeliveryPolicyAr;break;
+            case "returns": settings.ReturnDays=posted.ReturnDays;settings.CheckoutSessionLifetimeMinutes=posted.CheckoutSessionLifetimeMinutes;settings.ReturnsPolicyEn=posted.ReturnsPolicyEn;settings.ReturnsPolicyAr=posted.ReturnsPolicyAr;break;
+        }
+        settings.ReturnsPolicyEn = ReturnPolicyWindow.Apply(settings.ReturnsPolicyEn, settings.ReturnDays, arabic: false);
+        settings.ReturnsPolicyAr = ReturnPolicyWindow.Apply(settings.ReturnsPolicyAr, settings.ReturnDays, arabic: true);
+        return settings;
     }
     string? NormalizeSocialUrl(string? raw, string field, bool allowPhone = false)
     {

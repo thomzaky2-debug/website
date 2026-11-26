@@ -10,7 +10,7 @@
   const formKey = form => {
     const url = new URL(form.action, location.href);
     const identity = [...form.querySelectorAll('input[type="hidden"]')]
-      .filter(input => ['id', 'Id', 'productId', 'orderId', 'cartKey'].includes(input.name))
+      .filter(input => ['id', 'Id', 'productId', 'orderId', 'cartKey', 'section'].includes(input.name))
       .map(input => input.name + '=' + input.value).join('&');
     return url.pathname + '?' + identity;
   };

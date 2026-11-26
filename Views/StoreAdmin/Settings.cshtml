@@ -129,10 +129,9 @@
         </div>
       </section>
 
-      <!-- 2. Store Details Form: Contact, Delivery Policy & Returns Policy -->
+      <!-- 2. Store Details: each section has its own form and Save button, so saving one section never touches another -->
       <form asp-action="Settings" method="post" data-async-form class="settings-store-form">
-        <div asp-validation-summary="All" class="validation"></div>
-
+        <input type="hidden" name="section" value="contact"/>
         <section id="contact" class="settings-section panel settings-card">
           <header class="settings-card-head">
             <span class="settings-card-icon" aria-hidden="true">
@@ -157,14 +156,22 @@
             <div class="settings-field">
               <label asp-for="AddressEn">@Localizer["Address_En"]</label>
               <input asp-for="AddressEn" dir="ltr"/>
+              <span asp-validation-for="AddressEn"></span>
             </div>
             <div class="settings-field">
               <label asp-for="AddressAr">@Localizer["Address_Ar"]</label>
               <input asp-for="AddressAr" dir="rtl"/>
+              <span asp-validation-for="AddressAr"></span>
             </div>
           </div>
+          <div class="settings-actions">
+            <button type="submit" class="primary-button">@Localizer["Save"]</button>
+          </div>
         </section>
+      </form>
 
+      <form asp-action="Settings" method="post" data-async-form class="settings-store-form">
+        <input type="hidden" name="section" value="social"/>
         <section id="social" class="settings-section panel settings-card">
           <header class="settings-card-head">
             <span class="settings-card-icon" aria-hidden="true">
@@ -209,8 +216,14 @@
               <span asp-validation-for="WhatsAppUrl"></span>
             </div>
           </div>
+          <div class="settings-actions">
+            <button type="submit" class="primary-button">@Localizer["Save"]</button>
+          </div>
         </section>
+      </form>
 
+      <form asp-action="Settings" method="post" data-async-form class="settings-store-form">
+        <input type="hidden" name="section" value="free-delivery"/>
         <section id="free-delivery" class="settings-section panel settings-card">
           <header class="settings-card-head settings-card-head-split">
             <div class="settings-card-title-group">
@@ -238,19 +251,28 @@
               <label asp-for="FreeDeliveryOfferThreshold">@Localizer["Free_Delivery_Offer_Threshold"] (EGP)</label>
               <input asp-for="FreeDeliveryOfferThreshold" type="number" step="1" min="0" max="1000000" placeholder="0"/>
               <small class="muted">@Localizer["Free_Delivery_Offer_Threshold_Help"]</small>
+              <span asp-validation-for="FreeDeliveryOfferThreshold"></span>
             </div>
             <div class="settings-field">
               <label asp-for="FreeDeliveryOfferLabelEn">@Localizer["Free_Delivery_Offer_Label_En"]</label>
               <input asp-for="FreeDeliveryOfferLabelEn" maxlength="200" placeholder="@Localizer["Free_Delivery_Offer_Qualified_Title"]" dir="ltr"/>
               <small class="muted">@Localizer["Free_Delivery_Offer_Label_Help"]</small>
+              <span asp-validation-for="FreeDeliveryOfferLabelEn"></span>
             </div>
             <div class="settings-field">
               <label asp-for="FreeDeliveryOfferLabelAr">@Localizer["Free_Delivery_Offer_Label_Ar"]</label>
               <input asp-for="FreeDeliveryOfferLabelAr" maxlength="200" placeholder="@Localizer["Free_Delivery_Offer_Qualified_Title"]" dir="rtl"/>
+              <span asp-validation-for="FreeDeliveryOfferLabelAr"></span>
             </div>
           </div>
+          <div class="settings-actions">
+            <button type="submit" class="primary-button">@Localizer["Save"]</button>
+          </div>
         </section>
+      </form>
 
+      <form asp-action="Settings" method="post" data-async-form class="settings-store-form">
+        <input type="hidden" name="section" value="delivery"/>
         <section id="delivery" class="settings-section panel settings-card">
           <header class="settings-card-head">
             <span class="settings-card-icon" aria-hidden="true">
@@ -265,15 +287,23 @@
             <div class="settings-field">
               <label asp-for="DeliveryPolicyEn">@Localizer["Delivery_Policy_En"]</label>
               <textarea asp-for="DeliveryPolicyEn" dir="ltr"></textarea>
+              <span asp-validation-for="DeliveryPolicyEn"></span>
             </div>
             <div class="settings-field">
               <label asp-for="DeliveryPolicyAr">@Localizer["Delivery_Policy_Ar"]</label>
               <textarea asp-for="DeliveryPolicyAr" dir="rtl"></textarea>
+              <span asp-validation-for="DeliveryPolicyAr"></span>
             </div>
           </div>
           <p class="settings-info-note muted">@Localizer["Delivery_Policy_Token_Help"] <code dir="ltr">{{DELIVERY_AREAS}}</code></p>
+          <div class="settings-actions">
+            <button type="submit" class="primary-button">@Localizer["Save"]</button>
+          </div>
         </section>
+      </form>
 
+      <form asp-action="Settings" method="post" data-async-form class="settings-store-form">
+        <input type="hidden" name="section" value="returns"/>
         <section id="returns" class="settings-section panel settings-card">
           <header class="settings-card-head">
             <span class="settings-card-icon" aria-hidden="true">
@@ -288,23 +318,27 @@
             <div class="settings-field wide settings-compact-field">
               <label asp-for="ReturnDays">@Localizer["Returns_Window"] (@Localizer["Days"])</label>
               <input asp-for="ReturnDays" type="number" min="1" max="90"/>
+              <span asp-validation-for="ReturnDays"></span>
             </div>
             <div class="settings-field wide settings-compact-field">
               <label asp-for="CheckoutSessionLifetimeMinutes">@Localizer["Checkout_Lifetime"] (@Localizer["Minutes"])</label>
               <input asp-for="CheckoutSessionLifetimeMinutes" type="number" min="1" max="1440"/>
               <small class="muted">@Localizer["Checkout_Lifetime_Help"]</small>
+              <span asp-validation-for="CheckoutSessionLifetimeMinutes"></span>
             </div>
             <div class="settings-field">
               <label asp-for="ReturnsPolicyEn">@Localizer["Returns_Policy_En"]</label>
               <textarea asp-for="ReturnsPolicyEn" dir="ltr" data-return-window-pattern="@ReturnPolicyWindow.EnglishPattern"></textarea>
+              <span asp-validation-for="ReturnsPolicyEn"></span>
             </div>
             <div class="settings-field">
               <label asp-for="ReturnsPolicyAr">@Localizer["Returns_Policy_Ar"]</label>
               <textarea asp-for="ReturnsPolicyAr" dir="rtl" data-return-window-pattern="@ReturnPolicyWindow.ArabicPattern"></textarea>
+              <span asp-validation-for="ReturnsPolicyAr"></span>
             </div>
           </div>
           <div class="settings-actions">
-            <button type="submit" class="primary-button">@Localizer["Save_Store_Settings"]</button>
+            <button type="submit" class="primary-button">@Localizer["Save"]</button>
           </div>
         </section>
       </form>
