@@ -5031,3 +5031,13 @@ html.dark-mode .card-view-toggle button.active { background: var(--teal); color:
   body.admin-site .sales-by-day-table th { font-size: .68rem; }
   body.admin-site .sales-by-day-table td { font-size: .8rem; }
 }
+
+/* Compact settings status strip on phones */
+@media (max-width: 600px) {
+  body.admin-site .settings-status-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 16px; }
+  body.admin-site .settings-kpi { padding: 10px 12px; gap: 9px; align-items: center; }
+  body.admin-site .settings-kpi-icon { width: 30px; height: 30px; border-radius: 8px; }
+  body.admin-site .settings-kpi-icon svg { width: 15px; height: 15px; }
+  body.admin-site .settings-kpi small { font-size: .64rem; margin-bottom: 2px; }
+  body.admin-site .settings-kpi strong { font-size: .8rem; }
+}
