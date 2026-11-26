@@ -129,10 +129,9 @@
         </div>
       </section>
 
-      <!-- 2. Store Details Form: Contact, Delivery Policy & Returns Policy -->
+      <!-- 2. Store Details: each section has its own form and Save button, so saving one section never touches another -->
       <form asp-action="Settings" method="post" data-async-form class="settings-store-form">
-        <div asp-validation-summary="All" class="validation"></div>
-
+        <input type="hidden" name="section" value="contact"/>
         <section id="contact" class="settings-section panel settings-card">
           <header class="settings-card-head">
             <span class="settings-card-icon" aria-hidden="true">
@@ -157,14 +156,22 @@
             <div class="settings-field">
               <label asp-for="AddressEn">@Localizer["Address_En"]</label>
               <input asp-for="AddressEn" dir="ltr"/>
+              <span asp-validation-for="AddressEn"></span>
             </div>
             <div class="settings-field">
               <label asp-for="AddressAr">@Localizer["Address_Ar"]</label>
               <input asp-for="AddressAr" dir="rtl"/>
+              <span asp-validation-for="AddressAr"></span>
             </div>
           </div>
+          <div class="settings-actions">
+            <button type="submit" class="primary-button">@Localizer["Save"]</button>
+          </div>
         </section>
+      </form>
 
+      <form asp-action="Settings" method="post" data-async-form class="settings-store-form">
+        <input type="hidden" name="section" value="social"/>
         <section id="social" class="settings-section panel settings-card">
           <header class="settings-card-head">
             <span class="settings-card-icon" aria-hidden="true">
@@ -185,22 +192,6 @@
               <span asp-validation-for="FacebookUrl"></span>
             </div>
             <div class="settings-field">
-              <label asp-for="InstagramUrl" class="social-field-label">
-                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="5"/><circle cx="17.5" cy="6.5" r="1.5" fill="currentColor" stroke="none"/></svg>
-                <span>@Localizer["Social_Instagram"]</span>
-              </label>
-              <input asp-for="InstagramUrl" type="url" maxlength="500" placeholder="https://instagram.com/yourhandle" dir="ltr"/>
-              <span asp-validation-for="InstagramUrl"></span>
-            </div>
-            <div class="settings-field">
-              <label asp-for="TwitterUrl" class="social-field-label">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-                <span>@Localizer["Social_Twitter"]</span>
-              </label>
-              <input asp-for="TwitterUrl" type="url" maxlength="500" placeholder="https://x.com/yourhandle" dir="ltr"/>
-              <span asp-validation-for="TwitterUrl"></span>
-            </div>
-            <div class="settings-field">
               <label asp-for="WhatsAppUrl" class="social-field-label social-whatsapp">
                 <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.174-.008-.372-.01-.571-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
                 <span>@Localizer["Social_WhatsApp"]</span>
@@ -209,8 +200,14 @@
               <span asp-validation-for="WhatsAppUrl"></span>
             </div>
           </div>
+          <div class="settings-actions">
+            <button type="submit" class="primary-button">@Localizer["Save"]</button>
+          </div>
         </section>
+      </form>
 
+      <form asp-action="Settings" method="post" data-async-form class="settings-store-form">
+        <input type="hidden" name="section" value="free-delivery"/>
         <section id="free-delivery" class="settings-section panel settings-card">
           <header class="settings-card-head settings-card-head-split">
             <div class="settings-card-title-group">
@@ -238,19 +235,28 @@
               <label asp-for="FreeDeliveryOfferThreshold">@Localizer["Free_Delivery_Offer_Threshold"] (EGP)</label>
               <input asp-for="FreeDeliveryOfferThreshold" type="number" step="1" min="0" max="1000000" placeholder="0"/>
               <small class="muted">@Localizer["Free_Delivery_Offer_Threshold_Help"]</small>
+              <span asp-validation-for="FreeDeliveryOfferThreshold"></span>
             </div>
             <div class="settings-field">
               <label asp-for="FreeDeliveryOfferLabelEn">@Localizer["Free_Delivery_Offer_Label_En"]</label>
               <input asp-for="FreeDeliveryOfferLabelEn" maxlength="200" placeholder="@Localizer["Free_Delivery_Offer_Qualified_Title"]" dir="ltr"/>
               <small class="muted">@Localizer["Free_Delivery_Offer_Label_Help"]</small>
+              <span asp-validation-for="FreeDeliveryOfferLabelEn"></span>
             </div>
             <div class="settings-field">
               <label asp-for="FreeDeliveryOfferLabelAr">@Localizer["Free_Delivery_Offer_Label_Ar"]</label>
               <input asp-for="FreeDeliveryOfferLabelAr" maxlength="200" placeholder="@Localizer["Free_Delivery_Offer_Qualified_Title"]" dir="rtl"/>
+              <span asp-validation-for="FreeDeliveryOfferLabelAr"></span>
             </div>
           </div>
+          <div class="settings-actions">
+            <button type="submit" class="primary-button">@Localizer["Save"]</button>
+          </div>
         </section>
+      </form>
 
+      <form asp-action="Settings" method="post" data-async-form class="settings-store-form">
+        <input type="hidden" name="section" value="delivery"/>
         <section id="delivery" class="settings-section panel settings-card">
           <header class="settings-card-head">
             <span class="settings-card-icon" aria-hidden="true">
@@ -265,15 +271,23 @@
             <div class="settings-field">
               <label asp-for="DeliveryPolicyEn">@Localizer["Delivery_Policy_En"]</label>
               <textarea asp-for="DeliveryPolicyEn" dir="ltr"></textarea>
+              <span asp-validation-for="DeliveryPolicyEn"></span>
             </div>
             <div class="settings-field">
               <label asp-for="DeliveryPolicyAr">@Localizer["Delivery_Policy_Ar"]</label>
               <textarea asp-for="DeliveryPolicyAr" dir="rtl"></textarea>
+              <span asp-validation-for="DeliveryPolicyAr"></span>
             </div>
           </div>
           <p class="settings-info-note muted">@Localizer["Delivery_Policy_Token_Help"] <code dir="ltr">{{DELIVERY_AREAS}}</code></p>
+          <div class="settings-actions">
+            <button type="submit" class="primary-button">@Localizer["Save"]</button>
+          </div>
         </section>
+      </form>
 
+      <form asp-action="Settings" method="post" data-async-form class="settings-store-form">
+        <input type="hidden" name="section" value="returns"/>
         <section id="returns" class="settings-section panel settings-card">
           <header class="settings-card-head">
             <span class="settings-card-icon" aria-hidden="true">
@@ -288,23 +302,27 @@
             <div class="settings-field wide settings-compact-field">
               <label asp-for="ReturnDays">@Localizer["Returns_Window"] (@Localizer["Days"])</label>
               <input asp-for="ReturnDays" type="number" min="1" max="90"/>
+              <span asp-validation-for="ReturnDays"></span>
             </div>
             <div class="settings-field wide settings-compact-field">
               <label asp-for="CheckoutSessionLifetimeMinutes">@Localizer["Checkout_Lifetime"] (@Localizer["Minutes"])</label>
               <input asp-for="CheckoutSessionLifetimeMinutes" type="number" min="1" max="1440"/>
               <small class="muted">@Localizer["Checkout_Lifetime_Help"]</small>
+              <span asp-validation-for="CheckoutSessionLifetimeMinutes"></span>
             </div>
             <div class="settings-field">
               <label asp-for="ReturnsPolicyEn">@Localizer["Returns_Policy_En"]</label>
               <textarea asp-for="ReturnsPolicyEn" dir="ltr" data-return-window-pattern="@ReturnPolicyWindow.EnglishPattern"></textarea>
+              <span asp-validation-for="ReturnsPolicyEn"></span>
             </div>
             <div class="settings-field">
               <label asp-for="ReturnsPolicyAr">@Localizer["Returns_Policy_Ar"]</label>
               <textarea asp-for="ReturnsPolicyAr" dir="rtl" data-return-window-pattern="@ReturnPolicyWindow.ArabicPattern"></textarea>
+              <span asp-validation-for="ReturnsPolicyAr"></span>
             </div>
           </div>
           <div class="settings-actions">
-            <button type="submit" class="primary-button">@Localizer["Save_Store_Settings"]</button>
+            <button type="submit" class="primary-button">@Localizer["Save"]</button>
           </div>
         </section>
       </form>
