@@ -81,3 +81,19 @@
 @media (max-width: 600px) {
   .notification-head h1 { font-size: 1.5rem; }
 }
+
+/* Admin history: toolbar, stats, actions */
+.notification-history-toolbar { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin: 0 0 .9rem; }
+.notification-history-toolbar input[type="search"] { flex: 1 1 200px; background: var(--wash); border: 1px solid var(--border); border-radius: 999px; color: inherit; padding: .55rem .95rem; font: inherit; }
+.notification-history-toolbar input[type="search"]:focus { outline: 2px solid var(--teal); outline-offset: 1px; }
+.notification-chips { display: flex; gap: .4rem; }
+.notification-chip { background: var(--wash); border: 1px solid var(--border); border-radius: 999px; color: var(--subtle); padding: .4rem .9rem; font: inherit; font-size: .85rem; cursor: pointer; }
+.notification-chip.is-active { background: var(--teal); border-color: var(--teal); color: #fff; }
+.notification-empty-filter { color: var(--subtle); }
+.notification-stats { color: var(--subtle); font-size: .82rem; margin: .55rem 0 0; }
+.notification-actions { display: flex; align-items: center; gap: .9rem; margin-top: .7rem; }
+.notification-actions form { margin: 0; }
+.notification-action-link { color: var(--teal); font-size: .88rem; font-weight: 600; text-decoration: none; }
+.notification-action-link:hover { text-decoration: underline; }
+.notification-danger-btn { background: none; border: 1px solid var(--border); border-radius: 999px; color: #c0564f; padding: .3rem .9rem; font: inherit; font-size: .85rem; cursor: pointer; }
+.notification-danger-btn:hover { border-color: #c0564f; }

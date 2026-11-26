@@ -28,6 +28,37 @@
 <aside class="notification-card notification-preview"><p class="notification-eyebrow">@(ar ? "معاينة مباشرة" : "LIVE PREVIEW")</p><p data-preview-recipient>@(ar ? "اختر المستلم" : "Choose a recipient")</p><h2 data-preview-title>@(ar ? "عنوان الإشعار" : "Your notification title")</h2><p class="notification-body" data-preview-body>@(ar ? "ستظهر رسالتك هنا أثناء الكتابة." : "Your message will appear here as you type.")</p><small>@(ar ? "إشعار داخل الموقع" : "Delivered to the website inbox")</small></aside>
 </div>
 <h2>@(ar ? "آخر الإشعارات المرسلة" : "Recently sent")</h2>
+@if(((List<ClientNotification>)ViewBag.History).Count > 0){<div class="notification-history-toolbar"><input id="notification-history-search" type="search" maxlength="100" placeholder="@(ar ? "ابحث في الإشعارات…" : "Search notifications…")" aria-label="@(ar ? "ابحث في الإشعارات" : "Search notifications")"/><div class="notification-chips" role="group" aria-label="@(ar ? "تصفية حسب الجمهور" : "Filter by audience")"><button type="button" class="notification-chip is-active" data-audience-filter="all">@(ar ? "الكل" : "All")</button><button type="button" class="notification-chip" data-audience-filter="everyone">@(ar ? "جميع العملاء" : "Everyone")</button><button type="button" class="notification-chip" data-audience-filter="customer">@(ar ? "رسائل خاصة" : "Private")</button></div></div>
+<p class="notification-empty-filter" hidden data-empty-filter>@(ar ? "لا توجد نتائج مطابقة." : "No matching notifications.")</p>}
 @if(((List<ClientNotification>)ViewBag.History).Count == 0){<p>@(ar ? "لم ترسل أي إشعارات بعد." : "No messages sent yet. Your sent messages will appear here.")</p>}
-@foreach(var item in (List<ClientNotification>)ViewBag.History){<article class="notification-card"><h3>@item.Title</h3><small>@(item.RecipientId == null ? (ar ? "جميع العملاء" : "Everyone") : (((Dictionary<string, string>)ViewBag.Recipients).GetValueOrDefault(item.RecipientId) ?? (ar ? "رسالة خاصة" : "Private message"))) · <bdi dir="ltr">@item.CreatedAt.ToString("dd/MM/yyyy HH:mm", System.Globalization.CultureInfo.InvariantCulture) UTC</bdi></small><p class="notification-body">@item.Body</p></article>}
+@{var readCounts = (Dictionary<int, int>)ViewBag.ReadCounts; var customerCount = (int)ViewBag.CustomerCount;}
+@foreach(var item in (List<ClientNotification>)ViewBag.History){var reads = readCounts.GetValueOrDefault(item.Id); var audienceKind = item.RecipientId == null ? "everyone" : "customer";<article class="notification-card" data-audience="@audienceKind" data-search="@((item.Title + " " + item.Body).ToLowerInvariant())"><h3>@item.Title</h3><small>@(item.RecipientId == null ? (ar ? "جميع العملاء" : "Everyone") : (((Dictionary<string, string>)ViewBag.Recipients).GetValueOrDefault(item.RecipientId) ?? (ar ? "رسالة خاصة" : "Private message"))) · <bdi dir="ltr">@item.CreatedAt.ToString("dd/MM/yyyy HH:mm", System.Globalization.CultureInfo.InvariantCulture) UTC</bdi></small><p class="notification-body">@item.Body</p><p class="notification-stats">@(item.RecipientId == null ? (ar ? $"قرأها {reads} من أصل {customerCount} عميل" : $"Read by {reads} of {customerCount} customers") : (reads > 0 ? (ar ? "قرأها العميل" : "Read by the customer") : (ar ? "لم تُقرأ بعد" : "Unread")))</p><div class="notification-actions"><a class="notification-action-link" href="/Admin/Notifications?audience=@audienceKind&title=@Uri.EscapeDataString(item.Title)&body=@Uri.EscapeDataString(item.Body)">@(ar ? "إعادة الإرسال" : "Resend")</a><form action="/Admin/Notifications/Delete" method="post" onsubmit="return confirm('@(ar ? "حذف هذا الإشعار نهائياً؟" : "Delete this notification permanently?")');">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@item.Id"/><button type="submit" class="notification-danger-btn">@(ar ? "حذف" : "Delete")</button></form></div></article>}
+<script nonce="@Context.Items["CspNonce"]">
+(function(){
+  var search = document.getElementById('notification-history-search');
+  if (!search) return;
+  var chips = Array.prototype.slice.call(document.querySelectorAll('[data-audience-filter]'));
+  var cards = Array.prototype.slice.call(document.querySelectorAll('article[data-audience]'));
+  var empty = document.querySelector('[data-empty-filter]');
+  var audience = 'all';
+  function apply(){
+    var q = search.value.trim().toLowerCase();
+    var shown = 0;
+    cards.forEach(function(card){
+      var ok = (audience === 'all' || card.getAttribute('data-audience') === audience) && (!q || card.getAttribute('data-search').indexOf(q) !== -1);
+      card.hidden = !ok;
+      if (ok) shown++;
+    });
+    if (empty) empty.hidden = shown !== 0;
+  }
+  search.addEventListener('input', apply);
+  chips.forEach(function(chip){
+    chip.addEventListener('click', function(){
+      audience = chip.getAttribute('data-audience-filter');
+      chips.forEach(function(c){ c.classList.toggle('is-active', c === chip); });
+      apply();
+    });
+  });
+})();
+</script>
 </section>

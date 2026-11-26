@@ -42,6 +42,11 @@ public class NotificationsController(ApplicationDbContext db, UserManager<Identi
         var ids = history.Where(n => n.RecipientId != null).Select(n => n.RecipientId!).Distinct().ToArray();
         ViewBag.History = history;
         ViewBag.Recipients = await db.Users.AsNoTracking().Where(u => ids.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.Email ?? "");
+        var historyIds = history.Select(n => n.Id).ToArray();
+        ViewBag.ReadCounts = await db.NotificationReads.AsNoTracking().Where(r => historyIds.Contains(r.NotificationId))
+            .GroupBy(r => r.NotificationId).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(g => g.Key, g => g.Count);
+        ViewBag.CustomerCount = await db.Users.AsNoTracking().CountAsync(u =>
+            !db.UserRoles.Any(ur => ur.UserId == u.Id && db.Roles.Any(r => r.Id == ur.RoleId && r.Name == "Admin")));
     }
     [Authorize(Roles = "Admin"), HttpGet("/Admin/Notifications/Customers")]
     public async Task<IActionResult> Customers(string? q)
@@ -58,10 +63,29 @@ public class NotificationsController(ApplicationDbContext db, UserManager<Identi
         }).ToListAsync(HttpContext.RequestAborted));
     }
     [Authorize(Roles = "Admin"), HttpGet("/Admin/Notifications")]
-    public async Task<IActionResult> Manage()
+    public async Task<IActionResult> Manage(string? title, string? body, string? audience)
     {
         await LoadHistory();
-        return View(new ComposeNotification());
+        var model = new ComposeNotification();
+        if (!string.IsNullOrWhiteSpace(title) && title.Length <= 160 && !string.IsNullOrWhiteSpace(body) && body.Length <= 2000
+            && (audience == "customer" || audience == "everyone"))
+        {
+            model.Title = title;
+            model.Body = body;
+            model.Audience = audience;
+        }
+        return View(model);
+    }
+    [Authorize(Roles = "Admin"), HttpPost("/Admin/Notifications/Delete")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var notification = await db.ClientNotifications.FirstOrDefaultAsync(n => n.Id == id);
+        if (notification is null) return NotFound();
+        db.NotificationReads.RemoveRange(db.NotificationReads.Where(r => r.NotificationId == id));
+        db.ClientNotifications.Remove(notification);
+        await db.SaveChangesAsync();
+        TempData["Success"] = "Notification_Deleted";
+        return RedirectToAction(nameof(Manage));
     }
     [Authorize(Roles = "Admin"), HttpPost("/Admin/Notifications")]
     public async Task<IActionResult> Send(ComposeNotification model)
