@@ -4852,3 +4852,36 @@ html.dark-mode .admin-order-summary {
     grid-template-columns: 1fr;
   }
 }
+
+/* Topbar Desktop Navigation - two-row band where the strict single row squeezes search */
+@media (min-width: 1201px) and (max-width: 1440px) {
+  .site-header .nav {
+    flex-wrap: wrap !important;
+    row-gap: 10px !important;
+    padding-block: 10px !important;
+  }
+
+  .storefront-site .site-header .header-search {
+    order: 10;
+    flex: 1 1 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    margin-inline-end: 0 !important;
+  }
+
+  .site-header #site-nav {
+    flex: 1 1 auto !important;
+    flex-shrink: 1 !important;
+    flex-wrap: wrap !important;
+    justify-content: flex-end !important;
+    row-gap: 6px !important;
+  }
+
+  .storefront-site .site-header .header-search::details-content {
+    width: 100%;
+  }
+
+  .storefront-site .site-header .header-search .header-search-form {
+    width: 100% !important;
+  }
+}
