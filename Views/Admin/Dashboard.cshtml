@@ -2,7 +2,11 @@
 @{ViewData["Title"]=Localizer["Nav_Dashboard"];}
 <div class="section-head"><div><span class="eyebrow">Chic & Unique · @Localizer["Admin_Navigation"]</span><h1>@Localizer["Nav_Dashboard"]</h1><p class="muted">@Localizer["Dashboard_Intro"]</p></div></div>
 <div class="kpis">@foreach(var k in new[]{("Revenue",Model.Revenue.ToString("N2")+" EGP"),("Orders",Model.TotalOrders.ToString()),("Products",Model.ActiveProducts.ToString()),("LowStock",Model.LowStock.ToString()),("Logs",Model.TotalLogs.ToString())}){<div class="panel"><small>@Localizer[k.Item1]</small><h2>@k.Item2</h2></div>}</div>
-<div class="admin-section-directory">
+<div class="card-view-toggle" data-view-toggle data-target="#dashboard-sections" role="group" aria-label="@Localizer["View_Options"]">
+  <button type="button" data-view="grid" aria-pressed="true">@Localizer["Grid_View"]</button>
+  <button type="button" data-view="list" aria-pressed="false">@Localizer["List_View"]</button>
+</div>
+<div class="admin-section-directory" id="dashboard-sections">
 @foreach(var destination in new[]{
     (Controller:"Admin",Action:"Products",Title:"Products",Help:"Products_Intro"),
     (Controller:"Admin",Action:"Categories",Title:"Categories",Help:"Categories_Intro"),
