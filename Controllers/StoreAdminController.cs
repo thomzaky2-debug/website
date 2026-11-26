@@ -176,8 +176,6 @@ public class StoreAdminController(ApplicationDbContext db, CustomerAdminService 
         if(section=="social")
         {
             model.FacebookUrl = NormalizeSocialUrl(model.FacebookUrl, nameof(model.FacebookUrl));
-            model.InstagramUrl = NormalizeSocialUrl(model.InstagramUrl, nameof(model.InstagramUrl));
-            model.TwitterUrl = NormalizeSocialUrl(model.TwitterUrl, nameof(model.TwitterUrl));
             model.WhatsAppUrl = NormalizeSocialUrl(model.WhatsAppUrl, nameof(model.WhatsAppUrl), allowPhone: true);
         }
         if(section=="returns")
@@ -192,7 +190,7 @@ public class StoreAdminController(ApplicationDbContext db, CustomerAdminService 
             case "contact":
                 settings.ContactEmail=model.ContactEmail;settings.ContactPhone=model.ContactPhone;settings.AddressEn=model.AddressEn;settings.AddressAr=model.AddressAr;break;
             case "social":
-                settings.FacebookUrl=model.FacebookUrl;settings.InstagramUrl=model.InstagramUrl;settings.TwitterUrl=model.TwitterUrl;settings.WhatsAppUrl=model.WhatsAppUrl;break;
+                settings.FacebookUrl=model.FacebookUrl;settings.WhatsAppUrl=model.WhatsAppUrl;break;
             case "free-delivery":
                 settings.FreeDeliveryOfferEnabled=model.FreeDeliveryOfferEnabled;settings.FreeDeliveryOfferThreshold=model.FreeDeliveryOfferThreshold;settings.FreeDeliveryOfferLabelEn=model.FreeDeliveryOfferLabelEn;settings.FreeDeliveryOfferLabelAr=model.FreeDeliveryOfferLabelAr;break;
             case "delivery":
@@ -213,7 +211,7 @@ public class StoreAdminController(ApplicationDbContext db, CustomerAdminService 
         if(posted is not null)switch(section)
         {
             case "contact": settings.ContactEmail=posted.ContactEmail;settings.ContactPhone=posted.ContactPhone;settings.AddressEn=posted.AddressEn;settings.AddressAr=posted.AddressAr;break;
-            case "social": settings.FacebookUrl=posted.FacebookUrl;settings.InstagramUrl=posted.InstagramUrl;settings.TwitterUrl=posted.TwitterUrl;settings.WhatsAppUrl=posted.WhatsAppUrl;break;
+            case "social": settings.FacebookUrl=posted.FacebookUrl;settings.WhatsAppUrl=posted.WhatsAppUrl;break;
             case "free-delivery": settings.FreeDeliveryOfferEnabled=posted.FreeDeliveryOfferEnabled;settings.FreeDeliveryOfferThreshold=posted.FreeDeliveryOfferThreshold;settings.FreeDeliveryOfferLabelEn=posted.FreeDeliveryOfferLabelEn;settings.FreeDeliveryOfferLabelAr=posted.FreeDeliveryOfferLabelAr;break;
             case "delivery": settings.DeliveryPolicyEn=posted.DeliveryPolicyEn;settings.DeliveryPolicyAr=posted.DeliveryPolicyAr;break;
             case "returns": settings.ReturnDays=posted.ReturnDays;settings.CheckoutSessionLifetimeMinutes=posted.CheckoutSessionLifetimeMinutes;settings.ReturnsPolicyEn=posted.ReturnsPolicyEn;settings.ReturnsPolicyAr=posted.ReturnsPolicyAr;break;
