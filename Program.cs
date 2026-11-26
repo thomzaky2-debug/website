@@ -68,7 +68,11 @@ builder.Services.ConfigureApplicationCookie(o => {
     };
 });
 builder.Services.AddLocalization(o => o.ResourcesPath = "Resources");
-builder.Services.AddControllersWithViews(o => o.Filters.Add(new Microsoft.AspNetCore.Mvc.AutoValidateAntiforgeryTokenAttribute()))
+builder.Services.AddControllersWithViews(o =>
+{
+    o.Filters.Add(new Microsoft.AspNetCore.Mvc.AutoValidateAntiforgeryTokenAttribute());
+    o.Filters.Add(new NileShop.Filters.NotFoundPageFilter());
+})
     .AddViewLocalization().AddDataAnnotationsLocalization(o => o.DataAnnotationLocalizerProvider = (_, f) => f.Create(typeof(SharedResource)));
 builder.Services.AddRazorPages(o => o.Conventions.AddAreaPageApplicationModelConvention("Identity", "/Account/Login", model => model.EndpointMetadata.Add(new Microsoft.AspNetCore.RateLimiting.EnableRateLimitingAttribute("admin-auth"))));
 builder.Services.AddRateLimiter(options => {
