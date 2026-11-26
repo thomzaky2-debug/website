@@ -4930,16 +4930,21 @@ html.dark-mode .admin-order-summary {
 }
 
 /* Compact admin cards + grid/list toggle */
-.kpis { gap: 10px; margin-bottom: 22px; }
-.kpis .panel { padding: 14px 16px; }
-.kpis h2 { font-size: 1.15rem; margin: 6px 0 0; }
+.kpis { gap: 8px; margin-bottom: 16px; }
+.kpis .panel { padding: 10px 12px; }
+.kpis .panel small { font-size: .72rem; }
+.kpis h2 { font-size: 1rem; margin: 4px 0 0; }
 
-.admin-section-directory { gap: 12px; }
-.admin-section-card { gap: 6px; padding: 14px 16px; }
-.admin-section-card strong { font-size: 1rem; }
-.admin-section-card p { font-size: .82rem; line-height: 1.45; }
+.admin-section-directory { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.admin-section-card { gap: 4px; padding: 10px 12px; }
+.admin-section-card strong { font-size: .92rem; }
+.admin-section-card p { font-size: .76rem; line-height: 1.35; }
+@media (max-width: 1000px) { .admin-section-directory { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 700px) { .admin-section-directory { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
-.admin-category-card { padding: 14px 16px; }
+.admin-category-card { padding: 10px 12px; }
+.admin-category-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 1000px) { .admin-category-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 .card-view-toggle { display: inline-flex; border: 1px solid var(--line, #dce8e7); border-radius: 999px; overflow: hidden; margin-bottom: 14px; background: var(--panel-bg, #fff); }
 .card-view-toggle button { padding: 6px 16px; background: transparent; border: 0; color: var(--muted, #5a6e7c); font: inherit; font-size: .8rem; cursor: pointer; }
@@ -4949,9 +4954,9 @@ html.dark-mode .card-view-toggle button { color: #9fb2c0; }
 html.dark-mode .card-view-toggle button.active { background: var(--teal); color: #04121a; }
 
 .admin-section-directory.list-view { grid-template-columns: 1fr; gap: 8px; }
-.admin-section-directory.list-view .admin-section-card { flex-direction: row; align-items: center; gap: 12px; padding: 10px 14px; }
+.admin-section-directory.list-view .admin-section-card { flex-direction: row; align-items: center; gap: 10px; padding: 8px 12px; }
 .admin-section-directory.list-view .admin-section-card p { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .admin-section-directory.list-view .admin-section-card > span { margin-top: 0; margin-inline-start: auto; }
 
-.admin-category-grid.list-view { grid-template-columns: 1fr; gap: 8px; }
-.admin-category-grid.list-view .admin-category-card { padding: 10px 14px; }
+.admin-category-grid.list-view { grid-template-columns: 1fr; gap: 6px; }
+.admin-category-grid.list-view .admin-category-card { padding: 8px 12px; }
