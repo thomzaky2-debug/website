@@ -1690,7 +1690,7 @@ html.dark-mode .skeleton {
 .account-person-meta small {
   font-size: .8rem;
   color: var(--muted, #5f7480);
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 /* Navigation links (both sidebar & horizontal bar on Orders/Saved) */
