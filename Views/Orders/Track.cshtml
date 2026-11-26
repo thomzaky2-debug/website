@@ -26,7 +26,7 @@
                 <span dir="ltr">@Model.OrderNumber</span>
                 <button type="button" class="btn-copy-sm" id="btnCopyOrder" aria-label="Copy order number">@Localizer["Copy"]</button>
             </h1>
-            <small class="muted">@Model.CreatedAt.ToString("f")</small>
+            <small class="muted">@Model.CreatedAt.ToString("dd/MM/yyyy h:mm tt", CultureInfo.InvariantCulture)</small>
         </div>
         <div class="order-state-strip">
             <span class="status-pill @(OrderStatusPresentation.IsWarning(Model)?"off":"")">@Localizer[OrderStatusPresentation.Key(Model)]</span>
@@ -41,14 +41,14 @@
             <li class="step-item @(step1Done ? "is-completed" : "")">
                 <span class="step-icon-wrap" aria-hidden="true">✓</span>
                 <span class="step-label">@Localizer["Step_OrderPlaced"]</span>
-                <span class="step-time">@Model.CreatedAt.ToString("MMM d")</span>
+                <span class="step-time">@Model.CreatedAt.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture)</span>
             </li>
             <li class="step-item @(step2Done ? "is-completed" : step2Active ? "is-warning" : isCancelled ? "is-warning" : "")">
                 <span class="step-icon-wrap" aria-hidden="true">@(step2Done ? "✓" : step2Active ? "◷" : isCancelled ? "✕" : "2")</span>
                 <span class="step-label">@Localizer["Step_PaymentConfirmed"]</span>
                 @if (isPaid && Model.PaidAt.HasValue)
                 {
-                    <span class="step-time">@Model.PaidAt.Value.ToString("MMM d")</span>
+                    <span class="step-time">@Model.PaidAt.Value.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture)</span>
                 }
             </li>
             <li class="step-item @(step3Done ? "is-completed" : step3Active ? "is-active" : "")">
@@ -175,7 +175,7 @@
                 {
                     <li>
                         <strong>@Localizer[update.Status]</strong>
-                        <time class="muted">@update.CreatedAt.ToString("g")</time>
+                        <time class="muted">@update.CreatedAt.ToString("dd/MM/yyyy h:mm tt", CultureInfo.InvariantCulture)</time>
                     </li>
                 }
             </ol>
