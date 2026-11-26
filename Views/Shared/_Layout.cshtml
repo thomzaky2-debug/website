@@ -37,11 +37,14 @@
   }
   else if (!admin && !LanguagePreferences.IsAdminContext(Context))
   {
-      <form class="header-search" asp-controller="Home" asp-action="Shop" method="get" role="search">
-          <label class="sr-only" for="header-search-query">@Localizer["Search"]</label>
-          <input id="header-search-query" name="q" type="search" maxlength="100" required placeholder="@Localizer["Search"]"/>
-          <button type="submit" aria-label="@Localizer["Search"]"><partial name="_StoreIcon" model='@("search")'/></button>
-      </form>
+      <details class="header-search" id="header-search-details" open>
+          <summary aria-label="@Localizer["Search"]"><partial name="_StoreIcon" model='@("search")'/></summary>
+          <form class="header-search-form" asp-controller="Home" asp-action="Shop" method="get" role="search">
+              <label class="sr-only" for="header-search-query">@Localizer["Search"]</label>
+              <input id="header-search-query" name="q" type="search" maxlength="100" required placeholder="@Localizer["Search"]"/>
+              <button type="submit" aria-label="@Localizer["Search"]"><partial name="_StoreIcon" model='@("search")'/></button>
+          </form>
+      </details>
   }
   <button class="menu-toggle" type="button" aria-controls="site-nav" aria-expanded="false" aria-label="@Localizer["Menu"]" data-open-label="@Localizer["Menu"]" data-close-label="@Localizer["Close_Menu"]"><span></span><span></span><span></span></button>
   <nav id="site-nav" class="site-nav" aria-label="@Localizer["Menu"]">

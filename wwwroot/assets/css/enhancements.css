@@ -2590,8 +2590,23 @@ html.dark-mode .checkout-page .checkout-form .instapay-input > span {
 @media (max-width: 900px) {
   .checkout-page .checkout-layout {
     grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
   }
+  .checkout-page .checkout-form { order: 1; width: 100%; }
+  .checkout-page .checkout-layout > .checkout-actions-row { order: 2; }
+  .checkout-page .checkout-summary { order: 3; width: 100%; }
+  .checkout-page .checkout-actions-row .checkout-submit { width: 100% !important; }
 }
+
+.checkout-page .checkout-layout > .checkout-actions-row { grid-column: 1; }
+@media (min-width: 901px) {
+  .checkout-page .checkout-actions-row .checkout-submit { width: fit-content !important; min-width: 205px; }
+}
+.checkout-page .order-amounts { display: flex; flex-wrap: wrap; gap: 2px 8px; justify-content: flex-end; }
+.checkout-page .order-amounts > *, .checkout-page .order-amount > bdi { white-space: nowrap; }
+.checkout-page .shipping-method-meta { display: block; margin-top: 7px; color: var(--subtle); font-size: .8rem; }
+.product .product-badges .badge-tag:nth-child(n+3) { display: none; }
 
 @media (max-width: 560px) {
   .checkout-page .checkout-form {
@@ -4213,6 +4228,7 @@ html.dark-mode .copy-input-group code {
 
 /* Free Delivery Offer Banner & Badges */
 .checkout-offer-banner {
+  margin-block-start: 14px;
   display: flex;
   align-items: center;
   gap: 14px;

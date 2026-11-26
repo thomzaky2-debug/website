@@ -457,6 +457,27 @@ namespace NileShop.Migrations
                     b.ToTable("ClientNotifications");
                 });
 
+            modelBuilder.Entity("NileShop.Models.ConfirmedPhoneOwner", b =>
+                {
+                    b.Property<string>("NormalizedPhone")
+                        .HasMaxLength(20)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("ClaimedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("NormalizedPhone");
+
+                    b.ToTable("ConfirmedPhoneOwners");
+                });
+
             modelBuilder.Entity("NileShop.Models.EmailRateLimit", b =>
                 {
                     b.Property<int>("Id")

@@ -34,17 +34,22 @@ const shipping=document.querySelector('#shipping-method');
 const useWalletToggle=document.querySelector('#use-wallet');
 function updateShipping(){
  if(!shipping)return;
+ const fmt=n=>Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
  const isFreeQualified = document.querySelector('.checkout-summary[data-free-delivery-qualified="true"]') !== null;
  const originalFee = Number(shipping.selectedOptions[0]?.dataset.fee||0);
  const fee = isFreeQualified ? 0 : originalFee;
  const totalEl=document.querySelector('#checkout-total');
  const feeEl=document.querySelector('#shipping-fee');
  const origFeeEl=document.querySelector('#shipping-orig-fee');
- if(feeEl)feeEl.textContent=fee.toFixed(2);
- if(origFeeEl)origFeeEl.textContent=originalFee.toFixed(2);
+ const metaFeeEl=document.querySelector('#shipping-meta-fee');
+ const metaDaysEl=document.querySelector('#shipping-meta-days');
+ if(feeEl)feeEl.textContent=fmt(fee);
+ if(origFeeEl)origFeeEl.textContent=fmt(originalFee);
+ if(metaFeeEl)metaFeeEl.textContent=fmt(originalFee);
+ if(metaDaysEl&&shipping.selectedOptions[0])metaDaysEl.textContent=shipping.selectedOptions[0].dataset.days||'';
  if(!totalEl)return;
  const grand=Number(totalEl.dataset.subtotal||0)+fee;
- totalEl.textContent=grand.toFixed(2);
+ totalEl.textContent=fmt(grand);
  const walletBox=document.querySelector('[data-wallet-box]');
  if(!walletBox)return;
  const balance=Number(walletBox.dataset.walletBalance||0);
@@ -59,9 +64,9 @@ function updateShipping(){
  const instapayInput=instapayWrap?.querySelector('input[name="InstaPayUsername"]');
  const submitBtn=document.querySelector('.checkout-submit');
  if(creditRow)creditRow.hidden=applied<=0;
- if(appliedEl)appliedEl.textContent=applied.toFixed(2);
+ if(appliedEl)appliedEl.textContent=fmt(applied);
  if(payableRow)payableRow.hidden=applied<=0;
- if(payableEl)payableEl.textContent=payable.toFixed(2);
+ if(payableEl)payableEl.textContent=fmt(payable);
  const fullCovered=applied>0&&payable===0;
  if(fullBanner)fullBanner.hidden=!fullCovered;
  if(instapayWrap)instapayWrap.hidden=fullCovered;
@@ -127,6 +132,8 @@ if (copyRefBtn) {
 
 const paymentForm=document.querySelector('#payment-status-form');
 if(paymentForm){let checks=0;let active=false;async function refreshPayment(){if(document.hidden||active||checks++>=60)return;active=true;try{const response=await fetch(paymentForm.action,{method:'POST',body:new FormData(paymentForm),credentials:'same-origin',headers:{'Accept':'application/json'}});if(response.ok){const state=await response.json();if(typeof state.remainingSeconds==='number'&&timerWrap){timerRemaining=state.remainingSeconds;updateTimerDisplay();}if(state.paymentStatus!=='Unpaid'||['EXPIRED','CANCELLED','FAILED'].includes(state.gatewayStatus)){window.NileShopAsync.refresh();}}}catch{}finally{active=false}}setInterval(refreshPayment,10000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshPayment()}, { signal: lifecycle.signal });}
+const headerSearchDetails=document.getElementById('header-search-details');
+if(headerSearchDetails){const headerSearchMedia=window.matchMedia('(max-width: 520px)');const syncHeaderSearch=()=>{if(headerSearchMedia.matches){headerSearchDetails.removeAttribute('open')}else{headerSearchDetails.setAttribute('open','')}};syncHeaderSearch();headerSearchMedia.addEventListener?.('change',syncHeaderSearch);}
 const menuToggle=document.querySelector('.menu-toggle');
 // Reset disclosure state when rotating a device or moving to the desktop header.
 const compactNavigation=window.matchMedia('(max-width: 1200px)');
@@ -749,13 +756,71 @@ returnDays?.addEventListener('input', () => {
 }, { signal: lifecycle.signal });
 
 const emailOtpForm = document.querySelector('[data-email-otp]');
-const emailOtpCode = emailOtpForm?.querySelector('#otp-code');
-emailOtpCode?.addEventListener('input', () => {
-  emailOtpCode.value = emailOtpCode.value.replace(/[٠-٩۰-۹]/g, digit =>
+if (emailOtpForm) {
+  const emailOtpHidden = emailOtpForm.querySelector('#otp-code');
+  const emailOtpDigits = [...emailOtpForm.querySelectorAll('.otp-digit')];
+  const normalizeOtp = value => value.replace(/[٠-٩۰-۹]/g, digit =>
     String(digit.charCodeAt(0) - (digit <= '٩' ? 0x660 : 0x6f0))
   ).replace(/[^0-9]/g, '');
-  if (emailOtpCode.value.length === 6) emailOtpForm.requestSubmit();
-}, { signal: lifecycle.signal });
+  let emailOtpSubmitting = false;
+  const syncOtpCode = () => {
+    emailOtpHidden.value = emailOtpDigits.map(digit => digit.value).join('');
+  };
+  const submitOtpOnce = () => {
+    syncOtpCode();
+    if (emailOtpSubmitting || emailOtpHidden.value.length !== emailOtpDigits.length) return;
+    emailOtpSubmitting = true;
+    emailOtpDigits.forEach(digit => { digit.disabled = true; });
+    emailOtpForm.requestSubmit();
+  };
+  const spreadOtpCode = value => {
+    normalizeOtp(value).slice(0, emailOtpDigits.length).split('').forEach((char, index) => {
+      emailOtpDigits[index].value = char;
+    });
+  };
+  emailOtpDigits.forEach((input, index) => {
+    input.addEventListener('input', () => {
+      if (emailOtpSubmitting) return;
+      const normalized = normalizeOtp(input.value);
+      if (normalized.length > 1) {
+        spreadOtpCode(normalized);
+        emailOtpDigits[Math.min(normalized.length, emailOtpDigits.length) - 1].focus();
+        submitOtpOnce();
+        return;
+      }
+      input.value = normalized;
+      if (normalized && emailOtpDigits[index + 1]) emailOtpDigits[index + 1].focus();
+      submitOtpOnce();
+    }, { signal: lifecycle.signal });
+    input.addEventListener('keydown', event => {
+      if (emailOtpSubmitting) return;
+      if (event.key === 'Backspace' && !input.value && emailOtpDigits[index - 1]) {
+        emailOtpDigits[index - 1].value = '';
+        emailOtpDigits[index - 1].focus();
+        syncOtpCode();
+        event.preventDefault();
+      } else if (event.key === 'ArrowLeft' && emailOtpDigits[index - 1]) {
+        emailOtpDigits[index - 1].focus();
+        event.preventDefault();
+      } else if (event.key === 'ArrowRight' && emailOtpDigits[index + 1]) {
+        emailOtpDigits[index + 1].focus();
+        event.preventDefault();
+      }
+    }, { signal: lifecycle.signal });
+    input.addEventListener('paste', event => {
+      event.preventDefault();
+      if (emailOtpSubmitting) return;
+      const text = event.clipboardData?.getData('text') ?? '';
+      const normalized = normalizeOtp(text);
+      spreadOtpCode(normalized);
+      if (normalized.length >= emailOtpDigits.length) submitOtpOnce();
+      else {
+        (emailOtpDigits[normalized.length] || input).focus();
+        syncOtpCode();
+      }
+    }, { signal: lifecycle.signal });
+  });
+}
 
 const settingsNavLinks = [...document.querySelectorAll('.settings-page .settings-nav a[href^="#"]')];
 if (settingsNavLinks.length > 0 && 'IntersectionObserver' in window) {
