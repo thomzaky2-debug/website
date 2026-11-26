@@ -4930,15 +4930,15 @@ html.dark-mode .admin-order-summary {
 }
 
 /* Compact admin cards + grid/list toggle */
-.kpis { gap: 8px; margin-bottom: 16px; }
-.kpis .panel { padding: 10px 12px; }
-.kpis .panel small { font-size: .72rem; }
-.kpis h2 { font-size: 1rem; margin: 4px 0 0; }
+.kpis { gap: 6px; margin-bottom: 12px; }
+.kpis .panel { padding: 8px 10px; }
+.kpis .panel small { font-size: .68rem; }
+.kpis h2 { font-size: .95rem; margin: 2px 0 0; }
 
-.admin-section-directory { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-.admin-section-card { gap: 4px; padding: 10px 12px; }
-.admin-section-card strong { font-size: .92rem; }
-.admin-section-card p { font-size: .76rem; line-height: 1.35; }
+.admin-section-directory { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.admin-section-card { gap: 3px; padding: 8px 10px; }
+.admin-section-card strong { font-size: .88rem; }
+.admin-section-card p { font-size: .72rem; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 @media (max-width: 1000px) { .admin-section-directory { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 700px) { .admin-section-directory { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
