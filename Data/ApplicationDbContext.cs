@@ -7,6 +7,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<ClientNotification> ClientNotifications => Set<ClientNotification>();
     public DbSet<NotificationRead> NotificationReads => Set<NotificationRead>();
     public DbSet<EmailRateLimit> EmailRateLimits => Set<EmailRateLimit>();
+    public DbSet<NileShop.Models.ConfirmedPhoneOwner> ConfirmedPhoneOwners => Set<NileShop.Models.ConfirmedPhoneOwner>();
     public DbSet<AccountEmailQueue> AccountEmailQueues => Set<AccountEmailQueue>();
     public DbSet<SavedProduct> SavedProducts => Set<SavedProduct>();
     public DbSet<ProductReview> ProductReviews => Set<ProductReview>();
@@ -107,6 +108,11 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         b.Entity<Order>().ToTable(t => t.HasCheckConstraint("CK_Order_Status", "[Status] IN ('Pending','Processing','Shipped','Delivered','Cancelled')"));
         b.Entity<OrderItem>().ToTable(t => t.HasCheckConstraint("CK_OrderItem_Quantity", "[Quantity] > 0 AND [UnitPrice] >= 0"));
         b.Entity<EmailRateLimit>().HasIndex(x => x.NormalizedEmail).IsUnique();
+        b.Entity<NileShop.Models.ConfirmedPhoneOwner>(e => {
+            e.HasKey(x => x.NormalizedPhone);
+            e.Property(x => x.NormalizedPhone).HasMaxLength(20);
+            e.Property(x => x.UserId).HasMaxLength(450);
+        });
         b.Entity<AccountEmailQueue>().HasIndex(x => new { x.SentAtUtc, x.NextAttemptAtUtc });
         foreach (var p in b.Model.GetEntityTypes().SelectMany(e => e.GetProperties()).Where(p => p.ClrType == typeof(string))) p.SetIsUnicode(true);
     }

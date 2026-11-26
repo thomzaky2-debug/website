@@ -1,6 +1,7 @@
 @model CheckoutViewModel
 @{
     ViewData["Title"] = Localizer["Checkout"];
+    string Money(decimal d) => MoneyText.Format(d);
     var savedAddress = ViewData["SavedAddress"] as string;
     var hasSavedAddress = !string.IsNullOrWhiteSpace(savedAddress);
     var usingSavedAddress = hasSavedAddress && string.Equals((Model.ShippingAddress ?? "").Trim(), savedAddress!.Trim(), StringComparison.Ordinal);
@@ -13,10 +14,10 @@
 }
 <div class="checkout-page">
 <nav class="breadcrumb-nav" aria-label="Breadcrumb"><ol class="breadcrumb-list"><li class="breadcrumb-item"><a href="/">@Localizer["Nav_Home"]</a></li><li class="breadcrumb-separator" aria-hidden="true">›</li><li class="breadcrumb-item"><a href="/Cart">@Localizer["Nav_Cart"]</a></li><li class="breadcrumb-separator" aria-hidden="true">›</li><li class="breadcrumb-item" aria-current="page">@Localizer["Checkout"]</li></ol></nav>
-<div class="section-head"><div><span class="eyebrow">Chic & Unique · @Localizer["Nav_Cart"]</span><h1>@Localizer["Checkout"]</h1><p class="muted">@Localizer["Checkout_Intro"]</p></div><a class="action-link" asp-action="Index">← @Localizer["Nav_Cart"]</a></div>
+<div class="section-head"><div><span class="eyebrow"><bdi>Chic &amp; Unique</bdi> · @Localizer["Nav_Cart"]</span><h1>@Localizer["Checkout"]</h1><p class="muted">@Localizer["Checkout_Intro"]</p></div><a class="action-link" asp-action="Index">← @Localizer["Nav_Cart"]</a></div>
 
 <div class="checkout-layout">
-<form asp-action="Checkout" method="post" class="panel checkout-form">
+<form asp-action="Checkout" method="post" class="panel checkout-form" id="checkout-order-form">
     <div asp-validation-summary="All" class="validation"></div>
     <input asp-for="CheckoutToken" type="hidden"/>
 
@@ -103,7 +104,7 @@
                         <strong>@Localizer["Free_Delivery_Offer_Promo_Title"]</strong>
                         <span class="free-delivery-badge-sub">@Localizer["Free_Delivery_Offer"]</span>
                     </div>
-                    <p>@string.Format(Localizer["Free_Delivery_Offer_Promo_Desc"].Value, remaining.ToString("N2"))</p>
+                    <p>@string.Format(Localizer["Free_Delivery_Offer_Promo_Desc"].Value, Money(remaining))</p>
                 </div>
                 <a class="checkout-offer-action" asp-controller="Products" asp-action="Index">@Localizer["Continue_Shopping"] →</a>
             </div>
@@ -117,9 +118,16 @@
             <select asp-for="ShippingMethodId" id="shipping-method" required>
                 @foreach (var method in Model.ShippingMethods)
                 {
-                    <option value="@method.Id" data-fee="@method.Fee.ToString(CultureInfo.InvariantCulture)">@(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName=="ar"?method.NameAr:method.NameEn) — @method.Fee.ToString("N2") EGP · @method.MinDays–@method.MaxDays @Localizer["Business_Days"]</option>
+                    <option value="@method.Id" data-fee="@method.Fee.ToString(CultureInfo.InvariantCulture)" data-days="@method.MinDays–@method.MaxDays">@(CultureInfo.CurrentUICulture.TwoLetterISOLanguageName=="ar"?method.NameAr:method.NameEn)</option>
                 }
             </select>
+            @{
+                var selectedMethod = Model.ShippingMethods.FirstOrDefault(m => m.Id == Model.ShippingMethodId) ?? Model.ShippingMethods.FirstOrDefault();
+            }
+            @if (selectedMethod is not null)
+            {
+                <small class="shipping-method-meta" id="shipping-method-meta"><bdi><span id="shipping-meta-fee">@Money(selectedMethod.Fee)</span> EGP · <span id="shipping-meta-days">@selectedMethod.MinDays–@selectedMethod.MaxDays</span></bdi> @Localizer["Business_Days"]</small>
+            }
         </div>
         <div class="field checkout-wide" data-checkout-address-box data-saved-address="@savedAddress">
             @if (hasSavedAddress)
@@ -166,7 +174,7 @@
                 <input asp-for="UseWallet" id="use-wallet" type="checkbox"/>
                 <span class="checkout-wallet-copy">
                     <strong>@Localizer["Use_Wallet_Balance"]</strong>
-                    <small>@Localizer["Wallet_Balance"]: <b>@Model.WalletBalance.ToString("N2") EGP</b></small>
+                    <small>@Localizer["Wallet_Balance"]: <b><bdi>@Money(Model.WalletBalance) EGP</bdi></b></small>
                 </span>
             </label>
             <p class="wallet-full-banner" id="walletFullBanner" hidden="@(Model.PayablePreview > 0 ? "hidden" : null)">@Localizer["Wallet_Full_Covered"]</p>
@@ -182,37 +190,37 @@
         <span asp-validation-for="InstaPayUsername"></span>
     </div>
 
-    <div class="checkout-actions-row">
-        <button type="submit" class="primary-button checkout-submit" data-label-nilepay="@Localizer["PlaceOrder"] →" data-label-wallet="@Localizer["PlaceOrder_Wallet"] →">@(Model.WalletBalance > 0 && Model.UseWallet && Model.PayablePreview == 0 ? Localizer["PlaceOrder_Wallet"].Value : Localizer["PlaceOrder"].Value) →</button>
-    </div>
 </form>
 
 <aside class="panel checkout-summary" data-free-delivery-qualified="@(Model.IsFreeDeliveryQualified ? "true" : "false")">
     <h2>@Localizer["Order_Summary"]</h2>
     @foreach (var line in Model.Cart.Lines)
     {
-        <div class="order-total-row"><span>@line.Product.Name <small>@line.Size @line.Color × @line.Quantity</small></span><strong>@line.Total.ToString("N2") EGP</strong></div>
+        <div class="order-total-row"><span>@line.Product.Name <small><bdi>@line.Size @line.Color × @line.Quantity</bdi></small></span><strong class="order-amount"><bdi>@Money(line.Total) EGP</bdi></strong></div>
     }
     <div class="order-total-row">
         <span>@Localizer["Shipping_Fee"]</span>
-        <strong>
+        <strong class="order-amounts">
             @if (Model.IsFreeDeliveryQualified)
             {
                 <span class="free-badge">@Localizer["Free"]</span>
-                <del class="muted shipping-orig-del"><span id="shipping-orig-fee">@Model.StandardShippingFee.ToString("N2")</span> EGP</del>
-                <span class="free-shipping-zero"><span id="shipping-fee">0.00</span> EGP</span>
+                <del class="muted shipping-orig-del"><bdi><span id="shipping-orig-fee">@Money(Model.StandardShippingFee)</span> EGP</bdi></del>
+                <span class="free-shipping-zero"><bdi><span id="shipping-fee">0.00</span> EGP</bdi></span>
             }
             else
             {
-                <span id="shipping-fee">@Model.ShippingFee.ToString("N2")</span> <text>EGP</text>
+                <bdi><span id="shipping-fee">@Money(Model.ShippingFee)</span> EGP</bdi>
             }
         </strong>
     </div>
-    <div class="order-total-row wallet-summary-row" id="wallet-credit-row" hidden="@(Model.WalletAppliedPreview <= 0 ? "hidden" : null)"><span>@Localizer["Wallet_Credit_Applied"]</span><strong>−<span id="wallet-applied">@Model.WalletAppliedPreview.ToString("N2")</span> EGP</strong></div>
-    <div class="order-total-row grand"><span>@Localizer["Total"]</span><strong><span id="checkout-total" data-subtotal="@Model.Cart.Total.ToString(CultureInfo.InvariantCulture)">@Model.TotalWithShipping.ToString("N2")</span> EGP</strong></div>
-    <div class="order-total-row payable-summary-row" id="checkout-payable-row" hidden="@(Model.WalletAppliedPreview <= 0 ? "hidden" : null)"><span>@Localizer["Remaining_To_Pay"]</span><strong><span id="checkout-payable">@Model.PayablePreview.ToString("N2")</span> EGP</strong></div>
+    <div class="order-total-row wallet-summary-row" id="wallet-credit-row" hidden="@(Model.WalletAppliedPreview <= 0 ? "hidden" : null)"><span>@Localizer["Wallet_Credit_Applied"]</span><strong class="order-amount"><bdi>−<span id="wallet-applied">@Money(Model.WalletAppliedPreview)</span> EGP</bdi></strong></div>
+    <div class="order-total-row grand"><span>@Localizer["Total"]</span><strong class="order-amount"><bdi><span id="checkout-total" data-subtotal="@Model.Cart.Total.ToString(CultureInfo.InvariantCulture)">@Money(Model.TotalWithShipping)</span> EGP</bdi></strong></div>
+    <div class="order-total-row payable-summary-row" id="checkout-payable-row" hidden="@(Model.WalletAppliedPreview <= 0 ? "hidden" : null)"><span>@Localizer["Remaining_To_Pay"]</span><strong class="order-amount"><bdi><span id="checkout-payable">@Money(Model.PayablePreview)</span> EGP</bdi></strong></div>
     <p class="muted">@Localizer["Delivery_EstimateNote"]</p>
 </aside>
+<div class="checkout-actions-row">
+    <button type="submit" form="checkout-order-form" class="primary-button checkout-submit" data-label-nilepay="@Localizer["PlaceOrder"] →" data-label-wallet="@Localizer["PlaceOrder_Wallet"] →">@(Model.WalletBalance > 0 && Model.UseWallet && Model.PayablePreview == 0 ? Localizer["PlaceOrder_Wallet"].Value : Localizer["PlaceOrder"].Value) →</button>
+</div>
 </div>
 </div>
 

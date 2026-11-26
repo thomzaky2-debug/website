@@ -127,6 +127,9 @@ builder.Services.AddScoped<WalletService>();
 builder.Services.AddScoped<CustomerAdminService>();
 builder.Services.AddScoped<ProductImageService>();
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection("Smtp"));
+builder.Services.Configure<WhatsAppOtpOptions>(builder.Configuration.GetSection("WhatsAppOtp"));
+builder.Services.AddHttpClient<WhatsAppOtpClient>(http => { http.Timeout = TimeSpan.FromSeconds(20); http.MaxResponseContentBufferSize = 65536; })
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 builder.Services.AddHostedService<StoreWorker>();
 var app = builder.Build();
 app.UseMiddleware<SecurityHeadersMiddleware>();
@@ -188,10 +191,10 @@ await using (var scope = app.Services.CreateAsyncScope()) {
             var conn = db.Database.GetDbConnection();
             await conn.OpenAsync();
             await using var cmd = conn.CreateCommand();
-            cmd.CommandText = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME IN ('EmailRateLimits', 'AccountEmailQueues')";
+            cmd.CommandText = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME IN ('EmailRateLimits', 'AccountEmailQueues', 'ConfirmedPhoneOwners')";
             var tableCount = Convert.ToInt32(await cmd.ExecuteScalarAsync());
-            if (tableCount < 2)
-                throw new InvalidOperationException("Database schema is missing EmailRateLimits or AccountEmailQueues. Apply EF Core migrations (dotnet ef database update) before starting the application with Database:ApplyMigrationsOnStartup=false.");
+            if (tableCount < 3)
+                throw new InvalidOperationException("Database schema is missing EmailRateLimits, AccountEmailQueues or ConfirmedPhoneOwners. Apply EF Core migrations (dotnet ef database update) before starting the application with Database:ApplyMigrationsOnStartup=false.");
         }
 
     }

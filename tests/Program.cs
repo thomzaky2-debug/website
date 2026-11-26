@@ -168,6 +168,10 @@ workerServices.AddLogging();
 workerServices.AddSingleton<Microsoft.Extensions.Configuration.IConfiguration>(new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build());
 workerServices.AddSingleton<Microsoft.Extensions.Hosting.IHostEnvironment>(new LocalTestWebEnv(Path.GetTempPath()));
 workerServices.AddSingleton(Microsoft.Extensions.Options.Options.Create(new SmtpOptions()));
+workerServices.AddSingleton(Microsoft.Extensions.Options.Options.Create(new WhatsAppOtpOptions()));
+workerServices.AddSingleton(new HttpClient());
+workerServices.AddSingleton<WhatsAppOtpClient>();
+workerServices.AddSingleton<Microsoft.Extensions.Logging.ILogger<WhatsAppOtpClient>>(Microsoft.Extensions.Logging.Abstractions.NullLogger<WhatsAppOtpClient>.Instance);
 workerServices.AddSingleton(Microsoft.Extensions.Options.Options.Create(new NilePayOptions()));
 workerServices.AddSingleton<AccountMailSender>();
 workerServices.AddSingleton<EmailOtp>();
@@ -313,6 +317,115 @@ try { await imgSvc.SaveAsync([new Microsoft.AspNetCore.Http.FormFile(new MemoryS
 catch (InvalidDataException) { invalidRejected = true; }
 Check(invalidRejected, "invalid file bytes rejected even with .png extension");
 
+
+// Presentation money format: invariant culture, dot decimal, two decimals.
+Check(MoneyText.Format(1234.567m)=="1,234.57","money format groups with dot decimal");
+CultureInfo.CurrentUICulture=new CultureInfo("ar");
+Check(MoneyText.Format(235m)=="235.00","money format culture-independent");
+Check(WhatsAppOtpClient.NormalizePhone("01065466760")=="+201065466760","egyptian local phone normalized");
+Check(WhatsAppOtpClient.NormalizePhone("+201065466760")=="+201065466760","international phone kept");
+Check(WhatsAppOtpClient.NormalizePhone("00201065466760")=="+201065466760","00-prefixed phone normalized");
+var stub = new HttpClient(new DelegateStub()) { BaseAddress = new Uri("https://otp.example") };
+var otpClient = new WhatsAppOtpClient(stub, Microsoft.Extensions.Options.Options.Create(new WhatsAppOtpOptions { Enabled = true, BaseUrl = "https://otp.example", ApiKey = "test-key" }), Microsoft.Extensions.Logging.Abstractions.NullLogger<WhatsAppOtpClient>.Instance);
+Check(await otpClient.SendAsync("+201065466760", CancellationToken.None), "whatsapp send accepted with challengeId");
+Check(await otpClient.VerifyAsync("+201065466760", "123456", CancellationToken.None) == true, "whatsapp verify true");
+Check(otpClient.Configured, "whatsapp client configured");
+var emailVerified = new EmailOtp.Verified("u1", "s", "/", false, false, null);
+var waVerified = new EmailOtp.Verified("u1", "s", "/", false, true, "+201065466760");
+Check(EmailOtp.ShouldConfirmEmail(emailVerified), "email challenge confirms email");
+Check(!EmailOtp.ShouldConfirmPhone(emailVerified, "+201065466760"), "email challenge never confirms phone");
+Check(!EmailOtp.ShouldConfirmEmail(waVerified), "whatsapp challenge never confirms email");
+Check(EmailOtp.ShouldConfirmPhone(waVerified, "01065466760"), "whatsapp challenge confirms matching current phone");
+Check(!EmailOtp.ShouldConfirmPhone(waVerified, "+20101234567"), "phone changed after challenge does not confirm");
+Check(EmailOtp.ShouldUseWhatsApp(true, "01065466760"), "whatsapp gate applies when configured and phone present");
+Check(!EmailOtp.ShouldUseWhatsApp(true, null), "no phone falls back to email channel");
+Check(!EmailOtp.ShouldUseWhatsApp(false, "01065466760"), "whatsapp disabled keeps email channel");
+Check(!new WhatsAppOtpClient(stub, Microsoft.Extensions.Options.Options.Create(new WhatsAppOtpOptions { Enabled = true, BaseUrl = "http://insecure.example", ApiKey = "k" }), Microsoft.Extensions.Logging.Abstractions.NullLogger<WhatsAppOtpClient>.Instance).Configured, "whatsapp client refuses non-https base url");
+
+// Phone-first signup flow, service level with stubbed WhatsApp transport:
+// send a WhatsApp challenge, verify it, and confirm channel-separated semantics.
+{
+    var flowCache = new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
+    var waClient = new WhatsAppOtpClient(stub, Microsoft.Extensions.Options.Options.Create(new WhatsAppOtpOptions { Enabled = true, BaseUrl = "https://otp.example", ApiKey = "k" }), Microsoft.Extensions.Logging.Abstractions.NullLogger<WhatsAppOtpClient>.Instance);
+    var flowConfig = new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build();
+    var flowOtp = new EmailOtp(flowCache, db, dpProvider, flowConfig, new LocalTestWebEnv(Path.GetTempPath()), waClient);
+    var session = new FakeSession();
+    var ctx = new Microsoft.AspNetCore.Http.DefaultHttpContext { Session = session };
+    var flowUser = new IdentityUser { Id = Guid.NewGuid().ToString(), Email = "flow@example.com", SecurityStamp = Guid.NewGuid().ToString(), PhoneNumber = "01065466760" };
+    var sent = await flowOtp.SendAsync(ctx, flowUser, "/Account", admin: false);
+    Check(sent && flowOtp.IsPendingRemote(session), "phone-first send issues a WhatsApp challenge");
+    var verifiedFlow = await flowOtp.VerifyAsync(session, "123456", CancellationToken.None);
+    Check(verifiedFlow is { Remote: true } && verifiedFlow.Phone == "+201065466760", "whatsapp verify returns confirmed phone, not email");
+    Check(EmailOtp.ShouldConfirmPhone(verifiedFlow!, flowUser.PhoneNumber) && !EmailOtp.ShouldConfirmEmail(verifiedFlow!), "phone-first verify confirms phone only");
+    Check(!flowOtp.IsPending(session), "verified challenge is consumed");
+    var replay = await flowOtp.VerifyAsync(session, "123456", CancellationToken.None);
+    Check(replay is null, "consumed challenge cannot be replayed");
+    // Email-channel challenge (forceEmail) after phone verify: confirms email only.
+    // Reset the per-email send cooldown to simulate the sequential signup flow.
+    var rl = await db.EmailRateLimits.SingleOrDefaultAsync(x => x.NormalizedEmail == "FLOW@EXAMPLE.COM");
+    Check(rl is null, "whatsapp send does not consume the email cooldown");
+    if (rl is not null) { rl.LastSentUtc = DateTime.UtcNow.AddMinutes(-2); await db.SaveChangesAsync(); }
+    var sentEmail = await flowOtp.SendAsync(ctx, flowUser, "/Account", admin: false, forceEmail: true);
+    Check(sentEmail && flowOtp.IsPending(session) && !flowOtp.IsPendingRemote(session), "forceEmail issues an email challenge even with WhatsApp configured");
+}
+
+// Atomic confirmed-phone ownership: concurrent claims for the same normalized
+// phone resolve to exactly one owner, enforced by the database primary key.
+{
+    var claimDbPath = Path.Combine(Path.GetTempPath(), "nileshop-claim-" + Guid.NewGuid().ToString("N") + ".db");
+    try
+    {
+        ApplicationDbContext CreateClaimDb()
+        {
+            var o = new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlite($"Data Source={claimDbPath};Default Timeout=10").Options;
+            return new ApplicationDbContext(o);
+        }
+        using (var setupDb = CreateClaimDb()) { await setupDb.Database.EnsureCreatedAsync(); }
+        var claimResults = await Task.WhenAll(Enumerable.Range(0, 8).Select(async i =>
+        {
+            await using var cx = CreateClaimDb();
+            return await PhoneOwnership.TryClaimAsync(cx, "user-" + i, "+201065466760");
+        }));
+        Check(claimResults.Count(x => x) == 1, "concurrent claims for same phone yield exactly one owner");
+        var ownerRow = await PhoneOwnership.GetOwnerAsync(CreateClaimDb(), "+201065466760");
+        Check(ownerRow is not null && claimResults.Select((ok, i) => (ok, i)).Where(t => t.ok).All(t => ownerRow.UserId == "user-" + t.i), "owner row matches the winning claim");
+        await using (var claimDb2 = CreateClaimDb())
+        {
+            Check(await PhoneOwnership.TryClaimAsync(claimDb2, ownerRow!.UserId, "+201065466760"), "same owner reclaim is idempotent");
+            Check(!await PhoneOwnership.TryClaimAsync(claimDb2, "user-other", "+201065466760"), "different owner cannot claim while held");
+            await PhoneOwnership.ReleaseForUserAsync(claimDb2, ownerRow.UserId);
+            Check(await PhoneOwnership.TryClaimAsync(claimDb2, "user-other", "+201065466760"), "released phone becomes claimable");
+        }
+    }
+    finally { foreach (var f in new[] { claimDbPath, claimDbPath + "-wal", claimDbPath + "-shm" }) if (File.Exists(f)) File.Delete(f); }
+}
+
+// Purpose binding: no challenge may sign in a phone-bearing, phone-unconfirmed
+// account while the WhatsApp gate is configured.
+Check(EmailOtp.ShouldBlockSignInWithoutPhone(true, "01065466760", false), "email challenge cannot sign in unconfirmed-phone account with WhatsApp gate on");
+Check(!EmailOtp.ShouldBlockSignInWithoutPhone(true, "01065466760", true), "confirmed phone never blocks sign-in");
+Check(!EmailOtp.ShouldBlockSignInWithoutPhone(true, null, false), "phoneless account (admin) never blocked");
+Check(!EmailOtp.ShouldBlockSignInWithoutPhone(false, "01065466760", false), "WhatsApp disabled keeps legacy email sign-in");
+
+// Interrupted-signup gate: phone verify with unconfirmed email defers sign-in
+Check(EmailOtp.ShouldDeferSignInForEmailGate(waVerified, emailConfirmed: false), "phone verify with unconfirmed email resumes email gate instead of signing in");
+Check(!EmailOtp.ShouldDeferSignInForEmailGate(waVerified, emailConfirmed: true), "phone verify with confirmed email signs in normally");
+Check(!EmailOtp.ShouldDeferSignInForEmailGate(emailVerified, emailConfirmed: false), "email challenge itself never defers sign-in");
+
+sealed class FakeSession : Microsoft.AspNetCore.Http.ISession
+{
+    private readonly Dictionary<string, byte[]> _store = new();
+    public IEnumerable<string> Keys => _store.Keys;
+    public string Id { get; } = Guid.NewGuid().ToString();
+    public bool IsAvailable => true;
+    public void Clear() => _store.Clear();
+    public Task CommitAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+    public Task LoadAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+    public void Remove(string key) => _store.Remove(key);
+    public void Set(string key, byte[] value) => _store[key] = value;
+    public bool TryGetValue(string key, out byte[] value) => _store.TryGetValue(key, out value!);
+}
+
 sealed class LocalTestWebEnv(string webRoot) : Microsoft.AspNetCore.Hosting.IWebHostEnvironment
 {
     public string WebRootPath { get; set; } = webRoot;
@@ -328,4 +441,13 @@ sealed class FakeTimeProvider(DateTimeOffset start) : TimeProvider
     private DateTimeOffset _now = start;
     public override DateTimeOffset GetUtcNow() => _now;
     public void Advance(TimeSpan delta) => _now = _now.Add(delta);
+}
+
+sealed class DelegateStub : HttpMessageHandler
+{
+    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        var json = request.RequestUri!.AbsolutePath.Contains("send") ? "{\"challengeId\":\"abc\",\"expiresInSeconds\":600}" : "{\"verified\":true}";
+        return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json") });
+    }
 }

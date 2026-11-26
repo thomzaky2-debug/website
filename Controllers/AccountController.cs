@@ -37,6 +37,8 @@ public class AccountController(UserManager<IdentityUser> users, SignInManager<Id
         return new CustomerProfileViewModel
         {
             Email = user.Email,
+            EmailConfirmed = user.EmailConfirmed,
+            HasPassword = await users.HasPasswordAsync(user),
             Phone = phone,
             WhatsAppPhone = whatsApp,
             FullName = fullName,
@@ -54,6 +56,16 @@ public class AccountController(UserManager<IdentityUser> users, SignInManager<Id
         var user=await users.GetUserAsync(User);if(user is null)return RedirectToAction(nameof(Login));
         if(await users.IsInRoleAsync(user,"Admin"))return RedirectToAction("Dashboard","Admin");
         return View(await BuildProfileAsync(user));
+    }
+    [Authorize, HttpPost("/Account/SendEmailVerification"), ValidateAntiForgeryToken, EnableRateLimiting("customer-auth")]
+    public async Task<IActionResult> SendEmailVerification()
+    {
+        var user=await users.GetUserAsync(User);if(user is null)return Challenge();
+        if(user.EmailConfirmed)return RedirectToAction(nameof(Index));
+        if(await otp.SendAsync(HttpContext, user, Url.Action("Index","Account")!, admin: false, forceEmail: true))
+            return RedirectToAction("Index", "EmailVerification");
+        TempData["Error"] = "Otp_Send_Failed";
+        return RedirectToAction(nameof(Index));
     }
     [Authorize, HttpGet("/Account/Wallet")]
     public async Task<IActionResult> Wallet()
@@ -95,8 +107,9 @@ public class AccountController(UserManager<IdentityUser> users, SignInManager<Id
         var user=await users.GetUserAsync(User);if(user is null)return Challenge();model.Email=user.Email;
         if(!ModelState.IsValid)return View("Index",await BuildProfileAsync(user,model));
         await using var tx=await db.Database.BeginTransactionAsync();
-        user.PhoneNumber=model.Phone.Trim();
-        var result=await users.UpdateAsync(user);
+        // SetPhoneNumberAsync also clears PhoneNumberConfirmed when the number changes,
+        // so a profile edit can never leave a stale confirmed flag on a new number.
+        var result=await users.SetPhoneNumberAsync(user,model.Phone.Trim());
         if(result.Succeeded){
             var claims=await users.GetClaimsAsync(user);
             var old=claims.Where(c=>c.Type==CustomerProfileViewModel.FullNameClaim).ToArray();
@@ -114,6 +127,11 @@ public class AccountController(UserManager<IdentityUser> users, SignInManager<Id
                 if(result.Succeeded && !string.IsNullOrWhiteSpace(model.Address))
                     result=await users.AddClaimAsync(user,new Claim(CustomerProfileViewModel.AddressClaim,model.Address.Trim()));
             }
+        }
+        if(result.Succeeded){
+            // Phone change resets the confirmed flag; release the ownership row in
+            // the same transaction so the number becomes claimable again atomically.
+            await PhoneOwnership.ReleaseForUserAsync(db,user.Id);
         }
         if(!result.Succeeded){await tx.RollbackAsync();ModelState.AddModelError("",localizer["Error"]);return View("Index",await BuildProfileAsync(user,model));}
         await tx.CommitAsync();await signIn.RefreshSignInAsync(user);TempData["Success"]="Profile_Saved";
@@ -136,6 +154,24 @@ public class AccountController(UserManager<IdentityUser> users, SignInManager<Id
         TempData["Success"]="Password_Updated";
         return RedirectToAction(nameof(Index));
     }
+    [Authorize,HttpPost,ValidateAntiForgeryToken,EnableRateLimiting("customer-auth")]
+    public async Task<IActionResult> AddPassword(CustomerAddPasswordViewModel model)
+    {
+        var user=await users.GetUserAsync(User);if(user is null)return Challenge();
+        if(await users.HasPasswordAsync(user))return RedirectToAction(nameof(Index));
+        if(!ModelState.IsValid){
+            ViewData["PasswordError"]=localizer[model.NewPassword!=model.ConfirmNewPassword?"Password_Mismatch":"Password_Change_Failed"].Value;
+            return View("Index",await BuildProfileAsync(user));
+        }
+        var result=await users.AddPasswordAsync(user,model.NewPassword);
+        if(!result.Succeeded){
+            ViewData["PasswordError"]=localizer["Password_Change_Failed"].Value;
+            return View("Index",await BuildProfileAsync(user));
+        }
+        await signIn.RefreshSignInAsync(user);
+        TempData["Success"]="Password_Updated";
+        return RedirectToAction(nameof(Index));
+    }
     [AllowAnonymous,HttpGet]
     public IActionResult Login(string? returnUrl)
     {
@@ -150,6 +186,7 @@ public class AccountController(UserManager<IdentityUser> users, SignInManager<Id
             }
             return LocalRedirect(SafeReturn(returnUrl));
         }
+        ViewBag.PhoneLoginAvailable = otp.IsWhatsAppConfigured;
         return View(new CustomerLoginViewModel {ReturnUrl=returnUrl});
     }
     [AllowAnonymous,HttpPost,ValidateAntiForgeryToken,EnableRateLimiting("customer-auth")]
@@ -199,16 +236,69 @@ public class AccountController(UserManager<IdentityUser> users, SignInManager<Id
         }
         ModelState.AddModelError("",localizer["InvalidLogin"]);return View(model);
     }
+    [AllowAnonymous,HttpGet("/Account/LoginPhone")]
+    public IActionResult LoginPhone(string? returnUrl)
+    {
+        if(!otp.IsWhatsAppConfigured)return RedirectToAction(nameof(Login),new{returnUrl});
+        if(User.Identity?.IsAuthenticated==true)return LocalRedirect(SafeReturn(returnUrl));
+        return View(new CustomerPhoneLoginViewModel {ReturnUrl=returnUrl});
+    }
+    [AllowAnonymous,HttpPost("/Account/LoginPhone"),ValidateAntiForgeryToken,EnableRateLimiting("customer-auth")]
+    public async Task<IActionResult> LoginPhone(CustomerPhoneLoginViewModel model)
+    {
+        if(!otp.IsWhatsAppConfigured)return RedirectToAction(nameof(Login));
+        if(!ModelState.IsValid)return View(model);
+        var normalized=WhatsAppOtpClient.NormalizePhone(model.Phone.Trim());
+        // Only accounts whose phone was verified can sign in this way; an unverified
+        // phone number on another account is never linked automatically.
+        IdentityUser? user=null;
+        if(await PhoneOwnership.GetOwnerAsync(db,normalized) is { } owner)
+            user=await users.FindByIdAsync(owner.UserId);
+        if(user is null){
+            var candidates=await users.Users.Where(u=>u.PhoneNumberConfirmed && u.PhoneNumber!=null).ToListAsync();
+            user=candidates.FirstOrDefault(u=>WhatsAppOtpClient.NormalizePhone(u.PhoneNumber!)==normalized);
+            if(user is not null)await PhoneOwnership.TryClaimAsync(db,user.Id,normalized);
+        }
+        if(user is null || await users.IsInRoleAsync(user,"Admin")){
+            ModelState.AddModelError("",localizer["InvalidLogin"]);return View(model);
+        }
+        if(await otp.SendAsync(HttpContext, user, SafeReturn(model.ReturnUrl), admin: false))
+            return RedirectToAction("Index", "EmailVerification");
+        ModelState.AddModelError("",localizer["Otp_Send_Failed"]);
+        return View(model);
+    }
     [AllowAnonymous,HttpGet]
-    public IActionResult Register(string? returnUrl)=>User.Identity?.IsAuthenticated==true ? LocalRedirect(SafeReturn(returnUrl)) : View(new CustomerRegisterViewModel {ReturnUrl=returnUrl});
+    public IActionResult Register(string? returnUrl)
+    {
+        if(User.Identity?.IsAuthenticated==true)return LocalRedirect(SafeReturn(returnUrl));
+        ViewBag.PasswordOptional=otp.IsWhatsAppConfigured;
+        return View(new CustomerRegisterViewModel {ReturnUrl=returnUrl});
+    }
     [AllowAnonymous,HttpPost,ValidateAntiForgeryToken,EnableRateLimiting("customer-auth")]
     public async Task<IActionResult> Register(CustomerRegisterViewModel model)
     {
         if(!ModelState.IsValid)return View(model);
+        var passwordOptional=otp.IsWhatsAppConfigured;
+        ViewBag.PasswordOptional=passwordOptional;
+        if(!passwordOptional && string.IsNullOrWhiteSpace(model.Password)){
+            ModelState.AddModelError(nameof(model.Password),localizer["Required"]);return View(model);
+        }
+        // A phone number already verified on another account cannot be claimed again;
+        // unverified numbers are re-verified for the new account without touching the old one.
+        var newPhone=WhatsAppOtpClient.NormalizePhone(model.Phone.Trim());
+        if(await PhoneOwnership.GetOwnerAsync(db,newPhone) is not null){
+            ModelState.AddModelError(nameof(model.Phone),localizer["Phone_In_Use"]);return View(model);
+        }
+        var confirmedPhones=await users.Users.Where(u=>u.PhoneNumberConfirmed && u.PhoneNumber!=null).ToListAsync();
+        if(confirmedPhones.Any(u=>WhatsAppOtpClient.NormalizePhone(u.PhoneNumber!)==newPhone)){
+            ModelState.AddModelError(nameof(model.Phone),localizer["Phone_In_Use"]);return View(model);
+        }
         // Only basic customer fields are accepted. Registration never assigns administrative roles.
         await using var tx=await db.Database.BeginTransactionAsync();
         var email=model.Email.Trim();var user=new IdentityUser {UserName=email,Email=email,PhoneNumber=model.Phone.Trim()};
-        var result=await users.CreateAsync(user,model.Password);
+        var result=string.IsNullOrWhiteSpace(model.Password)
+            ? await users.CreateAsync(user)
+            : await users.CreateAsync(user,model.Password);
         if(!result.Succeeded){ModelState.AddModelError("",localizer["Registration_Failed"]);return View(model);}
         result=await users.AddClaimAsync(user,new Claim(CustomerProfileViewModel.FullNameClaim,model.FullName.Trim()));
         if(!result.Succeeded){await tx.RollbackAsync();ModelState.AddModelError("",localizer["Registration_Failed"]);return View(model);}

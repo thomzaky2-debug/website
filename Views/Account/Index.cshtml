@@ -133,7 +133,11 @@
                                 </span>
                                 <span class="profile-verified-pill">@Localizer["Account_Email_Locked"]</span>
                             </div>
-                        </div>
+                            @if (!Model.EmailConfirmed)
+                            {
+                                <span class="profile-unverified-pill">@Localizer["Account_Email_Unverified"]</span>
+                                <button type="submit" form="profile-email-verify-form" class="btn-account-secondary">@Localizer["Account_Verify_Email"]</button>
+                            }
                         <div class="field wide-field">
                             <label asp-for="Address">@Localizer["ShippingAddress"]</label>
                             <input asp-for="Address" maxlength="1000" autocomplete="street-address" placeholder="@Localizer["Delivery_Address_Placeholder"]"/>
@@ -147,6 +151,10 @@
                         <a class="btn-account-ghost" asp-controller="Home" asp-action="Index">@Localizer["Cancel"]</a>
                     </div>
                 </form>
+                @if (!Model.EmailConfirmed)
+                {
+                    <form asp-action="SendEmailVerification" method="post" id="profile-email-verify-form" class="profile-email-verify"></form>
+                }
             </section>
 
             <section class="account-card panel account-language-settings">
@@ -213,23 +221,26 @@
                                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>
                             </span>
                             <div>
-                                <h2>@Localizer["Change_Password"]</h2>
-                                <p class="muted">@Localizer["Change_Password_Help"]</p>
+                                <h2>@(Model.HasPassword ? Localizer["Change_Password"] : Localizer["Account_AddPassword"])</h2>
+                                <p class="muted">@(Model.HasPassword ? Localizer["Change_Password_Help"] : Localizer["Account_AddPassword_Intro"])</p>
                             </div>
                         </div>
                         <span class="security-chevron" aria-hidden="true">⌄</span>
                     </summary>
 
-                    <form asp-action="ChangePassword" method="post" class="account-password-form" data-async-form>
+                    <form asp-action="@(Model.HasPassword ? "ChangePassword" : "AddPassword")" method="post" class="account-password-form" data-async-form>
                         @if (pwError != null)
                         {
                             <div class="validation-summary-errors" role="alert">@pwError</div>
                         }
                         <div class="profile-fields">
-                            <div class="field wide-field">
-                                <label for="CurrentPassword">@Localizer["Current_Password"]</label>
-                                <input id="CurrentPassword" name="CurrentPassword" type="password" required maxlength="128" autocomplete="current-password"/>
-                            </div>
+                            @if (Model.HasPassword)
+                            {
+                                <div class="field wide-field">
+                                    <label for="CurrentPassword">@Localizer["Current_Password"]</label>
+                                    <input id="CurrentPassword" name="CurrentPassword" type="password" required maxlength="128" autocomplete="current-password"/>
+                                </div>
+                            }
                             <div class="field">
                                 <label for="NewPassword">@Localizer["New_Password"]</label>
                                 <input id="NewPassword" name="NewPassword" type="password" required minlength="12" maxlength="128" autocomplete="new-password"/>
@@ -241,7 +252,7 @@
                         </div>
                         <small class="account-password-hint muted">@Localizer["Customer_Password_Help"]</small>
                         <div class="profile-form-actions">
-                            <button type="submit" class="btn-account-secondary">@Localizer["Update_Password"]</button>
+                            <button type="submit" class="btn-account-secondary">@(Model.HasPassword ? Localizer["Update_Password"] : Localizer["Account_AddPassword"])</button>
                         </div>
                     </form>
                 </details>
