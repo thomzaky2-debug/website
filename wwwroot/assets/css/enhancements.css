@@ -4053,6 +4053,9 @@ html.dark-mode .copy-input-group code {
 }
 .btn-copy-sm {
   padding: 5px 12px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  align-self: center;
   font-size: 0.78rem;
   border-radius: 6px;
   background: var(--teal, #0f766e);
@@ -5040,4 +5043,18 @@ html.dark-mode .card-view-toggle button.active { background: var(--teal); color:
   body.admin-site .settings-kpi-icon svg { width: 15px; height: 15px; }
   body.admin-site .settings-kpi small { font-size: .64rem; margin-bottom: 2px; }
   body.admin-site .settings-kpi strong { font-size: .8rem; }
+}
+
+
+/* Track header on phones: keep order number and copy button on one tidy row */
+@media (max-width: 600px) {
+  .track-header-card { padding: 16px; gap: 10px; }
+  .track-order-num-group h1 { gap: 8px; }
+  .track-order-num-group h1 span[dir="ltr"] {
+    font-size: 1.02rem;
+    letter-spacing: 0;
+    overflow-wrap: anywhere;
+    min-width: 0;
+  }
+  .track-header-card .order-state-strip { gap: 6px; }
 }

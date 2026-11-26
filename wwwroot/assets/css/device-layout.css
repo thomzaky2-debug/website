@@ -174,7 +174,7 @@ main :where(form, aside, article, fieldset, .field, .editor-main-column, .editor
   .customer-activity-list .money, .account-recent-amount { white-space: normal; overflow-wrap: anywhere; }
   .site-footer .footer-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 16px; }
   .site-footer a { min-height: 44px; display: flex; align-items: center; }
-  .site-footer .footer-social a { display: inline-flex; }
+  .site-footer .footer-social a { display: inline-flex; min-height: 0; width: 30px; height: 30px; padding: 0; }
   .site-footer .footer-newsletter { display: flex; flex-wrap: wrap; gap: 10px; }
   .site-footer .footer-newsletter input { flex: 1 1 180px; }
   .site-footer .footer-newsletter button { min-height: 44px; }
