@@ -80,6 +80,13 @@ def main():
   check(admin.req('/StoreAdmin/Customer/'+admin_id)[0]==404,'administrator accounts are excluded from customer profiles')
   check(admin.req('/StoreAdmin/Customer/unknown-customer')[0]==404,'unknown customers return not found')
   check('CUSTOMER-TEST-EXPIRED' in admin.req('/StoreAdmin/Customer/'+alice_id+'?page=999999')[1],'customer order pagination clamps to a valid page')
+  code,notfound,_=admin.req('/StoreAdmin/Order/999999')
+  check(code==404 and 'could not find that page' in notfound.lower(),'action-level not-found renders the shared 404 page instead of a blank response')
+  _,reviews_page,_=admin.req('/StoreAdmin/Reviews')
+  with sqlite3.connect(database) as db:review_id=db.execute("SELECT Id FROM ProductReviews WHERE DisplayName='Alice'").fetchone()[0]
+  admin.req('/StoreAdmin/ModerateReview',{'id':str(review_id),'approved':'true','__RequestVerificationToken':token(reviews_page)})
+  with sqlite3.connect(database) as db:approved=db.execute('SELECT IsApproved FROM ProductReviews WHERE Id=?',(review_id,)).fetchone()[0]
+  check(approved==1,'review moderation persists the approval decision')
   print('All customer admin checks passed.',flush=True)
  finally:
   proc.terminate();proc.wait(timeout=15);log.close()

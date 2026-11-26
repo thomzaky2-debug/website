@@ -56,6 +56,7 @@ public class StoreAdminController(ApplicationDbContext db, CustomerAdminService 
     public async Task<IActionResult> ModerateReview(int id,bool approved)
     {
         var review=await db.ProductReviews.FindAsync(id);if(review is null)return NotFound();review.IsApproved=approved;
+        await db.SaveChangesAsync();
         await audit.LogAsync("REVIEW_MODERATED","Product",$"Review {id}; approved {approved}");return RedirectToAction(nameof(Reviews));
     }
     public async Task<IActionResult> Index(string? q, string? status, int page = 1)
@@ -83,14 +84,14 @@ public class StoreAdminController(ApplicationDbContext db, CustomerAdminService 
         var order=await db.Orders.AsNoTracking().Include(o=>o.Items).Include(o=>o.Updates).AsSplitQuery().SingleOrDefaultAsync(o=>o.Id==id);
         if(order is null)return NotFound();
         await OrderStatusPresentation.LoadAsync(db, new[] { order });
-        ViewData["Attempt"]=await db.PaymentAttempts.AsNoTracking().SingleOrDefaultAsync(p=>p.OrderId==id);
+        ViewData["Attempt"]=await db.PaymentAttempts.AsNoTracking().Where(p=>p.OrderId==id).OrderByDescending(p=>p.CreatedAt).ThenByDescending(p=>p.Id).FirstOrDefaultAsync();
         ViewData["Emails"]=await db.OrderEmails.AsNoTracking().Where(e=>e.OrderId==id).ToListAsync();
         return View(order);
     }
     [HttpPost,ValidateAntiForgeryToken]
     public async Task<IActionResult> Reconcile(int id, CancellationToken ct)
     {
-        var attempt=await db.PaymentAttempts.AsNoTracking().SingleOrDefaultAsync(p=>p.OrderId==id,ct);
+        var attempt=await db.PaymentAttempts.AsNoTracking().Where(p=>p.OrderId==id).OrderByDescending(p=>p.CreatedAt).ThenByDescending(p=>p.Id).FirstOrDefaultAsync(ct);
         try {
             if(attempt is not null) {
                 if(attempt.SessionId is null) {
