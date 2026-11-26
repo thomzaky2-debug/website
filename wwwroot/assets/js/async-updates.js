@@ -2,6 +2,10 @@
 // Progressive enhancement: controllers still return their normal server-rendered views.
 (() => {
   let busy = false;
+  // Same-document fragment navigations (in-page anchors such as the settings
+  // tabs) also fire popstate in current browsers; only real location changes
+  // (path or query) should trigger a content swap.
+  let lastAsyncPath = location.pathname + location.search;
   const dirtyForms = new WeakSet();
   const formKey = form => {
     const url = new URL(form.action, location.href);
@@ -97,6 +101,7 @@
       if (counts.length) document.querySelectorAll('.cart-count').forEach(node => node.textContent = counts[0].textContent);
       const finalUrl = destination.pathname + destination.search + (destination.hash || (samePage ? location.hash : ''));
       if (finalUrl !== location.pathname + location.search + location.hash) history[historyMode === 'push' ? 'pushState' : 'replaceState']({}, '', finalUrl);
+      lastAsyncPath = location.pathname + location.search;
       window.initializeNileShopPage?.();
       const source = sourceKey && [...main.querySelectorAll('form')].find(node => formKey(node) === sourceKey);
       const focus = (activeId && document.getElementById(activeId)) || (activeName && source?.elements.namedItem(activeName)) || source?.querySelector('button[type="submit"],button:not([type])');
@@ -150,6 +155,11 @@
     const form = event.target.form;
     if (event.target.matches('select') && form?.matches('[data-async-form][method="get"]:not(.catalog-filters)') && !busy) form.requestSubmit();
   });
-  window.addEventListener('popstate', () => update(location.href));
+  window.addEventListener('popstate', () => {
+    const path = location.pathname + location.search;
+    if (path === lastAsyncPath) return; // hash-only navigation: let the browser scroll
+    lastAsyncPath = path;
+    update(location.href);
+  });
   window.NileShopAsync = { refresh: () => update(location.href), update };
 })();
