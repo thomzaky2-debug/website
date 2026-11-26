@@ -177,7 +177,7 @@ html.dark-mode .storefront-site { --studio-paper: #101a26; --studio-soft: #16233
  .contact-method-icon { margin-bottom: 18px; }
  .storefront-site .customer-account-page .account-sidebar { padding: 18px; }
  .storefront-site .customer-account-page .account-sidebar .account-person { flex-direction: column; align-items: flex-start; padding-bottom: 14px; }
- .storefront-site .customer-account-page .account-sidebar .account-navigation { display: flex; flex-wrap: nowrap; overflow-x: auto; max-width: 100%; padding-block: 12px 0; gap: 6px; scrollbar-width: thin; }
+ .storefront-site .customer-account-page .account-sidebar .account-navigation { display: flex; flex-wrap: wrap; overflow-x: visible; max-width: 100%; padding-block: 12px 0; gap: 6px; }
  .storefront-site .account-sidebar .account-navigation a { flex: none; width: auto; min-height: 44px; padding: 10px 12px; }
  .storefront-site .account-sidebar .account-logout { margin-top: 12px; }
  .storefront-site .account-stats-grid.account-stats-four { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
