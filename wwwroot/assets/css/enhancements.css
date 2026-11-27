@@ -5084,3 +5084,52 @@ html.dark-mode .card-view-toggle button.active { background: var(--teal); color:
   .track-header-card .order-state-strip { gap: 6px; }
   .panel .btn-copy-sm { margin-top: 0; }
 }
+
+/* Checkout order summary: one clean table. Labels on one side, amounts in one
+   column on the other (right in English, left in Arabic), every amount on the
+   same first baseline. The free delivery row shows the final amount first and
+   the FREE badge with the old struck-through price tucked under it, so nothing
+   wraps awkwardly. */
+.checkout-page .checkout-summary .order-total-row {
+  align-items: baseline;
+  gap: 16px;
+  padding: 14px 0;
+}
+.checkout-page .checkout-summary .order-total-row > span {
+  flex: 1 1 auto;
+  line-height: 1.45;
+}
+.checkout-page .checkout-summary .order-total-row > strong {
+  flex: 0 0 auto;
+  max-width: 62%;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.45;
+}
+.checkout-page .checkout-summary .order-total-row small {
+  line-height: 1.4;
+}
+.checkout-page .checkout-summary .order-amounts {
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-areas: "now now" "badge old";
+  justify-content: end;
+  justify-items: end;
+  align-items: center;
+  gap: 4px 8px;
+}
+.checkout-page .checkout-summary .order-amounts .free-shipping-zero { grid-area: now; }
+.checkout-page .checkout-summary .order-amounts .free-badge { grid-area: badge; margin: 0; }
+.checkout-page .checkout-summary .order-amounts .shipping-orig-del { grid-area: old; margin: 0; font-size: .8rem; font-weight: 500; }
+.checkout-page .checkout-summary .order-total-row.grand {
+  padding: 18px 0 16px;
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+.checkout-page .checkout-summary .order-total-row.grand > strong { font-weight: 800; }
+.checkout-page .checkout-summary > p.muted {
+  margin: 16px 0 0;
+  line-height: 1.6;
+  font-size: .82rem;
+}
+.checkout-page .checkout-summary .order-amounts > bdi { grid-column: 1 / -1; }
