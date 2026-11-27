@@ -20,23 +20,23 @@
   <data name="Offer_Off" xml:space="preserve"><value>Paused</value></data>
   <data name="Offer_Pause" xml:space="preserve"><value>Pause</value></data>
   <data name="Offer_Activate" xml:space="preserve"><value>Activate</value></data>
-  <data name="Offer_Kind_Percent" xml:space="preserve"><value>Percentage off products</value></data>
-  <data name="Offer_Kind_Fixed" xml:space="preserve"><value>Fixed amount off each product</value></data>
+  <data name="Offer_Kind_Percent" xml:space="preserve"><value>Product: % off</value></data>
+  <data name="Offer_Kind_Fixed" xml:space="preserve"><value>Product: EGP off</value></data>
   <data name="Offer_Kind_FreeDelivery" xml:space="preserve"><value>Free delivery</value></data>
   <data name="Offer_Scope_All" xml:space="preserve"><value>All products</value></data>
   <data name="Offer_Scope_Category" xml:space="preserve"><value>One category</value></data>
   <data name="Offer_Scope_Products" xml:space="preserve"><value>Chosen products</value></data>
   <data name="Offer_TitleAr" xml:space="preserve"><value>Title (Arabic)</value></data>
   <data name="Offer_TitleEn" xml:space="preserve"><value>Title (English)</value></data>
-  <data name="Offer_BadgeAr" xml:space="preserve"><value>Badge on product (Arabic, optional)</value></data>
-  <data name="Offer_BadgeEn" xml:space="preserve"><value>Badge on product (English, optional)</value></data>
+  <data name="Offer_BadgeAr" xml:space="preserve"><value>Badge (Arabic)</value></data>
+  <data name="Offer_BadgeEn" xml:space="preserve"><value>Badge (English)</value></data>
   <data name="Offer_Type" xml:space="preserve"><value>Offer type</value></data>
   <data name="Offer_Value" xml:space="preserve"><value>Value (percent or EGP, not used for free delivery)</value></data>
-  <data name="Offer_MinSubtotal" xml:space="preserve"><value>Minimum order subtotal (required for free delivery)</value></data>
+  <data name="Offer_MinSubtotal" xml:space="preserve"><value>Minimum cart subtotal (EGP)</value></data>
   <data name="Offer_Scope" xml:space="preserve"><value>Applies to</value></data>
-  <data name="Offer_PickProducts" xml:space="preserve"><value>Choose products (for Chosen products)</value></data>
-  <data name="Offer_Starts" xml:space="preserve"><value>Starts (Cairo time, optional)</value></data>
-  <data name="Offer_Ends" xml:space="preserve"><value>Ends (Cairo time, optional)</value></data>
+  <data name="Offer_PickProducts" xml:space="preserve"><value>Choose the products:</value></data>
+  <data name="Offer_Starts" xml:space="preserve"><value>Starts (Cairo time)</value></data>
+  <data name="Offer_Ends" xml:space="preserve"><value>Ends (Cairo time)</value></data>
   <data name="Offer_Active" xml:space="preserve"><value>Active</value></data>
   <data name="Offer_Help" xml:space="preserve"><value>If several offers match a product, the lowest price wins. Offers never stack.</value></data>
   <data name="Offer_Err_Title" xml:space="preserve"><value>Enter both titles (up to 150 characters). Badges up to 40.</value></data>
@@ -46,6 +46,17 @@
   <data name="Offer_Err_Dates" xml:space="preserve"><value>Check the dates. The end must be after the start.</value></data>
   <data name="Offer_Err_Scope" xml:space="preserve"><value>Choose a category or at least one product.</value></data>
   <data name="Order_Discount" xml:space="preserve"><value>Order discount</value></data>
-  <data name="Offer_Kind_OrderPercent" xml:space="preserve"><value>Whole order: percentage off the cart</value></data>
-  <data name="Offer_Kind_OrderFixed" xml:space="preserve"><value>Whole order: fixed EGP off the cart</value></data>
+  <data name="Offer_Kind_OrderPercent" xml:space="preserve"><value>Order: % off</value></data>
+  <data name="Offer_Kind_OrderFixed" xml:space="preserve"><value>Order: EGP off</value></data>
+  <data name="Offer_Sec_Names" xml:space="preserve"><value>Name</value></data>
+  <data name="Offer_Sec_Discount" xml:space="preserve"><value>Discount</value></data>
+  <data name="Offer_Sec_When" xml:space="preserve"><value>When</value></data>
+  <data name="Offer_Badge_Hint" xml:space="preserve"><value>The badge shows on the product card. Leave empty to use the title.</value></data>
+  <data name="Offer_Hint_Percent" xml:space="preserve"><value>Takes a percentage off the price of each matching product.</value></data>
+  <data name="Offer_Hint_Fixed" xml:space="preserve"><value>Takes a fixed amount off the price of each matching product.</value></data>
+  <data name="Offer_Hint_FreeDelivery" xml:space="preserve"><value>Delivery is free when the cart subtotal reaches the minimum.</value></data>
+  <data name="Offer_Hint_OrderPercent" xml:space="preserve"><value>Takes a percentage off the whole cart. Shown as a discount line at cart and checkout.</value></data>
+  <data name="Offer_Hint_OrderFixed" xml:space="preserve"><value>Takes a fixed amount off the whole cart. Shown as a discount line at cart and checkout.</value></data>
+  <data name="Offer_Value_Percent" xml:space="preserve"><value>Percentage (1 to 90)</value></data>
+  <data name="Offer_Value_Fixed" xml:space="preserve"><value>Amount (EGP)</value></data>
 </root>

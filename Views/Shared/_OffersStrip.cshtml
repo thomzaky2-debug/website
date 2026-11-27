@@ -2,5 +2,5 @@
 @{var live = OfferContext.Live; var ar = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "ar";}
 @if (live.Count > 0)
 {
-    <a class="offers-strip" asp-controller="Offers" asp-action="Index"><span class="offers-strip-tag">@Localizer["Offers"]</span><span class="offers-strip-text">@string.Join(" · ", live.Take(3).Select(o => ar ? o.TitleAr : o.TitleEn))</span><span aria-hidden="true">→</span></a>
+    <a class="offers-strip" asp-controller="Offers" asp-action="Index"><span class="offers-strip-tag">@Localizer["Offers"]</span><span class="offers-strip-text">@(ar ? live[0].TitleAr : live[0].TitleEn)</span>@if(live.Count > 1){<span class="offers-strip-more" dir="ltr">+@(live.Count - 1)</span>}<span aria-hidden="true">→</span></a>
 }

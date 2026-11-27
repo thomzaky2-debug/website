@@ -20,23 +20,23 @@
   <data name="Offer_Off" xml:space="preserve"><value>متوقف</value></data>
   <data name="Offer_Pause" xml:space="preserve"><value>إيقاف</value></data>
   <data name="Offer_Activate" xml:space="preserve"><value>تفعيل</value></data>
-  <data name="Offer_Kind_Percent" xml:space="preserve"><value>خصم نسبة % على المنتجات</value></data>
-  <data name="Offer_Kind_Fixed" xml:space="preserve"><value>خصم مبلغ ثابت على كل منتج</value></data>
+  <data name="Offer_Kind_Percent" xml:space="preserve"><value>منتجات: خصم %</value></data>
+  <data name="Offer_Kind_Fixed" xml:space="preserve"><value>منتجات: خصم مبلغ</value></data>
   <data name="Offer_Kind_FreeDelivery" xml:space="preserve"><value>توصيل مجاني</value></data>
   <data name="Offer_Scope_All" xml:space="preserve"><value>كل المنتجات</value></data>
   <data name="Offer_Scope_Category" xml:space="preserve"><value>قسم واحد</value></data>
   <data name="Offer_Scope_Products" xml:space="preserve"><value>منتجات محددة</value></data>
   <data name="Offer_TitleAr" xml:space="preserve"><value>العنوان (عربي)</value></data>
   <data name="Offer_TitleEn" xml:space="preserve"><value>العنوان (إنجليزي)</value></data>
-  <data name="Offer_BadgeAr" xml:space="preserve"><value>شارة على المنتج (عربي، اختياري)</value></data>
-  <data name="Offer_BadgeEn" xml:space="preserve"><value>شارة على المنتج (إنجليزي، اختياري)</value></data>
+  <data name="Offer_BadgeAr" xml:space="preserve"><value>الشارة (عربي)</value></data>
+  <data name="Offer_BadgeEn" xml:space="preserve"><value>الشارة (إنجليزي)</value></data>
   <data name="Offer_Type" xml:space="preserve"><value>نوع العرض</value></data>
   <data name="Offer_Value" xml:space="preserve"><value>القيمة (نسبة أو جنيه، لا تُستخدم للتوصيل المجاني)</value></data>
-  <data name="Offer_MinSubtotal" xml:space="preserve"><value>الحد الأدنى لإجمالي الطلب (مطلوب للتوصيل المجاني)</value></data>
+  <data name="Offer_MinSubtotal" xml:space="preserve"><value>الحد الأدنى للسلة (جنيه)</value></data>
   <data name="Offer_Scope" xml:space="preserve"><value>ينطبق على</value></data>
-  <data name="Offer_PickProducts" xml:space="preserve"><value>اختر المنتجات (لخيار منتجات محددة)</value></data>
-  <data name="Offer_Starts" xml:space="preserve"><value>البداية (بتوقيت القاهرة، اختياري)</value></data>
-  <data name="Offer_Ends" xml:space="preserve"><value>النهاية (بتوقيت القاهرة، اختياري)</value></data>
+  <data name="Offer_PickProducts" xml:space="preserve"><value>اختر المنتجات:</value></data>
+  <data name="Offer_Starts" xml:space="preserve"><value>البداية (بتوقيت القاهرة)</value></data>
+  <data name="Offer_Ends" xml:space="preserve"><value>النهاية (بتوقيت القاهرة)</value></data>
   <data name="Offer_Active" xml:space="preserve"><value>مفعّل</value></data>
   <data name="Offer_Help" xml:space="preserve"><value>لو أكثر من عرض ينطبق على منتج، يُطبَّق أقل سعر. العروض لا تتراكم.</value></data>
   <data name="Offer_Err_Title" xml:space="preserve"><value>اكتب العنوانين (حتى 150 حرف). الشارات حتى 40.</value></data>
@@ -46,6 +46,17 @@
   <data name="Offer_Err_Dates" xml:space="preserve"><value>راجع التواريخ. النهاية لازم تكون بعد البداية.</value></data>
   <data name="Offer_Err_Scope" xml:space="preserve"><value>اختر قسما أو منتجا واحدا على الأقل.</value></data>
   <data name="Order_Discount" xml:space="preserve"><value>خصم الطلب</value></data>
-  <data name="Offer_Kind_OrderPercent" xml:space="preserve"><value>على الطلب كله: خصم نسبة % من السلة</value></data>
-  <data name="Offer_Kind_OrderFixed" xml:space="preserve"><value>على الطلب كله: خصم مبلغ ثابت من السلة</value></data>
+  <data name="Offer_Kind_OrderPercent" xml:space="preserve"><value>الطلب: خصم %</value></data>
+  <data name="Offer_Kind_OrderFixed" xml:space="preserve"><value>الطلب: خصم مبلغ</value></data>
+  <data name="Offer_Sec_Names" xml:space="preserve"><value>الاسم</value></data>
+  <data name="Offer_Sec_Discount" xml:space="preserve"><value>الخصم</value></data>
+  <data name="Offer_Sec_When" xml:space="preserve"><value>التوقيت</value></data>
+  <data name="Offer_Badge_Hint" xml:space="preserve"><value>الشارة بتظهر على كارت المنتج. سيبها فاضية لو عايز العنوان يظهر.</value></data>
+  <data name="Offer_Hint_Percent" xml:space="preserve"><value>بيخصم نسبة من سعر كل منتج ينطبق عليه العرض.</value></data>
+  <data name="Offer_Hint_Fixed" xml:space="preserve"><value>بيخصم مبلغ ثابت من سعر كل منتج ينطبق عليه العرض.</value></data>
+  <data name="Offer_Hint_FreeDelivery" xml:space="preserve"><value>التوصيل بيبقى مجاني لما إجمالي السلة يوصل للحد الأدنى.</value></data>
+  <data name="Offer_Hint_OrderPercent" xml:space="preserve"><value>بيخصم نسبة من السلة كلها. بيظهر كسطر خصم في السلة والدفع.</value></data>
+  <data name="Offer_Hint_OrderFixed" xml:space="preserve"><value>بيخصم مبلغ ثابت من السلة كلها. بيظهر كسطر خصم في السلة والدفع.</value></data>
+  <data name="Offer_Value_Percent" xml:space="preserve"><value>النسبة (من 1 إلى 90)</value></data>
+  <data name="Offer_Value_Fixed" xml:space="preserve"><value>المبلغ (جنيه)</value></data>
 </root>
