@@ -5325,3 +5325,10 @@ body .admin-action-card textarea { width: 100%; min-height: 4.5rem; }
 body .customer-admin-actions { display: grid; gap: .6rem; }
 body .customer-admin-actions input:not([type="checkbox"]) { width: 100%; }
 body .customer-admin-actions hr { width: 100%; border: 0; border-top: 1px solid var(--line, rgba(0,0,0,.12)); margin: .6rem 0; }
+
+/* Payment issues */
+body .payment-issues-link { margin: 0 0 .8rem; }
+body .payment-issue-list { display: grid; gap: .8rem; margin-top: 1rem; }
+body .payment-issue-top { display: flex; justify-content: space-between; align-items: center; gap: .6rem; flex-wrap: wrap; }
+body .payment-issue-meta { display: flex; flex-wrap: wrap; gap: .4rem .9rem; font-size: .85rem; margin: .4rem 0 .6rem; }
+body .payment-issue-kpis { grid-template-columns: repeat(3, 1fr); }

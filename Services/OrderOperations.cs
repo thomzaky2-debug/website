@@ -52,6 +52,31 @@ public class OrderOperations(ApplicationDbContext db, NilePayClient client, Nile
         db.AuditLogs.Add(new AuditLog { Action = "REFUND_RECORDED", EntityName = "Order", Details = $"{order.OrderNumber}: external reference {reference}; restock {restock}" });
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
     }
+    /// <summary>Admin confirms the money arrived outside the gateway. Records state only; no gateway call, no money moves.</summary>
+    public async Task<decimal> MarkPaidManuallyAsync(int id, CancellationToken ct)
+    {
+        await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
+        var order = await db.Orders.SingleAsync(o => o.Id == id, ct);
+        if (order.PaymentStatus != "Unpaid" || order.PaidAt is not null || order.PayableAmount <= 0) throw new NilePayException("Payment_Manual_Unavailable");
+        var amount = order.PayableAmount;
+        var late = order.InventoryReleased || order.Status == OrderStatuses.Cancelled;
+        order.PaymentStatus = "Paid"; order.PaidAt = DateTime.UtcNow; order.DetectedAmountEgp = amount;
+        if (late) order.NeedsPaymentReview = true;
+        else {
+            if (order.Status == OrderStatuses.Pending) order.Status = OrderStatuses.Processing;
+            order.Updates.Add(new OrderUpdate { Status = "Paid" });
+            if (!await db.OrderEmails.AnyAsync(e => e.OrderId == id && e.Kind == "Paid", ct)) db.OrderEmails.Add(new OrderEmail { OrderId = id, Kind = "Paid" });
+        }
+        await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
+        return amount;
+    }
+    public async Task<string> DismissReviewAsync(int id, CancellationToken ct)
+    {
+        var order = await db.Orders.SingleAsync(o => o.Id == id, ct);
+        if (!order.NeedsPaymentReview) throw new NilePayException("Payment_Manual_Unavailable");
+        order.NeedsPaymentReview = false; await db.SaveChangesAsync(ct);
+        return order.OrderNumber;
+    }
     async Task ReleaseAsync(Order order, CancellationToken ct)
     {
         if (order.InventoryReleased) return;

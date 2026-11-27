@@ -246,6 +246,41 @@ public class StoreAdminController(ApplicationDbContext db, CustomerAdminService 
         await audit.LogAsync("ORDER_FORCE_CANCEL","Order",$"{order.OrderNumber}: unpaid order cancelled by admin, stock and wallet credit restored (reason: {reason})");
         TempData["Success"]="Admin_Saved";return RedirectToAction(nameof(Order),new{id});
     }
+    public async Task<IActionResult> PaymentIssues()
+    {
+        var cutoff=DateTime.UtcNow.AddMinutes(-60);
+        var orders=await db.Orders.AsNoTracking().Where(o=>o.NeedsPaymentReview||o.PaymentStatus=="Underpaid"||(o.PaymentStatus=="Unpaid"&&o.Status==OrderStatuses.Pending&&o.CreatedAt<cutoff))
+            .OrderByDescending(o=>o.Id).Take(100).ToListAsync();
+        await OrderStatusPresentation.LoadAsync(db,orders);
+        var rows=orders.Select(o=>(Order:o,Kind:o.NeedsPaymentReview?"Review":o.PaymentStatus=="Underpaid"?"Underpaid":"Stuck")).ToList();
+        return View(rows);
+    }
+    [HttpPost,ValidateAntiForgeryToken]
+    public async Task<IActionResult> MarkPaid(int id,string reference,string reason,bool confirmed,CancellationToken ct)
+    {
+        reference=(reference??"").Trim();reason=(reason??"").Trim();
+        if(!confirmed||reference.Length is < 3 or > 120||reason.Length is 0 or > 120)return BadRequest();
+        var order=await db.Orders.AsNoTracking().SingleOrDefaultAsync(o=>o.Id==id,ct);if(order is null)return NotFound();
+        try{
+            var amount=await operations.MarkPaidManuallyAsync(id,ct);
+            await audit.LogAsync("PAYMENT_MANUAL_PAID","Order",$"{order.OrderNumber}: marked paid by admin, {amount.ToString("0.00",System.Globalization.CultureInfo.InvariantCulture)} EGP, ref {reference} (reason: {reason}). No gateway call.");
+            TempData["Success"]="Admin_Saved";
+        }catch(NilePayException e){TempData["Error"]=e.Message;}
+        return RedirectToAction(nameof(Order),new{id});
+    }
+    [HttpPost,ValidateAntiForgeryToken]
+    public async Task<IActionResult> DismissReview(int id,string reason,bool confirmed,CancellationToken ct)
+    {
+        reason=(reason??"").Trim();
+        if(!confirmed||reason.Length is 0 or > 120)return BadRequest();
+        if(!await db.Orders.AnyAsync(o=>o.Id==id,ct))return NotFound();
+        try{
+            var number=await operations.DismissReviewAsync(id,ct);
+            await audit.LogAsync("PAYMENT_REVIEW_DISMISSED","Order",$"{number}: payment review flag cleared by admin (reason: {reason})");
+            TempData["Success"]="Admin_Saved";
+        }catch(NilePayException e){TempData["Error"]=e.Message;}
+        return RedirectToAction(nameof(Order),new{id});
+    }
     [HttpPost,ValidateAntiForgeryToken]
     public async Task<IActionResult> RetryEmail(int id)
     {

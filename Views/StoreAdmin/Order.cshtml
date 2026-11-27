@@ -265,6 +265,44 @@
             </section>
         }
 
+        @if (Model.PaymentStatus == "Unpaid" && Model.PaidAt == null && Model.PayableAmount > 0)
+        {
+            <section class="panel admin-action-card is-danger">
+                <div class="admin-card-head"><h2>@Localizer["Payment_Manual_Mark"]</h2></div>
+                <p class="muted">@Localizer["Payment_Manual_Help"] <strong dir="ltr">@Model.PayableAmount.ToString("N2") EGP</strong></p>
+                <form asp-action="MarkPaid" method="post" data-async-form>
+                    <input type="hidden" name="id" value="@Model.Id" />
+                    <label>@Localizer["Payment_Manual_Reference"]</label>
+                    <input name="reference" maxlength="120" minlength="3" dir="ltr" required />
+                    <label>@Localizer["Order_Change_Reason"]</label>
+                    <input name="reason" maxlength="120" required />
+                    <label class="check-line">
+                        <input type="checkbox" name="confirmed" value="true" required />
+                        <span>@Localizer["Payment_Manual_Confirm"]</span>
+                    </label>
+                    <button class="action-link danger admin-btn-full">@Localizer["Payment_Manual_Mark"]</button>
+                </form>
+            </section>
+        }
+
+        @if (Model.NeedsPaymentReview)
+        {
+            <section class="panel admin-action-card">
+                <div class="admin-card-head"><h2>@Localizer["Payment_Dismiss_Review"]</h2></div>
+                <p class="muted">@Localizer["Payment_Dismiss_Help"]</p>
+                <form asp-action="DismissReview" method="post" data-async-form>
+                    <input type="hidden" name="id" value="@Model.Id" />
+                    <label>@Localizer["Order_Change_Reason"]</label>
+                    <input name="reason" maxlength="120" required />
+                    <label class="check-line">
+                        <input type="checkbox" name="confirmed" value="true" required />
+                        <span>@Localizer["Payment_Dismiss_Confirm"]</span>
+                    </label>
+                    <button class="action-link admin-btn-full">@Localizer["Payment_Dismiss_Review"]</button>
+                </form>
+            </section>
+        }
+
         <section class="panel admin-action-card">
             <div class="admin-card-head"><h2>@Localizer["Order_Add_Note"]</h2></div>
             <form asp-action="AddNote" method="post" data-async-form>
