@@ -5315,3 +5315,8 @@ html.dark-mode body.storefront-site .checkout-page .field-error-text::before { b
 .checkout-page .checkout-pay-heading .instapay-brand { padding: 2px 6px; }
 .checkout-page .checkout-pay-heading .instapay-brand img { height: 14px; }
 .checkout-page .checkout-pay-heading .instapay-brand { flex: 0 0 auto; }
+
+/* Admin order activity log */
+body .admin-audit-list li strong { font-weight: 600; font-size: .9rem; line-height: 1.5; overflow-wrap: anywhere; }
+body .admin-audit-list li time { font-size: .78rem; overflow-wrap: anywhere; }
+body .admin-action-card textarea { width: 100%; min-height: 4.5rem; }

@@ -4,6 +4,7 @@
     var attempt = ViewData["Attempt"] as PaymentAttempt;
     var emails = ViewData["Emails"] as IEnumerable<OrderEmail> ?? [];
     var isPaid = Model.PaymentStatus is "Paid" or "Overpaid";
+    var audits = ViewData["Audit"] as IEnumerable<AuditLog> ?? [];
     var isUnpaidWarn = Model.PaymentStatus is "Unpaid" or "Underpaid";
 }
 
@@ -138,6 +139,26 @@
                 }
             </ol>
         </section>
+
+        <section class="panel">
+            <div class="admin-card-head"><h2>@Localizer["Order_Admin_Activity"]</h2></div>
+            @if (!audits.Any())
+            {
+                <p class="muted">@Localizer["Order_Admin_Activity_Empty"]</p>
+            }
+            else
+            {
+                <ol class="timeline admin-audit-list">
+                    @foreach (var a in audits)
+                    {
+                        <li>
+                            <strong dir="auto">@a.Details</strong>
+                            <time dir="ltr">@a.Timestamp.ToString("dd/MM/yyyy h:mm tt", CultureInfo.InvariantCulture) · @a.UserEmail · @a.Action</time>
+                        </li>
+                    }
+                </ol>
+            }
+        </section>
     </div>
 
     <aside class="order-action-stack">
@@ -240,6 +261,82 @@
                         <span>@Localizer["Refund_Confirmed"]</span>
                     </label>
                     <button class="action-link danger admin-btn-full">@Localizer["Record_Refund"]</button>
+                </form>
+            </section>
+        }
+
+        <section class="panel admin-action-card">
+            <div class="admin-card-head"><h2>@Localizer["Order_Add_Note"]</h2></div>
+            <form asp-action="AddNote" method="post" data-async-form>
+                <input type="hidden" name="id" value="@Model.Id" />
+                <label>@Localizer["Order_Note"]</label>
+                <textarea name="note" maxlength="300" rows="3" required></textarea>
+                <button class="action-link admin-btn-full">@Localizer["Order_Add_Note"]</button>
+            </form>
+        </section>
+
+        @if (Model.Status is OrderStatuses.Pending or OrderStatuses.Processing)
+        {
+            <section class="panel admin-action-card">
+                <div class="admin-card-head"><h2>@Localizer["Order_Edit_Details"]</h2></div>
+                <form asp-action="EditDetails" method="post" data-async-form>
+                    <input type="hidden" name="id" value="@Model.Id" />
+                    <label>@Localizer["CustomerName"]</label>
+                    <input name="customerName" value="@Model.CustomerName" maxlength="150" required />
+                    <label>@Localizer["Email"]</label>
+                    <input name="customerEmail" type="email" value="@Model.CustomerEmail" maxlength="254" dir="ltr" required />
+                    <label>@Localizer["CustomerPhone"]</label>
+                    <input name="customerPhone" value="@Model.CustomerPhone" maxlength="30" dir="ltr" required />
+                    <label>@Localizer["ShippingAddress"]</label>
+                    <textarea name="shippingAddress" maxlength="1000" rows="3" required>@Model.ShippingAddress</textarea>
+                    <label>@Localizer["Order_Change_Reason"]</label>
+                    <input name="reason" maxlength="120" required />
+                    <label class="check-line">
+                        <input type="checkbox" name="confirmed" value="true" required />
+                        <span>@Localizer["Order_Edit_Confirm"]</span>
+                    </label>
+                    <button class="action-link admin-btn-full">@Localizer["Order_Edit_Details"]</button>
+                </form>
+            </section>
+        }
+
+        @if (Model.Status is OrderStatuses.Shipped or OrderStatuses.Delivered)
+        {
+            <section class="panel admin-action-card is-danger">
+                <div class="admin-card-head"><h2>@Localizer["Order_Revert_Status"]</h2></div>
+                <p class="muted">@Localizer[Model.Status == OrderStatuses.Delivered ? "Order_Revert_Help_Delivered" : "Order_Revert_Help_Shipped"]</p>
+                <form asp-action="RevertStatus" method="post" data-async-form>
+                    <input type="hidden" name="id" value="@Model.Id" />
+                    <label>@Localizer["Order_Change_Reason"]</label>
+                    <input name="reason" maxlength="120" required />
+                    <label class="check-line">
+                        <input type="checkbox" name="confirmed" value="true" required />
+                        <span>@Localizer["Order_Revert_Confirm"]</span>
+                    </label>
+                    <button class="action-link danger admin-btn-full">@Localizer["Order_Revert_Status"]</button>
+                </form>
+            </section>
+        }
+
+        @if (Model.PaymentStatus == "Unpaid" && Model.PaidAt == null && !Model.InventoryReleased && (Model.Status is OrderStatuses.Pending or OrderStatuses.Processing))
+        {
+            <section class="panel admin-action-card is-danger">
+                <div class="admin-card-head"><h2>@Localizer["Order_Force_Cancel"]</h2></div>
+                <p class="muted">@Localizer["Order_Force_Cancel_Help"]</p>
+                <form asp-action="ForceCancelUnpaid" method="post" data-async-form>
+                    <input type="hidden" name="id" value="@Model.Id" />
+                    <label>@Localizer["Order_Change_Reason"]</label>
+                    <input name="reason" maxlength="120" required list="forceCancelReasons" />
+                    <datalist id="forceCancelReasons">
+                        <option value="@Localizer["Order_Reason_Duplicate"]"></option>
+                        <option value="@Localizer["Order_Reason_Stuck"]"></option>
+                        <option value="@Localizer["Order_Reason_Customer"]"></option>
+                    </datalist>
+                    <label class="check-line">
+                        <input type="checkbox" name="confirmed" value="true" required />
+                        <span>@Localizer["Order_Force_Cancel_Confirm"]</span>
+                    </label>
+                    <button class="action-link danger admin-btn-full">@Localizer["Order_Force_Cancel"]</button>
                 </form>
             </section>
         }
