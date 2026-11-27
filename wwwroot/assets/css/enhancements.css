@@ -5361,3 +5361,8 @@ body .payment-issue-card { border-inline-start: 4px solid #d99a00; display: grid
 body .payment-issue-card.kind-review { border-inline-start-color: #c0392b; }
 body .payment-issue-card.kind-underpaid { border-inline-start-color: #e67e22; }
 body .payment-issue-meta strong { font-size: 1rem; }
+
+body .catalog-filters .catalog-actions{display:flex;gap:.6rem;align-items:stretch;grid-column:1/-1;width:100%}
+body .catalog-filters .catalog-actions .primary-button,body .catalog-filters .catalog-actions .catalog-close{flex:1 1 0;width:auto;min-height:44px;margin:0;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box}
+body .catalog-filters .catalog-close{padding:10px 18px;border-radius:12px;border:1px solid var(--line,#cfd8dc);background:transparent;color:inherit;font:inherit;font-weight:600;cursor:pointer}
+body .catalog-filters .catalog-close:focus-visible{outline:2px solid var(--brand,#0a7e7e);outline-offset:2px}
