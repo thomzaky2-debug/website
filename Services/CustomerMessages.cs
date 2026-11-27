@@ -19,7 +19,7 @@ public static class CustomerMessages
     {
         "Created" => "استلمنا طلبك",
         "Paid" => "تم تأكيد الدفع",
-        "Overpaid" => "تم تأكيد الدفع",
+        "Overpaid" => "تم الدفع بزيادة",
         "Confirmed" => "تم تأكيد الطلب",
         "Processing" => "طلبك قيد التجهيز",
         "Shipped" => "طلبك في الطريق",
@@ -30,11 +30,12 @@ public static class CustomerMessages
         _ => "تحديث على طلبك"
     };
 
-    static string OrderLine(string kind) => kind switch
+    static string OrderLine(string kind, decimal walletCredit = 0) => kind switch
     {
         "Created" => "استلمنا طلبك وبانتظار إتمام الدفع. أول ما يتأكد الدفع هنبدأ نجهّزه.",
         "Paid" => "وصلنا دفعك، شكراً لك. هتلاقي حالة طلبك محدّثة في رابط المتابعة أدناه.",
-        "Overpaid" => "وصلنا دفعك، شكراً لك. المبلغ الزائد عن قيمة الطلب أضفناه إلى محفظتك.",
+        "Overpaid" when walletCredit > 0 => "وصلنا دفعك، شكراً لك. المبلغ الذي دفعته أكبر من إجمالي الطلب، وأضفنا الزيادة إلى محفظتك في الموقع. تقدر تستخدمها في أي طلب جديد.",
+        "Overpaid" => "وصلنا دفعك، شكراً لك. المبلغ الذي دفعته أكبر من إجمالي الطلب، وهنتواصل معك بخصوص المبلغ الزائد.",
         "Confirmed" => "تم تأكيد طلبك وهنبدأ تجهيزه.",
         "Processing" => "بنجهّز طلبك دلوقتي وهنبلغك أول ما يتشحن.",
         "Shipped" => "طلبك خرج للشحن وفي الطريق إليك. تقدر تتابع حالته من الرابط أدناه.",
@@ -45,35 +46,55 @@ public static class CustomerMessages
         _ => "في تحديث جديد على طلبك. تقدر تتابعه من الرابط أدناه."
     };
 
-    public static (string Subject, string Body) Order(string kind, string customerName, string orderNumber, decimal total, string trackingUrl)
+    static string Money(decimal value) => value.ToString("0.00", CultureInfo.InvariantCulture) + " ج.م";
+
+    /// <summary>Amounts a payment notice states: what the customer paid, and the extra credited to the wallet.
+    /// The wallet credit is only claimed for an account customer when the stored amounts show an excess, which is
+    /// exactly when the payment code credits the wallet.</summary>
+    public static (decimal Paid, decimal WalletCredit) PaymentAmounts(string kind, Models.Order order)
+    {
+        var payable = order.PayableAmount;
+        if (kind != "Overpaid") return (payable, 0m);
+        var detected = order.DetectedAmountEgp ?? payable;
+        var credit = !string.IsNullOrWhiteSpace(order.CustomerUserId) && detected > payable ? decimal.Round(detected - payable, 2) : 0m;
+        return (detected, credit);
+    }
+
+    static string AmountLines(string kind, decimal total, decimal paid, decimal walletCredit)
+    {
+        if (kind == "Overpaid" && paid > 0)
+            return walletCredit > 0
+                ? $"المبلغ المدفوع: {Money(paid)}\nالزيادة المضافة إلى محفظتك: {Money(walletCredit)}"
+                : $"المبلغ المدفوع: {Money(paid)}\nإجمالي الطلب: {Money(total)}";
+        if (kind == "Paid" && paid > 0) return $"المبلغ المدفوع: {Money(paid)}";
+        return $"الإجمالي: {Money(total)}";
+    }
+
+    public static (string Subject, string Body) Order(string kind, string customerName, string orderNumber, decimal total, string trackingUrl, decimal paidAmount = 0, decimal walletCredit = 0)
     {
         var first = FirstName(customerName);
         var greeting = first.Length > 0 ? $"أهلاً {first}،" : "أهلاً بك،";
         var subject = $"{Brand} | {OrderStatus(kind)} · {orderNumber}";
-        var body = $"{greeting}\n\n{OrderLine(kind)}\n\n" +
+        var body = $"{greeting}\n\n{OrderLine(kind, walletCredit)}\n\n" +
                    $"رقم الطلب: {orderNumber}\n" +
-                   $"الإجمالي: {total.ToString("0.00", CultureInfo.InvariantCulture)} ج.م\n\n" +
+                   $"{AmountLines(kind, total, paidAmount, walletCredit)}\n\n" +
                    $"تابع طلبك من هنا:\n{trackingUrl}\n\n" +
                    "احتفظ بهذا الرابط، فهو يفتح صفحة طلبك.\n\n" + SignOff;
         return (subject, body);
     }
 
-    static string WhatsAppLine(string kind) => kind switch
+    static string WhatsAppLine(string kind, decimal walletCredit) => kind switch
     {
         "Refunded" => "سجّلنا رد المبلغ المدفوع لطلبك.",
-        _ => OrderLine(kind)
+        _ => OrderLine(kind, walletCredit)
     };
 
-    /// <summary>Short WhatsApp copy of an order update. Paid kinds show the amount paid, the rest the order total.</summary>
-    public static string OrderWhatsApp(string kind, string customerName, string orderNumber, decimal total, decimal paidAmount, string trackingUrl)
+    /// <summary>Short WhatsApp copy of an order update, same wording and amounts as the email.</summary>
+    public static string OrderWhatsApp(string kind, string customerName, string orderNumber, decimal total, decimal paidAmount, string trackingUrl, decimal walletCredit = 0)
     {
         var first = FirstName(customerName);
         var greeting = first.Length > 0 ? $"أهلاً {first}،" : "أهلاً بك،";
-        var paidKind = kind is "Paid" or "Overpaid";
-        var amount = paidKind && paidAmount > 0
-            ? $"المبلغ المدفوع: {paidAmount.ToString("0.00", CultureInfo.InvariantCulture)} ج.م"
-            : $"الإجمالي: {total.ToString("0.00", CultureInfo.InvariantCulture)} ج.م";
-        return $"{greeting}\n{WhatsAppLine(kind)}\n\nرقم الطلب: {orderNumber}\n{amount}\nتابع طلبك: {trackingUrl}\n\nChic & Unique\nهذه رسالة تلقائية.";
+        return $"{greeting}\n{WhatsAppLine(kind, walletCredit)}\n\nرقم الطلب: {orderNumber}\n{AmountLines(kind, total, paidAmount, walletCredit)}\nتابع طلبك: {trackingUrl}\n\nChic & Unique\nهذه رسالة تلقائية.";
     }
 
     public static (string Subject, string Body) Otp(string code, int minutes) =>

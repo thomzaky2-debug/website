@@ -91,6 +91,12 @@ await payments.ApplyAsync(new NileCheckout("security-session","OVERPAID",securit
 db.ChangeTracker.Clear();
 await payments.ApplyAsync(new NileCheckout("security-session","OVERPAID",securityOrder.TotalAmount,"EGP",null,securityOrder.TotalAmount+5),"repeated-valid-excess",default);
 Check(await new WalletService(db).GetBalanceAsync("security-owner")==5m && await db.WalletTransactions.CountAsync(w=>w.OrderId==securityOrder.Id)==1,"legitimate overpayment credits the excess once across different event IDs");
+{
+ var ok=await db.OrderEmails.Where(x=>x.OrderId==securityOrder.Id).Select(x=>x.Kind).OrderBy(x=>x).ToListAsync();
+ var so=await db.Orders.AsNoTracking().SingleAsync(x=>x.Id==securityOrder.Id);
+ var (sp,sc)=NileShop.Services.CustomerMessages.PaymentAmounts("Overpaid",so);
+ Check(ok.Count(x=>x=="Overpaid")==1 && ok.Count(x=>x=="WA:Overpaid")==1 && !ok.Contains("Paid") && sc==5m && sp==securityOrder.TotalAmount+5,"real overpayment creates one Overpaid email and one WhatsApp row, crediting exactly the excess");
+}
 var priceForm=new ProductFormViewModel {Price=1.001m};
 Check(priceForm.Validate(new System.ComponentModel.DataAnnotations.ValidationContext(priceForm)).Any(e=>e.ErrorMessage=="Validation_PricePrecision"),"fractional piastres rejected before catalog save");
 
@@ -374,6 +380,18 @@ Check(WhatsAppOtpClient.NormalizePhone("00201065466760")=="+201065466760","00-pr
  var msgs=new[]{"Created","Paid","Overpaid","Shipped","Delivered","Cancelled","Refunded","Underpaid"}.Select(k=>NileShop.Services.CustomerMessages.OrderWhatsApp(k,"منى أحمد","NILE-20261125-ABC",550m,500m,"https://shop.example/orders/track?token=t")).ToList();
  Check(msgs.All(m=>m.Contains("NILE-20261125-ABC")&&m.Contains("orders/track?token=t")&&m.StartsWith("أهلاً منى،")&&!m.Contains("NilePay",StringComparison.OrdinalIgnoreCase)&&!m.Contains("&#")&&!m.Contains("&amp;")&&m.Length<400),"WhatsApp notices are short, linked, branded, with no gateway name or entities");
  Check(msgs[1].Contains("المبلغ المدفوع: 500.00 ج.م")&&msgs[3].Contains("الإجمالي: 550.00 ج.م"),"paid notice shows amount paid, others the total");
+ {
+  var acct=new Order{CustomerUserId="u1",TotalAmount=500m,WalletAmountUsed=0m,DetectedAmountEgp=650m};
+  var guest=new Order{CustomerUserId=null,TotalAmount=500m,WalletAmountUsed=0m,DetectedAmountEgp=650m};
+  var (paidA,creditA)=NileShop.Services.CustomerMessages.PaymentAmounts("Overpaid",acct);
+  var (paidG,creditG)=NileShop.Services.CustomerMessages.PaymentAmounts("Overpaid",guest);
+  Check(paidA==650m && creditA==150m && paidG==650m && creditG==0m,"overpaid wallet credit is stated only for account customers, as the amount actually credited");
+  var wa=NileShop.Services.CustomerMessages.OrderWhatsApp("Overpaid","منى أحمد","NILE-1",500m,paidA,"https://shop.example/orders/track?token=t",creditA);
+  var em=NileShop.Services.CustomerMessages.Order("Overpaid","منى أحمد","NILE-1",500m,"https://shop.example/orders/track?token=t",paidA,creditA);
+  Check(wa.Contains("المبلغ المدفوع: 650.00 ج.م")&&wa.Contains("الزيادة المضافة إلى محفظتك: 150.00 ج.م")&&wa.Contains("أضفنا الزيادة إلى محفظتك")&&em.Body.Contains("الزيادة المضافة إلى محفظتك: 150.00 ج.م")&&em.Body.Contains("NILE-1")&&em.Subject.Contains("تم الدفع بزيادة"),"overpaid WhatsApp and email state amount paid and wallet credit");
+  var waG=NileShop.Services.CustomerMessages.OrderWhatsApp("Overpaid","منى أحمد","NILE-1",500m,paidG,"https://shop.example/orders/track?token=t",creditG);
+  Check(!waG.Contains("محفظتك")&&waG.Contains("هنتواصل معك")&&waG.Contains("إجمالي الطلب: 500.00 ج.م"),"guest overpaid notice makes no wallet claim");
+ }
  Check(!msgs[6].Contains("رد على هذه الرسالة"),"WhatsApp refund notice does not ask to reply");
  foreach (var (code,expected) in new[]{(System.Net.HttpStatusCode.OK,NileShop.Services.WhatsAppOtpClient.NoticeResult.Sent),(System.Net.HttpStatusCode.NotFound,NileShop.Services.WhatsAppOtpClient.NoticeResult.Retry),(System.Net.HttpStatusCode.BadGateway,NileShop.Services.WhatsAppOtpClient.NoticeResult.Retry),(System.Net.HttpStatusCode.UnprocessableEntity,NileShop.Services.WhatsAppOtpClient.NoticeResult.Rejected)})
  {

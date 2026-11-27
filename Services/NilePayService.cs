@@ -141,8 +141,9 @@ public class NilePayService(ApplicationDbContext db, NilePayClient client, IOpti
             {
                 db.AuditLogs.Add(new AuditLog { Action = "PAYMENT_OVERPAID_WALLET", EntityName = "Order", Details = $"{attempt.Order.OrderNumber}: +{excess:0.00} EGP credited to wallet", UserEmail = "NilePay" });
                 db.OrderUpdates.Add(new OrderUpdate { OrderId = attempt.OrderId, Status = attempt.Order.InventoryReleased ? "PaymentReview" : "Overpaid" });
-                if (!await db.OrderEmails.AnyAsync(e => e.OrderId == attempt.OrderId && e.Kind == "Paid", ct))
-                    db.OrderEmails.Add(new OrderEmail { OrderId = attempt.OrderId, Kind = "Paid" });
+                // One customer notice for this payment: the "Overpaid" one (it also confirms the payment and states the wallet credit).
+                if (!await db.OrderEmails.AnyAsync(e => e.OrderId == attempt.OrderId && (e.Kind == "Paid" || e.Kind == "Overpaid"), ct))
+                    db.OrderEmails.Add(new OrderEmail { OrderId = attempt.OrderId, Kind = "Overpaid" });
             }
             await db.PaymentAttempts.Where(p => p.Id == attempt.Id).ExecuteUpdateAsync(s => s.SetProperty(p => p.GatewayStatus, "OVERPAID"), ct);
         }

@@ -90,8 +90,9 @@ public class StoreWorker(IServiceScopeFactory scopes, IConfiguration config, ILo
             try {
                 using var transport = new SmtpClient(smtp.Host.Trim(), smtp.Port) { EnableSsl = smtp.EnableSsl, UseDefaultCredentials = false, Timeout = 20000 };
                 if (!string.IsNullOrEmpty(smtp.Username)) transport.Credentials = new NetworkCredential(smtp.Username.Trim(), smtp.Password);
+                var (paid, credit) = CustomerMessages.PaymentAmounts(email.Kind, email.Order);
                 var (subject, body) = CustomerMessages.Order(email.Kind, email.Order.CustomerName, email.Order.OrderNumber, email.Order.TotalAmount,
-                    $"{site.TrimEnd('/')}/orders/track?token={email.Order.PaymentAccessToken}");
+                    $"{site.TrimEnd('/')}/orders/track?token={email.Order.PaymentAccessToken}", paid, credit);
                 using var message = new MailMessage(smtp.From, email.Order.CustomerEmail) { Subject = subject, Body = body };
                 message.Headers.Add("Message-ID", $"<nileshop-order-{email.OrderId}-{email.Kind}@{origin.Host}>");
                 await transport.SendMailAsync(message, ct);
@@ -133,8 +134,9 @@ public class StoreWorker(IServiceScopeFactory scopes, IConfiguration config, ILo
                 else if (late) outcome = "skipped-under-review";
                 else
                 {
-                    var text = CustomerMessages.OrderWhatsApp(kind, order.CustomerName, order.OrderNumber, order.TotalAmount, order.PayableAmount,
-                        $"{site.TrimEnd('/')}/orders/track?token={order.PaymentAccessToken}");
+                    var (paid, credit) = CustomerMessages.PaymentAmounts(kind, order);
+                    var text = CustomerMessages.OrderWhatsApp(kind, order.CustomerName, order.OrderNumber, order.TotalAmount, paid,
+                        $"{site.TrimEnd('/')}/orders/track?token={order.PaymentAccessToken}", credit);
                     var result = await client.SendNoticeAsync(phone, text, ct);
                     outcome = result switch { WhatsAppOtpClient.NoticeResult.Sent => "sent", WhatsAppOtpClient.NoticeResult.Rejected => "rejected", _ => "retry" };
                 }
