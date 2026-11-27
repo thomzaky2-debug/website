@@ -1,0 +1,32 @@
+@model List<(Order Order, string Kind)>
+@{ViewData["Title"] = Localizer["Payment_Issues"];}
+<div class="section-head"><div><span class="eyebrow">Chic &amp; Unique · @Localizer["Operations"]</span><h1>@Localizer["Payment_Issues"]</h1><p class="muted">@Localizer["Payment_Issues_Intro"]</p></div><a class="action-link" asp-action="Index">← @Localizer["Orders"]</a></div>
+<div class="kpis payment-issue-kpis">
+    <div class="panel"><small>@Localizer["Payment_Issue_Review"]</small><h2>@Model.Count(r => r.Kind == "Review")</h2></div>
+    <div class="panel"><small>@Localizer["Payment_Issue_Underpaid"]</small><h2>@Model.Count(r => r.Kind == "Underpaid")</h2></div>
+    <div class="panel"><small>@Localizer["Payment_Issue_Stuck"]</small><h2>@Model.Count(r => r.Kind == "Stuck")</h2></div>
+</div>
+@if (Model.Count == 0)
+{
+    <div class="admin-empty">@Localizer["Payment_Issues_None"]</div>
+}
+<div class="payment-issue-list">
+@foreach (var row in Model)
+{
+    var o = row.Order;
+    <article class="panel payment-issue-card">
+        <div class="payment-issue-top">
+            <a class="record-link" asp-action="Order" asp-route-id="@o.Id" dir="ltr">@o.OrderNumber</a>
+            <span class="status-pill off">@Localizer["Payment_Issue_" + row.Kind]</span>
+        </div>
+        <p class="muted">@Localizer["Payment_Issue_" + row.Kind + "_Help"]</p>
+        <div class="payment-issue-meta">
+            <span dir="ltr"><strong>@o.PayableAmount.ToString("N2")</strong> EGP</span>
+            <span>@Localizer[o.PaymentStatus]</span>
+            <span dir="ltr">@(o.PaymentSessionStatus ?? "—")</span>
+            <time dir="ltr">@o.CreatedAt.ToString("dd/MM/yyyy h:mm tt", CultureInfo.InvariantCulture)</time>
+        </div>
+        <a class="action-link" asp-action="Order" asp-route-id="@o.Id">@Localizer["Details"] →</a>
+    </article>
+}
+</div>
