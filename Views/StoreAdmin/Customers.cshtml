@@ -14,7 +14,7 @@
     <td><strong>@customer.Orders</strong><small class="table-subline">@Localizer["Customer_Paid_Count",customer.PaidOrders]</small></td>
     <td class="money">@customer.PaidOrderValue.ToString("N2") <small>EGP</small></td>
     <td>@(customer.LastOrderAt?.ToString("dd/MM/yyyy h:mm tt", CultureInfo.InvariantCulture)??Localizer["No_Account_Orders"].Value)</td>
-    <td><span class="status-pill @(customer.IsLocked?"off":"")">@Localizer[customer.IsLocked?"Customer_Locked":"Customer_Active"]</span></td>
+    <td><span class="status-pill @(customer.IsLocked?"off":"")">@Localizer[NileShop.Services.AccountBlock.IsBlockedEnd(customer.LockoutEnd)?"Customer_Blocked":customer.IsLocked?"Customer_Locked":"Customer_Active"]</span></td>
     <td><a class="action-link" asp-action="Customer" asp-route-id="@customer.Id">@Localizer["Customer_View_Profile"] →</a></td>
 </tr>}
 </tbody></table>@if(!Model.Customers.Any()){<div class="admin-empty">@Localizer["Admin_Empty"]</div>}</div>

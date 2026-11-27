@@ -201,6 +201,7 @@ public class AccountController(UserManager<IdentityUser> users, SignInManager<Id
             var result = otp.Enabled
                 ? await signIn.CheckPasswordSignInAsync(user, model.Password, lockoutOnFailure: true)
                 : await signIn.PasswordSignInAsync(user, model.Password, isPersistent: true, lockoutOnFailure: true);
+            if(result.IsLockedOut && AccountBlock.IsBlocked(user)){ModelState.AddModelError("",localizer["Account_Blocked"]);return View(model);}
             if(result.Succeeded) {
                 if (otp.Enabled)
                 {
@@ -262,6 +263,7 @@ public class AccountController(UserManager<IdentityUser> users, SignInManager<Id
         if(user is null || await users.IsInRoleAsync(user,"Admin")){
             ModelState.AddModelError("",localizer["InvalidLogin"]);return View(model);
         }
+        if(AccountBlock.IsBlocked(user)){ModelState.AddModelError("",localizer["Account_Blocked"]);return View(model);}
         if(await otp.SendAsync(HttpContext, user, SafeReturn(model.ReturnUrl), admin: false))
             return RedirectToAction("Index", "EmailVerification");
         ModelState.AddModelError("",localizer["Otp_Send_Failed"]);
