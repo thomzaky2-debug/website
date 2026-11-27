@@ -181,7 +181,7 @@
         </div>
     }
     <div class="field checkout-instapay-field" id="instapayFieldWrap" hidden="@(Model.WalletBalance > 0 && Model.UseWallet && Model.PayablePreview == 0 ? "hidden" : null)">
-        <label asp-for="InstaPayUsername">@Localizer["InstaPay_Username"]</label>
+        <label asp-for="InstaPayUsername" class="instapay-label"><span class="instapay-brand" aria-hidden="true"><img src="~/assets/img/instapay-logo-@(System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "ar" ? "ar" : "en").png" alt="" width="132" height="16"/></span><span>@Localizer["InstaPay_Username"]</span></label>
         <div class="instapay-input" dir="ltr">
             <input asp-for="InstaPayUsername" placeholder="ahmed.mohammed" required="@(Model.WalletBalance > 0 && Model.UseWallet && Model.PayablePreview == 0 ? null : "required")" maxlength="100" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="instapay-help"/>
             <span aria-hidden="true">@@instapay</span>

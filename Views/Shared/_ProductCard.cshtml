@@ -18,7 +18,7 @@
 else if (Model.Sizes.Count > 0 || Model.Colors.Count > 0)
 {
     <details>
-        <summary class="quick-add-trigger" aria-label="@Localizer["Choose_Options"] · @Model.Name" title="@Localizer["Choose_Options"]"><span aria-hidden="true">+</span></summary>
+        <summary class="quick-add-trigger" aria-label="@Localizer["Choose_Options"] · @Model.Name" title="@Localizer["Choose_Options"]"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></summary>
         <partial name="_QuickAddForm" model="Model"/>
     </details>
 }

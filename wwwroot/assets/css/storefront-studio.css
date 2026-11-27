@@ -325,7 +325,8 @@ html.dark-mode .storefront-site { --studio-paper: #101a26; --studio-soft: #16233
   cursor: pointer;
 }
 html.dark-mode .product .quick-add-trigger { color: #101a26; }
-.quick-add details[open] summary span { transform: rotate(45deg); }
+.product .quick-add-trigger svg { display: block; pointer-events: none; }
+.quick-add details[open] summary svg { transform: rotate(45deg); }
 .quick-add details .quick-add-form { display: grid; gap: 8px; padding-block-start: 8px; }
 .quick-add-form label { margin: 0; min-width: 0; }
 .quick-add-form select, .quick-add-form .primary-button { width: 100%; min-height: 44px; }

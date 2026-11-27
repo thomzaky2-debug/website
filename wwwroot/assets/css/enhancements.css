@@ -2619,6 +2619,28 @@ html.dark-mode .saved-contact-avatar {
   color: var(--teal);
 }
 
+/* Official InstaPay wordmark next to the InstaPay username label */
+.checkout-page .checkout-instapay-field > label.instapay-label {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.instapay-brand {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 7px;
+  border-radius: 7px;
+  background: #101a26;
+}
+
+.instapay-brand img {
+  display: block;
+  height: 16px;
+  width: auto;
+}
+
 html.dark-mode .checkout-page .checkout-form .instapay-input {
   background: #1f2e41;
   border-color: var(--border);
