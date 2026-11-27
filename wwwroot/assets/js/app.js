@@ -276,6 +276,12 @@ menuToggle?.addEventListener('click', () => {
 document.addEventListener('click', event => {
  if (headerCatalog?.open && !headerCatalog.contains(event.target)) headerCatalog.open = false;
 }, { signal: lifecycle.signal });
+document.addEventListener('click', event => {
+ const close = event.target.closest?.('[data-catalog-close]');
+ if (!close) return;
+ const panel = document.getElementById('header-catalog');
+ if (panel) { panel.open = false; panel.querySelector('summary')?.focus(); }
+}, { signal: lifecycle.signal });
 headerCatalog?.addEventListener('keydown', event => {
  if (event.key === 'Escape' && !event.defaultPrevented && headerCatalog.open) {
   headerCatalog.open = false;
