@@ -194,9 +194,11 @@
 
 <aside class="panel checkout-summary" data-free-delivery-qualified="@(Model.IsFreeDeliveryQualified ? "true" : "false")">
     <h2>@Localizer["Order_Summary"]</h2>
+    <div class="order-summary-table">
+    <div class="order-total-row order-head-row"><span>@Localizer["Summary_Product"]</span><span class="order-qty">@Localizer["Summary_Qty"]</span><span class="order-price-head">@Localizer["Label_Price"]</span></div>
     @foreach (var line in Model.Cart.Lines)
     {
-        <div class="order-total-row"><span>@line.Product.Name <small><bdi>@line.Size @line.Color × @line.Quantity</bdi></small></span><strong class="order-amount"><bdi>@Money(line.Total) EGP</bdi></strong></div>
+        <div class="order-total-row order-item-row"><span>@line.Product.Name <small><bdi>@line.Size @line.Color</bdi></small></span><span class="order-qty"><bdi>@line.Quantity</bdi></span><strong class="order-amount"><bdi>@Money(line.Total) EGP</bdi></strong></div>
     }
     <div class="order-total-row">
         <span>@Localizer["Shipping_Fee"]</span>
@@ -216,6 +218,7 @@
     <div class="order-total-row wallet-summary-row" id="wallet-credit-row" hidden="@(Model.WalletAppliedPreview <= 0 ? "hidden" : null)"><span>@Localizer["Wallet_Credit_Applied"]</span><strong class="order-amount"><bdi>−<span id="wallet-applied">@Money(Model.WalletAppliedPreview)</span> EGP</bdi></strong></div>
     <div class="order-total-row grand"><span>@Localizer["Total"]</span><strong class="order-amount"><bdi><span id="checkout-total" data-subtotal="@Model.Cart.Total.ToString(CultureInfo.InvariantCulture)">@Money(Model.TotalWithShipping)</span> EGP</bdi></strong></div>
     <div class="order-total-row payable-summary-row" id="checkout-payable-row" hidden="@(Model.WalletAppliedPreview <= 0 ? "hidden" : null)"><span>@Localizer["Remaining_To_Pay"]</span><strong class="order-amount"><bdi><span id="checkout-payable">@Money(Model.PayablePreview)</span> EGP</bdi></strong></div>
+    </div>
     <p class="muted">@Localizer["Delivery_EstimateNote"]</p>
 </aside>
 <div class="checkout-actions-row">
