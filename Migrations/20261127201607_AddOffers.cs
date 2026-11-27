@@ -11,6 +11,22 @@ namespace NileShop.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.AddColumn<decimal>(
+                name: "DiscountAmount",
+                table: "Orders",
+                type: "decimal(18,2)",
+                precision: 18,
+                scale: 2,
+                nullable: false,
+                defaultValue: 0m);
+
+            migrationBuilder.AddColumn<string>(
+                name: "DiscountLabel",
+                table: "Orders",
+                type: "nvarchar(150)",
+                maxLength: 150,
+                nullable: true);
+
             migrationBuilder.CreateTable(
                 name: "Offers",
                 columns: table => new
@@ -48,6 +64,14 @@ namespace NileShop.Migrations
         {
             migrationBuilder.DropTable(
                 name: "Offers");
+
+            migrationBuilder.DropColumn(
+                name: "DiscountAmount",
+                table: "Orders");
+
+            migrationBuilder.DropColumn(
+                name: "DiscountLabel",
+                table: "Orders");
         }
     }
 }

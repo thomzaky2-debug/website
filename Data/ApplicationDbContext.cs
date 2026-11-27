@@ -62,6 +62,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         b.Entity<ProductReview>().ToTable(t=>t.HasCheckConstraint("CK_Review_Rating","[Rating] >= 1 AND [Rating] <= 5"));
         b.Entity<ShippingMethod>().Property(x => x.Fee).HasPrecision(18,2);
         b.Entity<Order>().Property(x => x.ShippingFee).HasPrecision(18,2);
+        b.Entity<Order>().Property(x => x.DiscountAmount).HasPrecision(18,2);
         b.Entity<OrderEmail>().HasIndex(x => new { x.OrderId, x.Kind }).IsUnique();
         b.Entity<OrderEmail>().HasIndex(x => new { x.SentAt, x.NextAttemptAt });
         b.Entity<ShippingMethod>().ToTable(t => t.HasCheckConstraint("CK_Shipping_Fee", "[Fee] >= 0 AND [MaxDays] >= [MinDays]"));
@@ -74,6 +75,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         if (Database.IsSqlite()) {
             b.Entity<ShippingMethod>().Property(x => x.Fee).HasConversion<double>();
             b.Entity<Order>().Property(x => x.ShippingFee).HasConversion<double>();
+            b.Entity<Order>().Property(x => x.DiscountAmount).HasConversion<double>();
             b.Entity<Product>().Property(x => x.Price).HasConversion<double>();
             b.Entity<Product>().Property(x => x.OldPrice).HasConversion<double>();
             b.Entity<Order>().Property(x => x.TotalAmount).HasConversion<double>();

@@ -446,6 +446,19 @@ Check(!EmailOtp.ShouldDeferSignInForEmailGate(emailVerified, emailConfirmed: fal
     Check(cardPrice==30m,"product card shows discounted price");
     var offerOrder=await service.PlaceAsync(Customer("token-offer"),new Dictionary<int,int>{{offerProduct.Id,2}});
     Check(offerOrder.Items.Single().UnitPrice==30m && offerOrder.TotalAmount-offerOrder.ShippingFee==60m,"checkout total equals card price times quantity");
+    // ---- whole-order discount ----
+    var op=new Offer{Id=10,Kind=OfferKinds.OrderPercent,Value=10m,MinSubtotal=100m};
+    var of=new Offer{Id=11,Kind=OfferKinds.OrderFixed,Value=30m};
+    Check(OfferPricing.OrderDiscount(200m,[op]).Amount==20m,"order percent discount");
+    Check(OfferPricing.OrderDiscount(99.99m,[op]).Amount==0m,"order discount below minimum subtotal gives nothing");
+    Check(OfferPricing.OrderDiscount(200m,[op,of]).Amount==30m,"order discounts do not stack, largest wins");
+    Check(OfferPricing.OrderDiscount(10m,[of]).Amount==9.99m,"order fixed discount never takes items below 0.01");
+    Check(OfferPricing.Best(1,1,100m,[op,of])==null,"order offers never change product prices");
+    Check(OfferPricing.OrderDiscount(33.33m,[new Offer{Kind=OfferKinds.OrderPercent,Value=15m}]).Amount==5m,"order percent rounds to piasters");
+    db.Offers.Add(new Offer{TitleEn="Cart sale",TitleAr="x",Kind=OfferKinds.OrderFixed,Value=10m,MinSubtotal=50m,IsActive=true});
+    await db.SaveChangesAsync();
+    var o2=await service.PlaceAsync(Customer("token-order-discount"),new Dictionary<int,int>{{offerProduct.Id,2}});
+    Check(o2.DiscountAmount==10m && o2.TotalAmount==o2.Items.Sum(i=>i.Quantity*i.UnitPrice)-10m+o2.ShippingFee && o2.DiscountLabel=="Cart sale","checkout total = items - order discount + shipping, discount stored on order");
     OfferContext.Live=[];
 }
 sealed class FakeSession : Microsoft.AspNetCore.Http.ISession

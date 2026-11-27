@@ -45,4 +45,7 @@
   <data name="Offer_Err_Min" xml:space="preserve"><value>التوصيل المجاني يحتاج حد أدنى لإجمالي الطلب.</value></data>
   <data name="Offer_Err_Dates" xml:space="preserve"><value>راجع التواريخ. النهاية لازم تكون بعد البداية.</value></data>
   <data name="Offer_Err_Scope" xml:space="preserve"><value>اختر قسما أو منتجا واحدا على الأقل.</value></data>
+  <data name="Order_Discount" xml:space="preserve"><value>خصم الطلب</value></data>
+  <data name="Offer_Kind_OrderPercent" xml:space="preserve"><value>على الطلب كله: خصم نسبة % من السلة</value></data>
+  <data name="Offer_Kind_OrderFixed" xml:space="preserve"><value>على الطلب كله: خصم مبلغ ثابت من السلة</value></data>
 </root>

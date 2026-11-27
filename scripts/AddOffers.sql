@@ -1,7 +1,23 @@
 ﻿BEGIN TRANSACTION;
 IF NOT EXISTS (
     SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20261127195308_AddOffers'
+    WHERE [MigrationId] = N'20261127201607_AddOffers'
+)
+BEGIN
+    ALTER TABLE [Orders] ADD [DiscountAmount] decimal(18,2) NOT NULL DEFAULT 0.0;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261127201607_AddOffers'
+)
+BEGIN
+    ALTER TABLE [Orders] ADD [DiscountLabel] nvarchar(150) NULL;
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261127201607_AddOffers'
 )
 BEGIN
     CREATE TABLE [Offers] (
@@ -26,7 +42,7 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20261127195308_AddOffers'
+    WHERE [MigrationId] = N'20261127201607_AddOffers'
 )
 BEGIN
     CREATE INDEX [IX_Offers_IsActive_StartsAt_EndsAt] ON [Offers] ([IsActive], [StartsAt], [EndsAt]);
@@ -34,11 +50,11 @@ END;
 
 IF NOT EXISTS (
     SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20261127195308_AddOffers'
+    WHERE [MigrationId] = N'20261127201607_AddOffers'
 )
 BEGIN
     INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
-    VALUES (N'20261127195308_AddOffers', N'10.0.15');
+    VALUES (N'20261127201607_AddOffers', N'10.0.15');
 END;
 
 COMMIT;

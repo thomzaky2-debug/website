@@ -89,7 +89,7 @@ public class OffersAdminController(ApplicationDbContext db, AuditService audit) 
         else
         {
             if (!Dec(m.Value, out value) || value <= 0 || value > 10000000) return "Offer_Err_Value";
-            if (m.Kind == OfferKinds.Percent && value > 90) return "Offer_Err_Percent";
+            if ((m.Kind == OfferKinds.Percent || m.Kind == OfferKinds.OrderPercent) && value > 90) return "Offer_Err_Percent";
         }
         decimal? min = null;
         if (!string.IsNullOrWhiteSpace(m.MinSubtotal)) { if (!Dec(m.MinSubtotal, out var mv) || mv < 0 || mv > 10000000) return "Offer_Err_Value"; min = mv; }
@@ -99,7 +99,7 @@ public class OffersAdminController(ApplicationDbContext db, AuditService audit) 
         if (!string.IsNullOrWhiteSpace(m.EndsAt)) { e = Date(m.EndsAt); if (e is null) return "Offer_Err_Dates"; }
         if (s is not null && e is not null && e <= s) return "Offer_Err_Dates";
         int? cat = null; string? ids = null;
-        if (m.Kind != OfferKinds.FreeDelivery)
+        if (m.Kind is OfferKinds.Percent or OfferKinds.Fixed)
         {
             if (m.Scope == OfferScopes.Category) { if (m.CategoryId is null || !db.Categories.Any(c => c.Id == m.CategoryId)) return "Offer_Err_Scope"; cat = m.CategoryId; }
             if (m.Scope == OfferScopes.Products)
@@ -112,7 +112,7 @@ public class OffersAdminController(ApplicationDbContext db, AuditService audit) 
         o.TitleEn = m.TitleEn.Trim(); o.TitleAr = m.TitleAr.Trim();
         o.BadgeEn = string.IsNullOrWhiteSpace(m.BadgeEn) ? null : m.BadgeEn.Trim(); o.BadgeAr = string.IsNullOrWhiteSpace(m.BadgeAr) ? null : m.BadgeAr.Trim();
         if (o.TitleEn.Length > 150 || o.TitleAr.Length > 150 || (o.BadgeEn?.Length ?? 0) > 40 || (o.BadgeAr?.Length ?? 0) > 40) return "Offer_Err_Title";
-        o.Kind = m.Kind; o.Value = value; o.Scope = m.Kind == OfferKinds.FreeDelivery ? OfferScopes.All : m.Scope;
+        o.Kind = m.Kind; o.Value = value; o.Scope = m.Kind is OfferKinds.Percent or OfferKinds.Fixed ? m.Scope : OfferScopes.All;
         o.CategoryId = cat; o.ProductIds = ids; o.MinSubtotal = min; o.StartsAt = s; o.EndsAt = e; o.IsActive = m.IsActive;
         return null;
     }

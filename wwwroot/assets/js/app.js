@@ -237,6 +237,12 @@ if(quantityForms.length){
      if(!pendingQuantities.has(rowForm))rowForm.elements.quantity.value=line.quantity;
     }
     document.querySelector('#cart-grand-total').textContent=money.format(cart.total)+' EGP';
+    const discountOn=Number(cart.discount||0)>0;
+    const subRow=document.querySelector('#cart-subtotal-row'),disRow=document.querySelector('#cart-discount-row');
+    if(subRow&&disRow){subRow.hidden=!discountOn;disRow.hidden=!discountOn;
+     const subEl=document.querySelector('#cart-subtotal'),disEl=document.querySelector('#cart-discount');
+     if(subEl)subEl.textContent=money.format(Number(cart.subtotal||0))+' EGP';
+     if(disEl)disEl.textContent='−'+money.format(Number(cart.discount||0))+' EGP';}
     document.querySelector('#cart-item-count').textContent=cart.count;
     document.querySelectorAll('.cart-count').forEach(node=>node.textContent=cart.count);
     if (cart.error) showToast(cart.error, 'error');

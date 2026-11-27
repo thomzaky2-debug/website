@@ -37,7 +37,7 @@ public class CartController(CartService cart, ApplicationDbContext db, CheckoutS
         if (Request.Headers.Accept.ToString().Contains("application/json", StringComparison.OrdinalIgnoreCase)) {
             var view = await cart.ViewAsync();
             var error = TempData["Error"] as string;
-            return Json(new { total=view.Total, count=view.Lines.Sum(l=>l.Quantity), error=error is null ? null : localizer[error].Value,
+            return Json(new { total=view.TotalAfterDiscount, subtotal=view.Total, discount=view.OrderDiscount, count=view.Lines.Sum(l=>l.Quantity), error=error is null ? null : localizer[error].Value,
                 lines=view.Lines.Select(l=>new {key=l.Key,quantity=l.Quantity,total=l.Total,unitPrice=l.Product.Price}) });
         }
         return RedirectToAction(nameof(Index));

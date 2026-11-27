@@ -3,8 +3,8 @@ namespace NileShop.Models;
 
 public static class OfferKinds
 {
-    public const string Percent = "Percent", Fixed = "Fixed", FreeDelivery = "FreeDelivery";
-    public static readonly string[] All = [Percent, Fixed, FreeDelivery];
+    public const string Percent = "Percent", Fixed = "Fixed", FreeDelivery = "FreeDelivery", OrderPercent = "OrderPercent", OrderFixed = "OrderFixed";
+    public static readonly string[] All = [Percent, Fixed, FreeDelivery, OrderPercent, OrderFixed];
 }
 public static class OfferScopes
 {

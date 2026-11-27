@@ -70,7 +70,9 @@ public class CheckoutService(ApplicationDbContext db, IConfiguration? config = n
         var freeDelivery = OfferPricing.FreeDelivery(storeSettings?.FreeDeliveryOfferEnabled == true, storeSettings?.FreeDeliveryOfferThreshold ?? 0m, liveOffers);
         var qualifiesForFreeDelivery = freeDelivery.Enabled && itemsTotal >= freeDelivery.Threshold;
         order.ShippingFee = qualifiesForFreeDelivery ? 0m : (shipping?.Fee ?? 0);
-        order.TotalAmount = itemsTotal + order.ShippingFee;
+        var orderDiscount = OfferPricing.OrderDiscount(itemsTotal, liveOffers);
+        order.DiscountAmount = orderDiscount.Amount; order.DiscountLabel = orderDiscount.Offer?.TitleEn;
+        order.TotalAmount = itemsTotal - order.DiscountAmount + order.ShippingFee;
         if (order.TotalAmount <= 0 || order.TotalAmount > 10000000) throw new CheckoutException("Payment_Limit");
 
         var wallet = new WalletService(db);

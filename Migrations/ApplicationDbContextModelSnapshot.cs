@@ -668,6 +668,15 @@ namespace NileShop.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<decimal>("DiscountAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("DiscountLabel")
+                        .HasMaxLength(150)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(150)");
+
                     b.Property<string>("InstaPaySenderHandle")
                         .HasMaxLength(109)
                         .IsUnicode(true)

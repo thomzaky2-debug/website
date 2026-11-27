@@ -15,7 +15,7 @@ public static class OfferPricing
     }
     public static bool IsLive(Offer o, DateTime nowLocal) => o.IsActive && (o.StartsAt is null || o.StartsAt <= nowLocal) && (o.EndsAt is null || o.EndsAt >= nowLocal);
 
-    public static bool Matches(Offer o, int productId, int categoryId) => o.Kind != OfferKinds.FreeDelivery && o.Scope switch
+    public static bool Matches(Offer o, int productId, int categoryId) => (o.Kind == OfferKinds.Percent || o.Kind == OfferKinds.Fixed) && o.Scope switch
     {
         OfferScopes.All => true,
         OfferScopes.Category => o.CategoryId == categoryId,
@@ -37,6 +37,24 @@ public static class OfferPricing
         };
         result = Math.Max(result, 0.01m);
         return result < price ? result : null;
+    }
+
+    /// <summary>Whole-order discount: the largest single order offer whose minimum is met. Never stacks, never takes the items below 0.01.</summary>
+    public static (decimal Amount, Offer? Offer) OrderDiscount(decimal subtotal, IEnumerable<Offer> live)
+    {
+        decimal best = 0m; Offer? by = null;
+        if (subtotal <= 0.01m) return (0m, null);
+        foreach (var o in live)
+        {
+            if (o.Kind != OfferKinds.OrderPercent && o.Kind != OfferKinds.OrderFixed) continue;
+            if (o.Value <= 0 || subtotal < (o.MinSubtotal ?? 0m)) continue;
+            var amount = o.Kind == OfferKinds.OrderPercent
+                ? decimal.Round(subtotal * Math.Min(o.Value, 100m) / 100m, 2, MidpointRounding.AwayFromZero)
+                : decimal.Round(o.Value, 2, MidpointRounding.AwayFromZero);
+            amount = Math.Min(amount, subtotal - 0.01m);
+            if (amount > best || (amount == best && by is not null && o.Id < by.Id)) { best = amount; by = o; }
+        }
+        return (best, by);
     }
 
     /// <summary>The single lowest price among live offers. Offers never stack.</summary>

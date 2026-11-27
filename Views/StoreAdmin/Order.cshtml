@@ -97,6 +97,10 @@
                 }
             </div>
             <div class="admin-order-summary">
+                @if (Model.DiscountAmount > 0)
+                {
+                    <div class="admin-summary-row"><span>@Localizer["Order_Discount"] (@Model.DiscountLabel)</span><strong dir="ltr">−@Model.DiscountAmount.ToString("N2") EGP</strong></div>
+                }
                 <div class="admin-summary-row">
                     <span>@Localizer["Shipping_Fee"]</span>
                     <strong dir="ltr">@Model.ShippingFee.ToString("N2") EGP</strong>

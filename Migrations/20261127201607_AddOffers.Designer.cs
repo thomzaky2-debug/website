@@ -12,7 +12,7 @@ using NileShop.Data;
 namespace NileShop.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20261127195308_AddOffers")]
+    [Migration("20261127201607_AddOffers")]
     partial class AddOffers
     {
         /// <inheritdoc />
@@ -670,6 +670,15 @@ namespace NileShop.Migrations
                     b.Property<decimal?>("DetectedAmountEgp")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("DiscountAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("DiscountLabel")
+                        .HasMaxLength(150)
+                        .IsUnicode(true)
+                        .HasColumnType("nvarchar(150)");
 
                     b.Property<string>("InstaPaySenderHandle")
                         .HasMaxLength(109)

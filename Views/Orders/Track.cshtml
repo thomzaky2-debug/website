@@ -115,7 +115,8 @@
                 <span>@Localizer["Order_Summary"]</span>
             </h3>
             <div class="track-data-list">
-                <div class="track-data-row"><span>@Localizer["Subtotal"]</span><strong>@((Model.TotalAmount - Model.ShippingFee).ToString("N2")) EGP</strong></div>
+                <div class="track-data-row"><span>@Localizer["Subtotal"]</span><strong>@((Model.TotalAmount - Model.ShippingFee + Model.DiscountAmount).ToString("N2")) EGP</strong></div>
+@if(Model.DiscountAmount>0){<div class="track-data-row"><span>@Localizer["Order_Discount"]</span><strong>−@Model.DiscountAmount.ToString("N2") EGP</strong></div>}
                 <div class="track-data-row"><span>@Localizer["Shipping_Fee"]</span><strong>@Model.ShippingFee.ToString("N2") EGP</strong></div>
                 @if(Model.WalletAmountUsed > 0){
                     <div class="track-data-row" style="color: #10b981;"><span>@Localizer["Wallet_Credit_Applied"]</span><strong>−@Model.WalletAmountUsed.ToString("N2") EGP</strong></div>

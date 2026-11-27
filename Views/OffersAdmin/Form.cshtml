@@ -10,7 +10,7 @@
 <label>@Localizer["Offer_TitleEn"]<input asp-for="TitleEn" maxlength="150" required dir="ltr"/></label>
 <label>@Localizer["Offer_BadgeAr"]<input asp-for="BadgeAr" maxlength="40" dir="rtl"/></label>
 <label>@Localizer["Offer_BadgeEn"]<input asp-for="BadgeEn" maxlength="40" dir="ltr"/></label>
-<label>@Localizer["Offer_Type"]<select asp-for="Kind"><option value="Percent">@Localizer["Offer_Kind_Percent"]</option><option value="Fixed">@Localizer["Offer_Kind_Fixed"]</option><option value="FreeDelivery">@Localizer["Offer_Kind_FreeDelivery"]</option></select></label>
+<label>@Localizer["Offer_Type"]<select asp-for="Kind"><option value="Percent">@Localizer["Offer_Kind_Percent"]</option><option value="Fixed">@Localizer["Offer_Kind_Fixed"]</option><option value="FreeDelivery">@Localizer["Offer_Kind_FreeDelivery"]</option><option value="OrderPercent">@Localizer["Offer_Kind_OrderPercent"]</option><option value="OrderFixed">@Localizer["Offer_Kind_OrderFixed"]</option></select></label>
 <label>@Localizer["Offer_Value"]<input asp-for="Value" inputmode="decimal" dir="ltr"/></label>
 <label>@Localizer["Offer_MinSubtotal"]<input asp-for="MinSubtotal" inputmode="decimal" dir="ltr"/></label>
 <label>@Localizer["Offer_Scope"]<select asp-for="Scope"><option value="All">@Localizer["Offer_Scope_All"]</option><option value="Category">@Localizer["Offer_Scope_Category"]</option><option value="Products">@Localizer["Offer_Scope_Products"]</option></select></label>

@@ -45,4 +45,7 @@
   <data name="Offer_Err_Min" xml:space="preserve"><value>Free delivery needs a minimum order subtotal.</value></data>
   <data name="Offer_Err_Dates" xml:space="preserve"><value>Check the dates. The end must be after the start.</value></data>
   <data name="Offer_Err_Scope" xml:space="preserve"><value>Choose a category or at least one product.</value></data>
+  <data name="Order_Discount" xml:space="preserve"><value>Order discount</value></data>
+  <data name="Offer_Kind_OrderPercent" xml:space="preserve"><value>Whole order: percentage off the cart</value></data>
+  <data name="Offer_Kind_OrderFixed" xml:space="preserve"><value>Whole order: fixed EGP off the cart</value></data>
 </root>

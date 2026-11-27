@@ -19,10 +19,10 @@ public class NilePayService(ApplicationDbContext db, NilePayClient client, IOpti
             if (string.IsNullOrWhiteSpace(order.InstaPaySenderHandle)) throw new NilePayException("InstaPay_Missing");
             if (payable <= 0 || payable > 10000000 || order.Items.Count is 0 or > 100) throw new NilePayException("Payment_Limit");
             object linesPayload;
-            if (currentOrder.WalletAmountUsed > 0) {
+            if (currentOrder.WalletAmountUsed > 0 || order.DiscountAmount > 0) {
                 linesPayload = new[] {
                     new {
-                        name = Limit($"NileShop order {order.OrderNumber} (after {currentOrder.WalletAmountUsed:0.00} EGP wallet credit)", 200),
+                        name = Limit($"NileShop order {order.OrderNumber} (after {currentOrder.WalletAmountUsed + order.DiscountAmount:0.00} EGP discounts and wallet credit)", 200),
                         quantity = 1,
                         unitPrice = payable,
                         category = "Retail products"
