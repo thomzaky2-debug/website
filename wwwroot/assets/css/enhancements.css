@@ -5237,3 +5237,34 @@ html.dark-mode body.storefront-site .checkout-page .field.has-field-error .insta
 }
 html.dark-mode body.storefront-site .checkout-page .field-error-text { color: #ff9aa2; }
 html.dark-mode body.storefront-site .checkout-page .field-error-text::before { background: #ff6b78; color: #20121a; }
+
+/* Mobile floating cart button */
+.floating-cart { display: none; }
+@media (max-width: 768px) {
+  body.storefront-site .floating-cart {
+    display: grid; place-items: center; position: fixed; z-index: 890;
+    inset-inline-end: 14px; bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    width: 52px; height: 52px; border-radius: 50%;
+    background: var(--teal, #0f766e); color: #fff; text-decoration: none;
+    box-shadow: 0 6px 18px rgba(8, 43, 66, .28); border: 2px solid rgba(255, 255, 255, .9);
+    transition: bottom .25s ease, transform .15s ease;
+  }
+  body.storefront-site .floating-cart:active { transform: scale(.94); }
+  body.storefront-site .floating-cart .store-icon { width: 26px; height: 26px; }
+  body.storefront-site .floating-cart .cart-count {
+    position: absolute; top: -6px; inset-inline-end: -6px; min-width: 21px; height: 21px; padding: 0 5px;
+    display: grid; place-items: center; border-radius: 11px; box-sizing: border-box;
+    background: #d92d3f !important; color: #fff !important; font-size: 12px; font-weight: 700; line-height: 1;
+    border: 2px solid #fff; box-shadow: none !important;
+  }
+  body.storefront-site .floating-cart .cart-count:empty,
+  body.storefront-site .floating-cart .cart-count[data-count="0"] { display: none; }
+  html.dark-mode body.storefront-site .floating-cart { border-color: #0d1b2a; box-shadow: 0 6px 18px rgba(0, 0, 0, .55); }
+  html.dark-mode body.storefront-site .floating-cart .cart-count { border-color: #0d1b2a; }
+  /* the cart and checkout pages already have their own cart actions and pinned bar */
+  body:has(.cart-page, .checkout-page) .floating-cart { display: none; }
+  /* sit above the cookie banner while it is showing */
+  body:has(#cookieConsent:not([hidden]):not(.dismissed)) .floating-cart { bottom: calc(112px + env(safe-area-inset-bottom, 0px)); }
+  /* keep "added to cart" toasts clear of the button */
+  body.storefront-site:has(.floating-cart) .toast-container { bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
+}
