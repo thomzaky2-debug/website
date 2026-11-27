@@ -35,6 +35,7 @@ public class ShippingMethod
 }
 public class OrderEmail
 {
+    public const string WhatsAppPrefix = "WA:";
     public int Id { get; set; }
     public int OrderId { get; set; }
     public Order Order { get; set; } = null!;

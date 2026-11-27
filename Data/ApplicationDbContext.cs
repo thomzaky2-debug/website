@@ -27,6 +27,20 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<Offer> Offers => Set<Offer>();
+    // Every customer email also gets a companion "WA:<kind>" row, the outbox entry for the WhatsApp copy.
+    // The unique (OrderId, Kind) index makes it once per order and status. The worker only sends them when
+    // WhatsApp notices are switched on, and only while they are fresh, so enabling later never floods old orders.
+    void AddWhatsAppCompanions()
+    {
+        foreach (var email in ChangeTracker.Entries<OrderEmail>().Where(e => e.State == EntityState.Added && !e.Entity.Kind.StartsWith(OrderEmail.WhatsAppPrefix, StringComparison.Ordinal)).ToList())
+        {
+            var companion = new OrderEmail { Kind = OrderEmail.WhatsAppPrefix + email.Entity.Kind, NextAttemptAt = email.Entity.NextAttemptAt };
+            if (email.Entity.Order is not null) companion.Order = email.Entity.Order; else companion.OrderId = email.Entity.OrderId;
+            OrderEmails.Add(companion);
+        }
+    }
+    public override int SaveChanges(bool acceptAllChangesOnSuccess) { AddWhatsAppCompanions(); return base.SaveChanges(acceptAllChangesOnSuccess); }
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default) { AddWhatsAppCompanions(); return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken); }
     protected override void OnModelCreating(ModelBuilder b)
     {
         base.OnModelCreating(b);

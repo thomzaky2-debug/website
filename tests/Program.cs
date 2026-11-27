@@ -31,6 +31,10 @@ var order=await service.PlaceAsync(Customer("token-one"),new Dictionary<int,int>
  var resetMail=NileShop.Services.CustomerMessages.PasswordReset("https://shop.example/ResetPassword?userId=u&token=abc");
  Check(resetMail.Body.Contains("userId=u&token=abc")&&!resetMail.Body.Contains("&amp;"),"reset email keeps raw link");
 }
+{
+ var kinds=await db.OrderEmails.Where(e=>e.OrderId==order.Id).Select(e=>e.Kind).ToListAsync();
+ Check(kinds.Count==2 && kinds.Contains("Created") && kinds.Contains("WA:Created"),"each order email gets one WhatsApp companion row");
+}
 Check(order.TotalAmount==20.5m,"server-calculated decimal total");
 Check(await db.Products.Where(x=>x.Id==p.Id).Select(x=>x.StockQuantity).SingleAsync()==1,"inventory decremented");
 var retry=await service.PlaceAsync(Customer("token-one"),new Dictionary<int,int>{{p.Id,2}});
@@ -187,6 +191,36 @@ workerServices.AddSingleton(Microsoft.Extensions.Options.Options.Create(new Nile
 workerServices.AddSingleton<AccountMailSender>();
 workerServices.AddSingleton<EmailOtp>();
 using var workerSp = workerServices.BuildServiceProvider();
+{
+ await db.Orders.Where(o=>o.Id==order.Id).ExecuteUpdateAsync(x=>x.SetProperty(o=>o.CustomerPhone,"01065466760"));
+ var sent=new List<string>();
+ var rec=new RecordingStub(System.Net.HttpStatusCode.OK,sent);
+ var waServices=new Microsoft.Extensions.DependencyInjection.ServiceCollection();
+ waServices.AddSingleton(db);
+ waServices.AddSingleton(Microsoft.Extensions.Options.Options.Create(new NilePayOptions{PublicUrl="https://shop.example/"}));
+ waServices.AddSingleton(new WhatsAppOtpClient(new HttpClient(rec),Microsoft.Extensions.Options.Options.Create(new WhatsAppOtpOptions{Enabled=true,NotifyEnabled=true,BaseUrl="https://otp.example",ApiKey="k"}),Microsoft.Extensions.Logging.Abstractions.NullLogger<WhatsAppOtpClient>.Instance));
+ using var waSp=waServices.BuildServiceProvider();
+ await StoreWorker.SendWhatsAppNoticesAsync(waSp,CancellationToken.None);
+ await StoreWorker.SendWhatsAppNoticesAsync(waSp,CancellationToken.None);
+ await StoreWorker.SendWhatsAppNoticesAsync(waSp,CancellationToken.None);
+ var firstRun=sent.Count;
+ await StoreWorker.SendWhatsAppNoticesAsync(waSp,CancellationToken.None);
+ var waRow=await db.OrderEmails.AsNoTracking().SingleAsync(e=>e.OrderId==order.Id && e.Kind=="WA:Created");
+ var sentJson=System.Text.Json.JsonDocument.Parse(sent.First(x=>x.Contains("NILE-")||true)).RootElement;
+ Check(firstRun>=1 && sent.Count==firstRun && sentJson.GetProperty("phoneNumber").GetString()=="+201065466760" && sentJson.GetProperty("message").GetString()!.Contains(order.OrderNumber) && sentJson.GetProperty("message").GetString()!.Contains("https://shop.example/orders/track?token="),"WhatsApp notice sent exactly once per order and status, with number and tracking link");
+ Check(waRow.SentAt is not null && await db.AuditLogs.AnyAsync(a=>a.Action=="WHATSAPP_NOTICE" && a.Details!.Contains("sent")),"WhatsApp notice is marked sent and audited");
+ await db.OrderEmails.Where(e=>e.Id==waRow.Id).ExecuteUpdateAsync(x=>x.SetProperty(e=>e.SentAt,(DateTime?)null).SetProperty(e=>e.Attempts,0).SetProperty(e=>e.NextAttemptAt,DateTime.UtcNow.AddHours(-3)));
+ await StoreWorker.SendWhatsAppNoticesAsync(waSp,CancellationToken.None);
+ Check(sent.Count==firstRun,"stale WhatsApp outbox rows (older than 2 hours) are never sent");
+ var failing=new List<string>();
+ waServices.AddSingleton<WhatsAppOtpClient>(sp=>new WhatsAppOtpClient(new HttpClient(new RecordingStub(System.Net.HttpStatusCode.NotFound,failing)),Microsoft.Extensions.Options.Options.Create(new WhatsAppOtpOptions{Enabled=true,NotifyEnabled=true,BaseUrl="https://otp.example",ApiKey="k"}),Microsoft.Extensions.Logging.Abstractions.NullLogger<WhatsAppOtpClient>.Instance));
+ using var failSp=waServices.BuildServiceProvider();
+ await db.OrderEmails.Where(e=>e.Id==waRow.Id).ExecuteUpdateAsync(x=>x.SetProperty(e=>e.NextAttemptAt,DateTime.UtcNow.AddMinutes(-1)));
+ var statusBefore=(await db.Orders.AsNoTracking().SingleAsync(o=>o.Id==order.Id)).PaymentStatus;
+ await StoreWorker.SendWhatsAppNoticesAsync(failSp,CancellationToken.None);
+ var afterFail=await db.OrderEmails.AsNoTracking().SingleAsync(e=>e.Id==waRow.Id);
+ Check(failing.Count==1 && afterFail.SentAt is null && afterFail.Attempts==1 && (await db.Orders.AsNoTracking().SingleAsync(o=>o.Id==order.Id)).PaymentStatus==statusBefore,"a failing WhatsApp service is retried later and never touches the order");
+}
 await StoreWorker.SendAccountEmailsAsync(workerSp, CancellationToken.None);
 var afterQ = await db.AccountEmailQueues.AsNoTracking().SingleAsync(x => x.Id == quarantineRow.Id);
 var afterExp = await db.AccountEmailQueues.AsNoTracking().SingleOrDefaultAsync(x => x.Id == oldExpiredRow.Id);
@@ -336,6 +370,19 @@ Check(MoneyText.Format(235m)=="235.00","money format culture-independent");
 Check(WhatsAppOtpClient.NormalizePhone("01065466760")=="+201065466760","egyptian local phone normalized");
 Check(WhatsAppOtpClient.NormalizePhone("+201065466760")=="+201065466760","international phone kept");
 Check(WhatsAppOtpClient.NormalizePhone("00201065466760")=="+201065466760","00-prefixed phone normalized");
+{
+ var msgs=new[]{"Created","Paid","Overpaid","Shipped","Delivered","Cancelled","Refunded","Underpaid"}.Select(k=>NileShop.Services.CustomerMessages.OrderWhatsApp(k,"منى أحمد","NILE-20261125-ABC",550m,500m,"https://shop.example/orders/track?token=t")).ToList();
+ Check(msgs.All(m=>m.Contains("NILE-20261125-ABC")&&m.Contains("orders/track?token=t")&&m.StartsWith("أهلاً منى،")&&!m.Contains("NilePay",StringComparison.OrdinalIgnoreCase)&&!m.Contains("&#")&&!m.Contains("&amp;")&&m.Length<400),"WhatsApp notices are short, linked, branded, with no gateway name or entities");
+ Check(msgs[1].Contains("المبلغ المدفوع: 500.00 ج.م")&&msgs[3].Contains("الإجمالي: 550.00 ج.م"),"paid notice shows amount paid, others the total");
+ Check(!msgs[6].Contains("رد على هذه الرسالة"),"WhatsApp refund notice does not ask to reply");
+ foreach (var (code,expected) in new[]{(System.Net.HttpStatusCode.OK,NileShop.Services.WhatsAppOtpClient.NoticeResult.Sent),(System.Net.HttpStatusCode.NotFound,NileShop.Services.WhatsAppOtpClient.NoticeResult.Retry),(System.Net.HttpStatusCode.BadGateway,NileShop.Services.WhatsAppOtpClient.NoticeResult.Retry),(System.Net.HttpStatusCode.UnprocessableEntity,NileShop.Services.WhatsAppOtpClient.NoticeResult.Rejected)})
+ {
+  var noticeClient=new NileShop.Services.WhatsAppOtpClient(new HttpClient(new StatusStub(code)){BaseAddress=new Uri("https://otp.example")},Microsoft.Extensions.Options.Options.Create(new NileShop.Services.WhatsAppOtpOptions{Enabled=true,NotifyEnabled=true,BaseUrl="https://otp.example",ApiKey="k"}),Microsoft.Extensions.Logging.Abstractions.NullLogger<NileShop.Services.WhatsAppOtpClient>.Instance);
+  Check(noticeClient.NotifyReady && await noticeClient.SendNoticeAsync("+201065466760","hi",CancellationToken.None)==expected,$"notice client maps HTTP {(int)code} to {expected}");
+ }
+ var off=new NileShop.Services.WhatsAppOtpClient(new HttpClient(new StatusStub(System.Net.HttpStatusCode.OK)),Microsoft.Extensions.Options.Options.Create(new NileShop.Services.WhatsAppOtpOptions{Enabled=true,BaseUrl="https://otp.example",ApiKey="k"}),Microsoft.Extensions.Logging.Abstractions.NullLogger<NileShop.Services.WhatsAppOtpClient>.Instance);
+ Check(!off.NotifyReady,"WhatsApp notices stay off until NotifyEnabled is set");
+}
 var stub = new HttpClient(new DelegateStub()) { BaseAddress = new Uri("https://otp.example") };
 var otpClient = new WhatsAppOtpClient(stub, Microsoft.Extensions.Options.Options.Create(new WhatsAppOtpOptions { Enabled = true, BaseUrl = "https://otp.example", ApiKey = "test-key" }), Microsoft.Extensions.Logging.Abstractions.NullLogger<WhatsAppOtpClient>.Instance);
 Check(await otpClient.SendAsync("+201065466760", CancellationToken.None), "whatsapp send accepted with challengeId");
@@ -509,5 +556,19 @@ sealed class DelegateStub : HttpMessageHandler
     {
         var json = request.RequestUri!.AbsolutePath.Contains("send") ? "{\"challengeId\":\"abc\",\"expiresInSeconds\":600}" : "{\"verified\":true}";
         return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json") });
+    }
+}
+
+sealed class StatusStub(System.Net.HttpStatusCode code) : HttpMessageHandler
+{
+    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) => Task.FromResult(new HttpResponseMessage(code));
+}
+
+sealed class RecordingStub(System.Net.HttpStatusCode code, List<string> bodies) : HttpMessageHandler
+{
+    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        bodies.Add(request.Content is null ? "" : await request.Content.ReadAsStringAsync(cancellationToken));
+        return new HttpResponseMessage(code);
     }
 }

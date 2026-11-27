@@ -77,7 +77,7 @@ public class StoreAdminController(ApplicationDbContext db, CustomerAdminService 
         await OrderStatusPresentation.LoadAsync(db, orders);
         return View(new OperationsViewModel { Orders = orders, Page=page, TotalPages=(int)Math.Ceiling(count/30d), Search=q, Status=status,
             LowStock=await db.Products.AsNoTracking().Include(p=>p.Translations).Where(p=>p.IsActive && p.StockQuantity<=5).OrderBy(p=>p.StockQuantity).Take(50).ToListAsync(),
-            PendingEmails=await db.OrderEmails.CountAsync(e=>e.SentAt==null), FailedEmails=await db.OrderEmails.CountAsync(e=>e.SentAt==null && e.Attempts>=8), EmailConfigured=await db.StoreMailSettings.AnyAsync(s=>s.Enabled && s.Host!="" && s.From!="") });
+            PendingEmails=await db.OrderEmails.CountAsync(e=>!e.Kind.StartsWith("WA:") && e.SentAt==null), FailedEmails=await db.OrderEmails.CountAsync(e=>!e.Kind.StartsWith("WA:") && e.SentAt==null && e.Attempts>=8), EmailConfigured=await db.StoreMailSettings.AnyAsync(s=>s.Enabled && s.Host!="" && s.From!="") });
     }
     public async Task<IActionResult> Order(int id)
     {
@@ -85,7 +85,7 @@ public class StoreAdminController(ApplicationDbContext db, CustomerAdminService 
         if(order is null)return NotFound();
         await OrderStatusPresentation.LoadAsync(db, new[] { order });
         ViewData["Attempt"]=await db.PaymentAttempts.AsNoTracking().Where(p=>p.OrderId==id).OrderByDescending(p=>p.CreatedAt).ThenByDescending(p=>p.Id).FirstOrDefaultAsync();
-        ViewData["Emails"]=await db.OrderEmails.AsNoTracking().Where(e=>e.OrderId==id).ToListAsync();
+        ViewData["Emails"]=await db.OrderEmails.AsNoTracking().Where(e=>e.OrderId==id && !e.Kind.StartsWith("WA:")).ToListAsync();
         var prefix=order.OrderNumber;
         ViewData["Audit"]=await db.AuditLogs.AsNoTracking().Where(a=>a.EntityName=="Order" && a.Details!=null && a.Details.StartsWith(prefix)).OrderByDescending(a=>a.Timestamp).Take(50).ToListAsync();
         return View(order);

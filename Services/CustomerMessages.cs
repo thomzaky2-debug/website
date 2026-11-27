@@ -58,6 +58,24 @@ public static class CustomerMessages
         return (subject, body);
     }
 
+    static string WhatsAppLine(string kind) => kind switch
+    {
+        "Refunded" => "سجّلنا رد المبلغ المدفوع لطلبك.",
+        _ => OrderLine(kind)
+    };
+
+    /// <summary>Short WhatsApp copy of an order update. Paid kinds show the amount paid, the rest the order total.</summary>
+    public static string OrderWhatsApp(string kind, string customerName, string orderNumber, decimal total, decimal paidAmount, string trackingUrl)
+    {
+        var first = FirstName(customerName);
+        var greeting = first.Length > 0 ? $"أهلاً {first}،" : "أهلاً بك،";
+        var paidKind = kind is "Paid" or "Overpaid";
+        var amount = paidKind && paidAmount > 0
+            ? $"المبلغ المدفوع: {paidAmount.ToString("0.00", CultureInfo.InvariantCulture)} ج.م"
+            : $"الإجمالي: {total.ToString("0.00", CultureInfo.InvariantCulture)} ج.م";
+        return $"{greeting}\n{WhatsAppLine(kind)}\n\nرقم الطلب: {orderNumber}\n{amount}\nتابع طلبك: {trackingUrl}\n\nChic & Unique\nهذه رسالة تلقائية.";
+    }
+
     public static (string Subject, string Body) Otp(string code, int minutes) =>
         ($"{Brand} | رمز التحقق",
          $"رمز التحقق: {code}\n\nالرمز صالح لمدة {minutes.ToString(CultureInfo.InvariantCulture)} دقائق، ولا تشاركه مع أي شخص.\nلو لم تطلب هذا الرمز، تجاهل الرسالة.\n\n{SignOff}");
