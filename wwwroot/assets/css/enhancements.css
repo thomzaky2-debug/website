@@ -5104,17 +5104,23 @@ html.dark-mode .card-view-toggle button.active { background: var(--teal); color:
   line-height: 1.45;
   min-width: 0;
   max-width: none;
+  text-align: center;
+}
+.checkout-page .checkout-summary .order-total-row > *:not(.order-amounts) {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 .checkout-page .checkout-summary .order-total-row > span:first-child { grid-column: 1 / span 2; overflow-wrap: anywhere; }
 .checkout-page .checkout-summary .order-total-row > strong {
   grid-column: 3;
-  text-align: end;
+  text-align: center;
   white-space: nowrap;
-  padding-inline-start: 8px;
+  padding-inline: 8px;
   font-variant-numeric: tabular-nums;
 }
 .checkout-page .checkout-summary .order-item-row > strong { font-size: .92rem; }
-.checkout-page .checkout-summary .order-total-row > span:first-child { padding-inline-end: 8px; }
+.checkout-page .checkout-summary .order-total-row > span:first-child { padding-inline: 8px; }
 .checkout-page .checkout-summary .order-total-row small { display: block; margin-top: 4px; line-height: 1.4; }
 .checkout-page .checkout-summary .order-head-row > * {
   padding: 4px 0 10px;
@@ -5124,7 +5130,7 @@ html.dark-mode .card-view-toggle button.active { background: var(--teal); color:
   color: var(--subtle);
 }
 .checkout-page .checkout-summary .order-head-row > span:first-child { grid-column: 1; }
-.checkout-page .checkout-summary .order-head-row .order-price-head { grid-column: 3; text-align: end; }
+.checkout-page .checkout-summary .order-head-row .order-price-head { grid-column: 3; text-align: center; }
 .checkout-page .checkout-summary .order-item-row > span:first-child { grid-column: 1; }
 .checkout-page .checkout-summary .order-qty {
   grid-column: 2;
@@ -5138,8 +5144,9 @@ html.dark-mode .card-view-toggle button.active { background: var(--teal); color:
   display: grid;
   grid-template-columns: auto auto;
   grid-template-areas: "now now" "badge old";
-  justify-content: end;
-  justify-items: end;
+  justify-content: center;
+  justify-items: center;
+  align-content: center;
   align-items: center;
   gap: 4px 8px;
 }
