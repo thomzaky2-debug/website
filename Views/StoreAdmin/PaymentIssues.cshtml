@@ -14,12 +14,12 @@
 @foreach (var row in Model)
 {
     var o = row.Order;
-    <article class="panel payment-issue-card">
+    <article class="panel payment-issue-card kind-@row.Kind.ToLowerInvariant()">
         <div class="payment-issue-top">
             <a class="record-link" asp-action="Order" asp-route-id="@o.Id" dir="ltr">@o.OrderNumber</a>
             <span class="status-pill off">@Localizer["Payment_Issue_" + row.Kind]</span>
         </div>
-        <p class="muted">@Localizer["Payment_Issue_" + row.Kind + "_Help"]</p>
+        <p class="admin-help">@Localizer["Payment_Issue_" + row.Kind + "_Help"]</p>
         <div class="payment-issue-meta">
             <span dir="ltr"><strong>@o.PayableAmount.ToString("N2")</strong> EGP</span>
             <span>@Localizer[o.PaymentStatus]</span>

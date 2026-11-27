@@ -21,35 +21,42 @@
     <div><dt>@Localizer["Customer_Account_Status"]</dt><dd><span class="status-pill @(customer.IsLocked?"off":"")">@Localizer[NileShop.Services.AccountBlock.IsBlockedEnd(customer.LockoutEnd)?"Customer_Blocked":customer.IsLocked?"Customer_Locked":"Customer_Active"]</span>@if(customer.IsLocked&&customer.LockoutEnd.HasValue&&!NileShop.Services.AccountBlock.IsBlockedEnd(customer.LockoutEnd)){<small class="table-subline">@Localizer["Customer_Locked_Until",customer.LockoutEnd.Value.ToString("dd/MM/yyyy h:mm tt", CultureInfo.InvariantCulture)]</small>}</dd></div>
     <div><dt>@Localizer["Customer_Last_Order"]</dt><dd>@(customer.LastOrderAt?.ToString("dd/MM/yyyy h:mm tt", CultureInfo.InvariantCulture)??Localizer["No_Account_Orders"].Value)</dd></div>
 </dl></section>
-<section class="panel customer-admin-actions">
-    <h2>@Localizer["Customer_Account_Controls"]</h2>
-    @if (NileShop.Services.AccountBlock.IsBlockedEnd(customer.LockoutEnd))
-    {
-        <p class="muted">@Localizer["Customer_Unblock_Help"]</p>
-        <form asp-action="UnblockCustomer" method="post" data-async-form><input type="hidden" name="id" value="@customer.Id" /><button class="action-link admin-btn-full">@Localizer["Customer_Unblock"]</button></form>
-    }
-    else
-    {
-        <p class="muted">@Localizer["Customer_Block_Help"]</p>
-        <form asp-action="BlockCustomer" method="post" data-async-form>
-            <input type="hidden" name="id" value="@customer.Id" />
-            <label>@Localizer["Customer_Action_Reason"]</label>
-            <input name="reason" maxlength="120" required />
-            <label class="check-line"><input type="checkbox" name="confirmed" value="true" required /><span>@Localizer["Customer_Block_Confirm"]</span></label>
-            <button class="action-link danger admin-btn-full">@Localizer["Customer_Block"]</button>
-        </form>
-    }
-    <hr />
-    <h3>@Localizer["Customer_Delete"]</h3>
-    <p class="muted">@Localizer["Customer_Delete_Help"]</p>
-    <form asp-action="DeleteCustomer" method="post" data-async-form>
-        <input type="hidden" name="id" value="@customer.Id" />
-        <label>@Localizer["Customer_Delete_Type_Email"]</label>
-        <input name="confirmEmail" dir="ltr" autocomplete="off" required />
-        <label>@Localizer["Customer_Action_Reason"]</label>
-        <input name="reason" maxlength="120" required />
-        <button class="action-link danger admin-btn-full">@Localizer["Customer_Delete"]</button>
-    </form>
+<section class="customer-admin-actions">
+    <details class="panel admin-action-card admin-collapsible @(NileShop.Services.AccountBlock.IsBlockedEnd(customer.LockoutEnd) ? "" : "is-danger")">
+        <summary class="admin-card-head"><span class="admin-card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="10"/><path d="M4.9 4.9l14.2 14.2"/></svg></span><h2>@Localizer[NileShop.Services.AccountBlock.IsBlockedEnd(customer.LockoutEnd) ? "Customer_Unblock" : "Customer_Block"]</h2><span class="admin-chevron" aria-hidden="true"></span></summary>
+        <div class="admin-collapsible-body">
+        @if (NileShop.Services.AccountBlock.IsBlockedEnd(customer.LockoutEnd))
+        {
+            <p class="admin-help">@Localizer["Customer_Unblock_Help"]</p>
+            <form asp-action="UnblockCustomer" method="post" data-async-form><input type="hidden" name="id" value="@customer.Id" /><button class="primary-button admin-btn-full">@Localizer["Customer_Unblock"]</button></form>
+        }
+        else
+        {
+            <p class="admin-help">@Localizer["Customer_Block_Help"]</p>
+            <form asp-action="BlockCustomer" method="post" data-async-form>
+                <input type="hidden" name="id" value="@customer.Id" />
+                <label>@Localizer["Customer_Action_Reason"]</label>
+                <input name="reason" maxlength="120" required />
+                <label class="check-line"><input type="checkbox" name="confirmed" value="true" required /><span>@Localizer["Customer_Block_Confirm"]</span></label>
+                <button class="action-link danger admin-btn-full">@Localizer["Customer_Block"]</button>
+            </form>
+        }
+        </div>
+    </details>
+    <details class="panel admin-action-card admin-collapsible is-danger">
+        <summary class="admin-card-head"><span class="admin-card-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></span><h2>@Localizer["Customer_Delete"]</h2><span class="admin-chevron" aria-hidden="true"></span></summary>
+        <div class="admin-collapsible-body">
+            <p class="admin-help">@Localizer["Customer_Delete_Help"]</p>
+            <form asp-action="DeleteCustomer" method="post" data-async-form>
+                <input type="hidden" name="id" value="@customer.Id" />
+                <label>@Localizer["Customer_Delete_Type_Email"]</label>
+                <input name="confirmEmail" dir="ltr" autocomplete="off" required />
+                <label>@Localizer["Customer_Action_Reason"]</label>
+                <input name="reason" maxlength="120" required />
+                <button class="action-link danger admin-btn-full">@Localizer["Customer_Delete"]</button>
+            </form>
+        </div>
+    </details>
 </section>
 <section class="customer-orders-section"><div class="section-head"><h2>@Localizer["Customer_Order_History"]</h2></div>
 <div tabindex="0" role="region" aria-label="@Localizer["Scrollable_Table"]" class="table-scroll admin-data-table"><table><thead><tr><th>@Localizer["Orders"]</th><th>@Localizer["Date"]</th><th>@Localizer["Total"]</th><th>@Localizer["Status"]</th><th>@Localizer["Actions"]</th></tr></thead><tbody>
