@@ -88,8 +88,8 @@ public sealed class EmailOtp(
         cache.Set(key, new Challenge(new Verified(user.Id, user.SecurityStamp, destination, admin, false, null),
             SHA256.HashData(Encoding.ASCII.GetBytes(code)), null), Lifetime);
         context.Session.SetString(SessionKey, key);
-        await AccountMailSender.QueueAsync(db, protection, user.Email, "Chic & Unique | رمز التحقق",
-            $"رمز التحقق: {code}\nتنتهي صلاحية الرمز بعد 10 دقائق. تجاهل هذه الرسالة إذا لم تطلب الرمز.",
+        var (otpSubject, otpBody) = CustomerMessages.Otp(code, (int)Lifetime.TotalMinutes);
+        await AccountMailSender.QueueAsync(db, protection, user.Email, otpSubject, otpBody,
             key, DateTime.UtcNow.Add(Lifetime), context.RequestAborted);
         return true;
     }

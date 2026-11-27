@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Mail;
 using NileShop.Data;
+using NileShop.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.DataProtection;
@@ -64,6 +65,7 @@ public class StoreWorker(IServiceScopeFactory scopes, IConfiguration config, ILo
                 }
 
                 await SendEmailsAsync(scope.ServiceProvider, stoppingToken);
+                await SendWhatsAppNoticesAsync(scope.ServiceProvider, stoppingToken);
             } catch (Exception e) when (!stoppingToken.IsCancellationRequested) { logger.LogWarning(e, "Store background processing failed; will retry"); }
         }
     }
@@ -80,7 +82,7 @@ public class StoreWorker(IServiceScopeFactory scopes, IConfiguration config, ILo
         }
         if (!smtp.Enabled || !smtp.EnableSsl || string.IsNullOrWhiteSpace(smtp.Host) || string.IsNullOrWhiteSpace(smtp.From) || !Uri.TryCreate(site, UriKind.Absolute, out var origin) || origin.Scheme != "https") return;
         var now = DateTime.UtcNow;
-        var ids = await db.OrderEmails.AsNoTracking().Where(e => e.SentAt == null && e.NextAttemptAt <= now && e.Attempts < 8).OrderBy(e => e.Id).Select(e => e.Id).Take(10).ToListAsync(ct);
+        var ids = await db.OrderEmails.AsNoTracking().Where(e => !e.Kind.StartsWith("WA:") && e.SentAt == null && e.NextAttemptAt <= now && e.Attempts < 8).OrderBy(e => e.Id).Select(e => e.Id).Take(10).ToListAsync(ct);
         foreach (var id in ids) {
             var claimed = await db.OrderEmails.Where(e => e.Id == id && e.SentAt == null && e.NextAttemptAt <= now).ExecuteUpdateAsync(s => s.SetProperty(e => e.NextAttemptAt, now.AddMinutes(5)).SetProperty(e => e.Attempts, e => e.Attempts + 1), ct);
             if (claimed == 0) continue;
@@ -88,21 +90,10 @@ public class StoreWorker(IServiceScopeFactory scopes, IConfiguration config, ILo
             try {
                 using var transport = new SmtpClient(smtp.Host.Trim(), smtp.Port) { EnableSsl = smtp.EnableSsl, UseDefaultCredentials = false, Timeout = 20000 };
                 if (!string.IsNullOrEmpty(smtp.Username)) transport.Credentials = new NetworkCredential(smtp.Username.Trim(), smtp.Password);
-                var statusAr = email.Kind switch {
-                    "Paid" => "تم تأكيد الدفع",
-                    "Overpaid" => "تم تأكيد الدفع (مبلغ إضافي)",
-                    "Confirmed" => "تم تأكيد الطلب",
-                    "Processing" => "قيد التجهيز",
-                    "Shipped" => "تم الشحن",
-                    "Delivered" => "تم التوصيل",
-                    "Cancelled" => "تم الإلغاء",
-                    "Refunded" => "تم الاسترداد",
-                    _ => email.Kind
-                };
-                using var message = new MailMessage(smtp.From, email.Order.CustomerEmail) {
-                    Subject = $"Chic & Unique · الطلب {email.Order.OrderNumber} · {statusAr}",
-                    Body = $"Chic & Unique\nرقم الطلب: {email.Order.OrderNumber}\nحالة الطلب: {statusAr}\nالإجمالي: {email.Order.TotalAmount:0.00} ج.م\n\nتتبع طلبك:\n{site.TrimEnd('/')}/orders/track?token={email.Order.PaymentAccessToken}\n\nاحتفظ برابط التتبع الخاص بك في مكان آمن."
-                };
+                var (paid, credit) = CustomerMessages.PaymentAmounts(email.Kind, email.Order);
+                var (subject, body) = CustomerMessages.Order(email.Kind, email.Order.CustomerName, email.Order.OrderNumber, email.Order.TotalAmount,
+                    $"{site.TrimEnd('/')}/orders/track?token={email.Order.PaymentAccessToken}", paid, credit);
+                using var message = new MailMessage(smtp.From, email.Order.CustomerEmail) { Subject = subject, Body = body };
                 message.Headers.Add("Message-ID", $"<nileshop-order-{email.OrderId}-{email.Kind}@{origin.Host}>");
                 await transport.SendMailAsync(message, ct);
                 await db.OrderEmails.Where(e => e.Id == id).ExecuteUpdateAsync(s => s.SetProperty(e => e.SentAt, DateTime.UtcNow).SetProperty(e => e.LastError, (string?)null), ct);
@@ -110,6 +101,60 @@ public class StoreWorker(IServiceScopeFactory scopes, IConfiguration config, ILo
                 await db.OrderEmails.Where(x => x.Id == id).ExecuteUpdateAsync(s => s.SetProperty(x => x.LastError, e.GetType().Name).SetProperty(x => x.NextAttemptAt, DateTime.UtcNow.AddMinutes(Math.Min(240, Math.Pow(2, email.Attempts)))), ct);
             }
         }
+    }
+    // WhatsApp copy of every order email. Each (order, status) has one "WA:<kind>" outbox row, so a notice goes out
+    // once, never on repeat reconciles or webhook retries. Fire-and-forget: any failure is retried with backoff
+    // (4 tries) and never touches payment or order state. Rows older than 2 hours are left alone.
+    public static async Task SendWhatsAppNoticesAsync(IServiceProvider services, CancellationToken ct)
+    {
+        var client = services.GetRequiredService<WhatsAppOtpClient>();
+        if (!client.NotifyReady) return;
+        var site = services.GetRequiredService<IOptions<NilePayOptions>>().Value.PublicUrl;
+        if (!Uri.TryCreate(site, UriKind.Absolute, out var origin) || origin.Scheme != "https") return;
+        var db = services.GetRequiredService<ApplicationDbContext>();
+        var now = DateTime.UtcNow;
+        var fresh = now.AddHours(-2);
+        var ids = await db.OrderEmails.AsNoTracking()
+            .Where(e => e.Kind.StartsWith("WA:") && e.SentAt == null && e.Attempts < 4 && e.NextAttemptAt <= now && e.NextAttemptAt > fresh)
+            .OrderBy(e => e.Id).Select(e => e.Id).Take(3).ToListAsync(ct);
+        foreach (var id in ids)
+        {
+            var claimed = await db.OrderEmails.Where(e => e.Id == id && e.SentAt == null && e.NextAttemptAt <= now)
+                .ExecuteUpdateAsync(s => s.SetProperty(e => e.NextAttemptAt, now.AddMinutes(10)).SetProperty(e => e.Attempts, e => e.Attempts + 1), ct);
+            if (claimed == 0) continue;
+            var row = await db.OrderEmails.AsNoTracking().Include(e => e.Order).SingleAsync(e => e.Id == id, ct);
+            var kind = row.Kind[OrderEmail.WhatsAppPrefix.Length..];
+            var order = row.Order;
+            string outcome;
+            try
+            {
+                var phone = WhatsAppOtpClient.NormalizePhone(order.CustomerPhone ?? "");
+                var late = kind is "Paid" or "Overpaid" && (order.NeedsPaymentReview || order.Status == OrderStatuses.Cancelled);
+                if (!System.Text.RegularExpressions.Regex.IsMatch(phone, @"^\+[1-9]\d{6,14}$")) outcome = "skipped-no-phone";
+                else if (late) outcome = "skipped-under-review";
+                else
+                {
+                    var (paid, credit) = CustomerMessages.PaymentAmounts(kind, order);
+                    var text = CustomerMessages.OrderWhatsApp(kind, order.CustomerName, order.OrderNumber, order.TotalAmount, paid,
+                        $"{site.TrimEnd('/')}/orders/track?token={order.PaymentAccessToken}", credit);
+                    var result = await client.SendNoticeAsync(phone, text, ct);
+                    outcome = result switch { WhatsAppOtpClient.NoticeResult.Sent => "sent", WhatsAppOtpClient.NoticeResult.Rejected => "rejected", _ => "retry" };
+                }
+            }
+            catch (Exception) when (!ct.IsCancellationRequested) { outcome = "retry"; }
+            if (outcome == "retry")
+            {
+                if (row.Attempts >= 4) await FinishWhatsAppAsync(db, id, order.OrderNumber, kind, "failed", ct);
+                else await db.OrderEmails.Where(e => e.Id == id).ExecuteUpdateAsync(s => s.SetProperty(e => e.LastError, "WhatsAppRetry"), ct);
+            }
+            else await FinishWhatsAppAsync(db, id, order.OrderNumber, kind, outcome, ct);
+        }
+    }
+    static async Task FinishWhatsAppAsync(ApplicationDbContext db, int id, string orderNumber, string kind, string outcome, CancellationToken ct)
+    {
+        await db.OrderEmails.Where(e => e.Id == id).ExecuteUpdateAsync(s => s.SetProperty(e => e.SentAt, DateTime.UtcNow).SetProperty(e => e.LastError, outcome == "sent" ? (string?)null : outcome), ct);
+        db.AuditLogs.Add(new AuditLog { Action = "WHATSAPP_NOTICE", EntityName = "Order", Details = $"{orderNumber}: {kind} WhatsApp notice {outcome}", UserEmail = "System" });
+        await db.SaveChangesAsync(ct);
     }
     public static async Task SendAccountEmailsAsync(IServiceProvider services, CancellationToken ct)
     {
