@@ -73,9 +73,28 @@
   search.addEventListener('input', () => { clearTimeout(timer); ++sequence; request?.abort(); timer = setTimeout(lookup, 250); });
   search.addEventListener('focus', () => { if (!results.children.length) lookup(); });
   form.addEventListener('input', preview); form.addEventListener('change', preview);
+  // Native confirmation dialogs are suppressed in in-app browsers (WhatsApp, Facebook),
+  // which silently cancels the submit. Use a double-tap on the send button instead: first tap arms it,
+  // the second tap within five seconds submits.
   form.addEventListener('submit', event => {
-    if (all() && !confirm(ar ? 'إرسال هذا الإشعار إلى جميع العملاء؟' : 'Send this notification to all customers?')) { event.preventDefault(); return; }
-    if (form.checkValidity()) form.querySelector('[type=submit]').disabled = true;
+    if (!form.checkValidity()) return;
+    if (all() && form.dataset.broadcastArmed !== '1') {
+      event.preventDefault();
+      form.dataset.broadcastArmed = '1';
+      const button = form.querySelector('[type=submit]');
+      const original = button.textContent;
+      button.textContent = ar ? 'اضغط مرة أخرى للتأكيد' : 'Tap again to confirm';
+      button.classList.add('is-armed');
+      setTimeout(() => {
+        if (form.dataset.broadcastArmed !== '1') return;
+        form.dataset.broadcastArmed = '0';
+        button.textContent = original;
+        button.classList.remove('is-armed');
+      }, 5000);
+      return;
+    }
+    form.dataset.broadcastArmed = '0';
+    form.querySelector('[type=submit]').disabled = true;
   });
   preview();
 })();
