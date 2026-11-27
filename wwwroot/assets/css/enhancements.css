@@ -5085,30 +5085,55 @@ html.dark-mode .card-view-toggle button.active { background: var(--teal); color:
   .panel .btn-copy-sm { margin-top: 0; }
 }
 
-/* Checkout order summary: one clean table. Labels on one side, amounts in one
-   column on the other (right in English, left in Arabic), every amount on the
-   same first baseline. The free delivery row shows the final amount first and
-   the FREE badge with the old struck-through price tucked under it, so nothing
-   wraps awkwardly. */
-.checkout-page .checkout-summary .order-total-row {
-  align-items: baseline;
-  gap: 16px;
+/* Checkout order summary: a real table with three columns (item | qty | price).
+   The rows use display:contents so every row shares one grid and the columns line
+   up exactly: header, items, delivery, wallet and total. Labels of the delivery,
+   wallet and total rows span the item and qty columns; their amounts sit in the
+   price column. Right edge in English, left edge in Arabic (grid follows dir). */
+.checkout-page .checkout-summary .order-summary-table {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  column-gap: 0;
+  align-items: stretch;
+}
+.checkout-page .checkout-summary .order-total-row { display: contents; }
+.checkout-page .checkout-summary .order-total-row[hidden] { display: none !important; }
+.checkout-page .checkout-summary .order-total-row > * {
   padding: 14px 0;
-}
-.checkout-page .checkout-summary .order-total-row > span {
-  flex: 1 1 auto;
+  border-bottom: 1px solid var(--line);
   line-height: 1.45;
+  min-width: 0;
+  max-width: none;
 }
+.checkout-page .checkout-summary .order-total-row > span:first-child { grid-column: 1 / span 2; overflow-wrap: anywhere; }
 .checkout-page .checkout-summary .order-total-row > strong {
-  flex: 0 0 auto;
-  max-width: 62%;
+  grid-column: 3;
   text-align: end;
+  white-space: nowrap;
+  padding-inline-start: 8px;
   font-variant-numeric: tabular-nums;
-  line-height: 1.45;
 }
-.checkout-page .checkout-summary .order-total-row small {
-  line-height: 1.4;
+.checkout-page .checkout-summary .order-item-row > strong { font-size: .92rem; }
+.checkout-page .checkout-summary .order-total-row > span:first-child { padding-inline-end: 8px; }
+.checkout-page .checkout-summary .order-total-row small { display: block; margin-top: 4px; line-height: 1.4; }
+.checkout-page .checkout-summary .order-head-row > * {
+  padding: 4px 0 10px;
+  font-size: .76rem;
+  font-weight: 700;
+  letter-spacing: .02em;
+  color: var(--subtle);
 }
+.checkout-page .checkout-summary .order-head-row > span:first-child { grid-column: 1; }
+.checkout-page .checkout-summary .order-head-row .order-price-head { grid-column: 3; text-align: end; }
+.checkout-page .checkout-summary .order-item-row > span:first-child { grid-column: 1; }
+.checkout-page .checkout-summary .order-qty {
+  grid-column: 2;
+  text-align: center;
+  min-width: 2.2rem;
+  padding-inline: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.checkout-page .checkout-summary .order-item-row .order-qty { font-weight: 700; }
 .checkout-page .checkout-summary .order-amounts {
   display: grid;
   grid-template-columns: auto auto;
@@ -5121,15 +5146,16 @@ html.dark-mode .card-view-toggle button.active { background: var(--teal); color:
 .checkout-page .checkout-summary .order-amounts .free-shipping-zero { grid-area: now; }
 .checkout-page .checkout-summary .order-amounts .free-badge { grid-area: badge; margin: 0; }
 .checkout-page .checkout-summary .order-amounts .shipping-orig-del { grid-area: old; margin: 0; font-size: .8rem; font-weight: 500; }
-.checkout-page .checkout-summary .order-total-row.grand {
+.checkout-page .checkout-summary .order-amounts > bdi { grid-column: 1 / -1; }
+.checkout-page .checkout-summary .order-total-row.grand > * {
   padding: 18px 0 16px;
   font-size: 1.15rem;
   font-weight: 800;
+  border-bottom: 0;
 }
-.checkout-page .checkout-summary .order-total-row.grand > strong { font-weight: 800; }
+.checkout-page .checkout-summary .payable-summary-row > * { border-top: 1px dashed var(--line); border-bottom: 0 !important; }
 .checkout-page .checkout-summary > p.muted {
   margin: 16px 0 0;
   line-height: 1.6;
   font-size: .82rem;
 }
-.checkout-page .checkout-summary .order-amounts > bdi { grid-column: 1 / -1; }
