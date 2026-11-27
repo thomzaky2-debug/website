@@ -5320,3 +5320,8 @@ html.dark-mode body.storefront-site .checkout-page .field-error-text::before { b
 body .admin-audit-list li strong { font-weight: 600; font-size: .9rem; line-height: 1.5; overflow-wrap: anywhere; }
 body .admin-audit-list li time { font-size: .78rem; overflow-wrap: anywhere; }
 body .admin-action-card textarea { width: 100%; min-height: 4.5rem; }
+
+/* Admin customer controls */
+body .customer-admin-actions { display: grid; gap: .6rem; }
+body .customer-admin-actions input:not([type="checkbox"]) { width: 100%; }
+body .customer-admin-actions hr { width: 100%; border: 0; border-top: 1px solid var(--line, rgba(0,0,0,.12)); margin: .6rem 0; }

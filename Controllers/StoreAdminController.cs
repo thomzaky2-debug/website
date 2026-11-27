@@ -11,7 +11,7 @@ using Microsoft.Extensions.Options;
 namespace NileShop.Controllers;
 [Authorize(Roles = "Admin")]
 [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-public class StoreAdminController(ApplicationDbContext db, CustomerAdminService customers, WalletService wallet, ProductImageService images, OrderOperations operations, NilePayService payments, AuditService audit, IDataProtectionProvider protection, NilePayClient gateway, IOptions<NilePayOptions> gatewayOptions) : Controller
+public class StoreAdminController(ApplicationDbContext db, CustomerAdminService customers, WalletService wallet, ProductImageService images, OrderOperations operations, NilePayService payments, AuditService audit, IDataProtectionProvider protection, NilePayClient gateway, IOptions<NilePayOptions> gatewayOptions, Microsoft.AspNetCore.Identity.UserManager<Microsoft.AspNetCore.Identity.IdentityUser> users) : Controller
 {
     public async Task<IActionResult> Customers(string? q, string segment = "all", int page = 1)
     {
@@ -146,6 +146,55 @@ public class StoreAdminController(ApplicationDbContext db, CustomerAdminService 
             db.OrderEmails.Add(new OrderEmail{OrderId=id,Kind="Delivered"});
         await audit.LogAsync("DELIVER","Order",order.OrderNumber);await tx.CommitAsync();
         TempData["Success"]="Admin_Saved";return RedirectToAction(nameof(Order),new{id});
+    }
+    async Task<Microsoft.AspNetCore.Identity.IdentityUser?> CustomerForActionAsync(string id)
+    {
+        if(string.IsNullOrWhiteSpace(id))return null;
+        var user=await users.FindByIdAsync(id);
+        return user is null||await users.IsInRoleAsync(user,"Admin")?null:user;
+    }
+    [HttpPost,ValidateAntiForgeryToken]
+    public async Task<IActionResult> BlockCustomer(string id,string reason,bool confirmed)
+    {
+        reason=(reason??"").Trim();
+        if(!confirmed||reason.Length is 0 or > 120)return BadRequest();
+        var user=await CustomerForActionAsync(id);if(user is null)return NotFound();
+        await users.SetLockoutEnabledAsync(user,true);
+        await users.SetLockoutEndDateAsync(user,AccountBlock.BlockedUntil);
+        await users.UpdateSecurityStampAsync(user);
+        await audit.LogAsync("CUSTOMER_BLOCK","Customer",$"{user.Email} blocked (reason: {reason})");
+        TempData["Success"]="Admin_Saved";return RedirectToAction(nameof(Customer),new{id});
+    }
+    [HttpPost,ValidateAntiForgeryToken]
+    public async Task<IActionResult> UnblockCustomer(string id)
+    {
+        var user=await CustomerForActionAsync(id);if(user is null)return NotFound();
+        await users.SetLockoutEndDateAsync(user,null);
+        await users.ResetAccessFailedCountAsync(user);
+        await audit.LogAsync("CUSTOMER_UNBLOCK","Customer",$"{user.Email} unblocked");
+        TempData["Success"]="Admin_Saved";return RedirectToAction(nameof(Customer),new{id});
+    }
+    [HttpPost,ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteCustomer(string id,string confirmEmail,string reason,CancellationToken ct)
+    {
+        reason=(reason??"").Trim();
+        var user=await CustomerForActionAsync(id);if(user is null)return NotFound();
+        if(reason.Length is 0 or > 120||!string.Equals((confirmEmail??"").Trim(),user.Email,StringComparison.OrdinalIgnoreCase))return BadRequest();
+        if(await wallet.GetBalanceAsync(id,ct)>0){TempData["Error"]="Customer_Delete_Wallet";return RedirectToAction(nameof(Customer),new{id});}
+        var active=await db.Orders.AnyAsync(o=>o.CustomerUserId==id && o.Status!=OrderStatuses.Cancelled && o.Status!=OrderStatuses.Delivered,ct);
+        if(active){TempData["Error"]="Customer_Delete_Active_Orders";return RedirectToAction(nameof(Customer),new{id});}
+        var email=user.Email;
+        await using var tx=await db.Database.BeginTransactionAsync(ct);
+        await db.Orders.Where(o=>o.CustomerUserId==id).ExecuteUpdateAsync(s=>s.SetProperty(o=>o.CustomerUserId,(string?)null),ct);
+        await db.SavedProducts.Where(x=>x.UserId==id).ExecuteDeleteAsync(ct);
+        await db.ProductReviews.Where(x=>x.UserId==id).ExecuteDeleteAsync(ct);
+        await db.NotificationReads.Where(x=>x.UserId==id).ExecuteDeleteAsync(ct);
+        await db.ConfirmedPhoneOwners.Where(x=>x.UserId==id).ExecuteDeleteAsync(ct);
+        var result=await users.DeleteAsync(user);
+        if(!result.Succeeded){await tx.RollbackAsync(ct);TempData["Error"]="Error";return RedirectToAction(nameof(Customer),new{id});}
+        await tx.CommitAsync(ct);
+        await audit.LogAsync("CUSTOMER_DELETE","Customer",$"{email} deleted; orders kept without account link (reason: {reason})");
+        TempData["Success"]="Admin_Saved";return RedirectToAction(nameof(Customers));
     }
     [HttpPost,ValidateAntiForgeryToken]
     public async Task<IActionResult> AddNote(int id,string note)

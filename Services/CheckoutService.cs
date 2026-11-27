@@ -9,6 +9,15 @@ public class CheckoutException(string key) : Exception(key);
 public class CheckoutService(ApplicationDbContext db, IConfiguration? config = null, IHttpContextAccessor? http = null)
 {
     public Task<Order> PlaceAsync(CheckoutViewModel customer, IReadOnlyDictionary<int, int> cart) => PlaceSelectionsAsync(customer, cart.Select(x => new CartSelection(x.Key, x.Value)).ToList());
+    async Task<bool> IsBlockedBuyerAsync(CheckoutViewModel customer)
+    {
+        var email = (customer.CustomerEmail ?? "").Trim().ToUpperInvariant();
+        var userId = customer.CustomerUserId;
+        if (email.Length == 0 && string.IsNullOrWhiteSpace(userId)) return false;
+        var ends = await db.Users.AsNoTracking().Where(u => u.LockoutEnabled && ((userId != null && u.Id == userId) || (email != "" && u.NormalizedEmail == email)))
+            .Select(u => u.LockoutEnd).ToListAsync();
+        return ends.Any(AccountBlock.IsBlockedEnd);
+    }
     public async Task<Order> PlaceSelectionsAsync(CheckoutViewModel customer, IReadOnlyList<CartSelection> cart)
     {
         var senderHandle = InstaPayHandle.FromUsername(customer.InstaPayUsername);
@@ -19,6 +28,7 @@ public class CheckoutService(ApplicationDbContext db, IConfiguration? config = n
             if (existing.PayableAmount > 0 && existing.InstaPaySenderHandle != senderHandle) throw new CheckoutException("InstaPay_Locked");
             return existing;
         }
+        if (await IsBlockedBuyerAsync(customer)) throw new CheckoutException("Account_Blocked");
         if (cart.Count is 0 or > 50 || cart.Any(q => q.Quantity is < 1 or > 99)) throw new CheckoutException("Error_CartEmpty");
         var maxPerAccount = config?.GetValue("Checkout:MaxOpenUnpaidOrdersPerAccount", 3) ?? 3;
         if (maxPerAccount > 0 && !string.IsNullOrWhiteSpace(customer.CustomerUserId)) {
