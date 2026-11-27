@@ -5332,3 +5332,32 @@ body .payment-issue-list { display: grid; gap: .8rem; margin-top: 1rem; }
 body .payment-issue-top { display: flex; justify-content: space-between; align-items: center; gap: .6rem; flex-wrap: wrap; }
 body .payment-issue-meta { display: flex; flex-wrap: wrap; gap: .4rem .9rem; font-size: .85rem; margin: .4rem 0 .6rem; }
 body .payment-issue-kpis { grid-template-columns: repeat(3, 1fr); }
+
+/* Admin additions polish: collapsible action cards, help text, activity log */
+body details.admin-collapsible { padding: 0; overflow: hidden; }
+body details.admin-collapsible > summary.admin-card-head { display: flex; align-items: center; gap: .7rem; padding: .95rem 1rem; margin: 0; cursor: pointer; list-style: none; min-height: 52px; border: 0; }
+body details.admin-collapsible > summary.admin-card-head::-webkit-details-marker { display: none; }
+body details.admin-collapsible > summary h2 { flex: 1; margin: 0; font-size: 1rem; line-height: 1.35; }
+body details.admin-collapsible > summary:focus-visible { outline: 2px solid currentColor; outline-offset: -3px; }
+body .admin-chevron { width: .6rem; height: .6rem; border-inline-end: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); opacity: .6; transition: transform .15s; flex: none; margin-inline-end: .2rem; }
+body details.admin-collapsible[open] > summary .admin-chevron { transform: rotate(-135deg); }
+body details.admin-collapsible[open] > summary.admin-card-head { border-bottom: 1px solid var(--line, rgba(127,127,127,.25)); }
+body .admin-collapsible-body { display: grid; gap: .55rem; padding: 1rem; }
+body .admin-collapsible-body label:not(.check-line) { font-size: .85rem; font-weight: 700; margin: .25rem 0 0; }
+body .admin-collapsible-body input:not([type="checkbox"]), body .admin-collapsible-body textarea { width: 100%; margin: 0; }
+body .admin-collapsible-body textarea { min-height: 5rem; }
+body .admin-collapsible-body .check-line { display: flex; align-items: flex-start; gap: .6rem; margin: .3rem 0; font-size: .88rem; line-height: 1.5; }
+body .admin-collapsible-body .check-line input { margin-top: .2rem; flex: none; width: 1.1rem; height: 1.1rem; }
+body .admin-collapsible-body .admin-btn-full { width: 100%; margin-top: .3rem; min-height: 46px; }
+body .admin-help { margin: 0; font-size: .86rem; line-height: 1.65; color: var(--muted, #5f6f6c); text-align: start; }
+body .admin-action-card.is-danger .action-link.danger { border-color: currentColor; font-weight: 800; }
+body .customer-admin-actions { display: grid; gap: .8rem; margin: 1rem 0; }
+body .admin-audit-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .7rem; }
+body .admin-audit-list li { display: grid; gap: .25rem; padding: .7rem .85rem; border: 1px solid var(--line, rgba(127,127,127,.25)); border-radius: 12px; text-align: start; }
+body .admin-audit-list .admin-audit-tag { justify-self: start; font-size: .72rem; font-weight: 800; padding: .15rem .55rem; border-radius: 999px; background: rgba(0,128,110,.12); color: var(--brand, #00796b); }
+body .admin-audit-list p { margin: 0; font-size: .9rem; line-height: 1.55; overflow-wrap: anywhere; font-weight: 500; }
+body .admin-audit-list time { font-size: .76rem; opacity: .7; overflow-wrap: anywhere; }
+body .payment-issue-card { border-inline-start: 4px solid #d99a00; display: grid; gap: .45rem; }
+body .payment-issue-card.kind-review { border-inline-start-color: #c0392b; }
+body .payment-issue-card.kind-underpaid { border-inline-start-color: #e67e22; }
+body .payment-issue-meta strong { font-size: 1rem; }
