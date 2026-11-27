@@ -97,3 +97,6 @@
 .notification-action-link:hover { text-decoration: underline; }
 .notification-danger-btn { background: none; border: 1px solid var(--border); border-radius: 999px; color: #c0564f; padding: .3rem .9rem; font: inherit; font-size: .85rem; cursor: pointer; }
 .notification-danger-btn:hover { border-color: #c0564f; }
+
+/* Armed (awaiting second tap) confirmation buttons */
+.notification-send.is-armed { background: #c0564f; }
