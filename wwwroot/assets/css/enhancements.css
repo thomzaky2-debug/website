@@ -5166,3 +5166,49 @@ html.dark-mode .card-view-toggle button.active { background: var(--teal); color:
   line-height: 1.6;
   font-size: .82rem;
 }
+
+/* Compact checkout on phones: same content and fields, less vertical space.
+   Order summary now comes before the pay button, and the pay button stays
+   pinned at the bottom of the viewport while the page scrolls (inside the
+   checkout area only, so it never covers the footer). Tap targets stay 44px. */
+@media (max-width: 640px) {
+  body.storefront-site .checkout-page .breadcrumb-nav { margin: 0 0 8px; }
+  body.storefront-site .checkout-page .section-head {
+    display: flex; flex-wrap: nowrap; align-items: flex-start; justify-content: space-between;
+    gap: 10px; margin: 0 0 12px;
+  }
+  body.storefront-site .checkout-page .section-head > div { flex: 1 1 auto; min-width: 0; }
+  body.storefront-site .checkout-page .section-head .action-link { flex: 0 0 auto; }
+  body.storefront-site .checkout-page .section-head h1 { font-size: 1.25rem; margin: 2px 0 2px; line-height: 1.25; }
+  body.storefront-site .checkout-page .section-head p { font-size: .78rem; line-height: 1.4; margin: 0; }
+  body.storefront-site .checkout-page .section-head .eyebrow { margin: 0; font-size: .68rem; }
+  body.storefront-site .checkout-page .checkout-layout { gap: 12px; }
+  body.storefront-site .checkout-page .checkout-form.panel { padding: 14px; }
+  body.storefront-site .checkout-page .checkout-form h2 { font-size: 1rem; margin: 0 0 10px; padding: 0 0 8px; }
+  body.storefront-site .checkout-page .checkout-form h2:not(:first-of-type) { margin-top: 14px; }
+  body.storefront-site .checkout-page .checkout-fields { gap: 10px; }
+  body.storefront-site .checkout-page .checkout-form label { margin-bottom: 4px; }
+  body.storefront-site .checkout-page .checkout-form .field input:not([type=checkbox]):not([type=radio]),
+  body.storefront-site .checkout-page .checkout-form .field select { min-height: 44px; padding-block: 9px; }
+  body.storefront-site .checkout-page .shipping-method-meta { margin-top: 4px; }
+  body.storefront-site .checkout-page .checkout-offer-banner { padding: 10px 12px; margin: 10px 0 12px; gap: 10px; }
+  body.storefront-site .checkout-page .checkout-offer-icon { width: 32px; height: 32px; flex: 0 0 32px; }
+  body.storefront-site .checkout-page .checkout-offer-icon svg { width: 18px; height: 18px; }
+  body.storefront-site .checkout-page .checkout-offer-banner p { margin: 2px 0 0; font-size: .78rem; line-height: 1.4; }
+  body.storefront-site .checkout-page .instapay-label { margin-bottom: 4px; }
+  body.storefront-site .checkout-page .instapay-input { margin-bottom: 4px; }
+  body.storefront-site .checkout-page #instapay-help { margin: 4px 0 0; }
+  body.storefront-site .checkout-page .checkout-summary.panel { padding: 14px; }
+  body.storefront-site .checkout-page .checkout-summary h2 { font-size: 1.1rem; margin: 0 0 8px; }
+  body.storefront-site .checkout-page .checkout-summary .order-total-row > * { padding-block: 9px; }
+  body.storefront-site .checkout-page .checkout-summary .order-total-row.grand > * { padding: 12px 0 10px; font-size: 1.05rem; }
+  body.storefront-site .checkout-page .checkout-summary > p.muted { margin-top: 10px; font-size: .76rem; line-height: 1.5; }
+  body.storefront-site .checkout-page .checkout-layout > .checkout-summary { order: 2; }
+  body.storefront-site .checkout-page .checkout-layout > .checkout-actions-row {
+    order: 3; grid-column: 1 / -1; justify-self: stretch; width: calc(100% + 32px) !important; max-width: none; position: sticky; bottom: 0; z-index: 20;
+    margin: 0 -16px; padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+    background: var(--bg, #fff); border-top: 1px solid var(--line, #dce8e7);
+    box-shadow: 0 -6px 14px rgba(9, 43, 66, .08);
+  }
+  body.storefront-site .checkout-page .checkout-actions-row .checkout-submit { margin: 0 !important; min-height: 46px; width: 100% !important; }
+}
