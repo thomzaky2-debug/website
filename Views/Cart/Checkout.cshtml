@@ -17,7 +17,7 @@
 <div class="section-head"><div><span class="eyebrow"><bdi>Chic &amp; Unique</bdi> · @Localizer["Nav_Cart"]</span><h1>@Localizer["Checkout"]</h1><p class="muted">@Localizer["Checkout_Intro"]</p></div><a class="action-link" asp-action="Index">← @Localizer["Nav_Cart"]</a></div>
 
 <div class="checkout-layout">
-<form asp-action="Checkout" method="post" class="panel checkout-form" id="checkout-order-form">
+<form asp-action="Checkout" method="post" class="panel checkout-form" id="checkout-order-form" novalidate data-msg-name="@Localizer["Err_Name"]" data-msg-phone="@Localizer["Err_Phone"]" data-msg-phone-invalid="@Localizer["Err_PhoneInvalid"]" data-msg-email="@Localizer["Err_Email"]" data-msg-email-invalid="@Localizer["Err_EmailInvalid"]" data-msg-shipping="@Localizer["Err_Shipping"]" data-msg-address="@Localizer["Err_Address"]" data-msg-instapay="@Localizer["InstaPay_Required"]" data-msg-instapay-invalid="@Localizer["InstaPay_Invalid"]">
     <div asp-validation-summary="All" class="validation"></div>
     <input asp-for="CheckoutToken" type="hidden"/>
 

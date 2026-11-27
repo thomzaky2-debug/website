@@ -5212,3 +5212,28 @@ html.dark-mode .card-view-toggle button.active { background: var(--teal); color:
   }
   body.storefront-site .checkout-page .checkout-actions-row .checkout-submit { margin: 0 !important; min-height: 46px; width: 100% !important; }
 }
+
+/* Checkout per-field validation */
+body.storefront-site .checkout-page .field.has-field-error input,
+body.storefront-site .checkout-page .field.has-field-error select,
+body.storefront-site .checkout-page .field.has-field-error textarea,
+body.storefront-site .checkout-page .field.has-field-error .instapay-input {
+  border-color: #d92d3f !important;
+  box-shadow: 0 0 0 3px rgba(217, 45, 63, .16) !important;
+}
+body.storefront-site .checkout-page .field.has-field-error .instapay-input input { box-shadow: none !important; }
+body.storefront-site .checkout-page .field-error-text {
+  display: flex; align-items: flex-start; gap: 6px; margin-top: 6px;
+  color: #b3261e; font-size: .86rem; font-weight: 600; line-height: 1.45;
+}
+body.storefront-site .checkout-page .field-error-text::before {
+  content: "!"; flex: 0 0 auto; width: 16px; height: 16px; margin-top: 2px; border-radius: 50%;
+  background: #d92d3f; color: #fff; font-size: 11px; line-height: 16px; text-align: center; font-weight: 800;
+}
+html.dark-mode body.storefront-site .checkout-page .field.has-field-error input,
+html.dark-mode body.storefront-site .checkout-page .field.has-field-error select,
+html.dark-mode body.storefront-site .checkout-page .field.has-field-error .instapay-input {
+  border-color: #ff6b78 !important; box-shadow: 0 0 0 3px rgba(255, 107, 120, .22) !important;
+}
+html.dark-mode body.storefront-site .checkout-page .field-error-text { color: #ff9aa2; }
+html.dark-mode body.storefront-site .checkout-page .field-error-text::before { background: #ff6b78; color: #20121a; }
