@@ -1,0 +1,11 @@
+server.js: add exactly 2 lines. Do not change anything else.
+
+LINE 1 - right under this existing line near the top:
+import { PAIR_PAGE_HTML, PAIR_PAGE_HEADERS } from './pair-page.js';
+add:
+import { registerNotify } from './notify.js';
+
+LINE 2 - right above this existing comment (it is a comment line, inside createApp):
+  // Self-contained pairing page for phone-only owners.
+add (keep the two spaces at the start):
+  registerNotify(app, { auth, sender });
