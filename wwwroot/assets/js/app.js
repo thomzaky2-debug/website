@@ -579,6 +579,98 @@ if (checkoutAddressBox) {
 
 const checkoutForm = document.querySelector('.checkout-form');
 const checkoutOverlayEl = document.querySelector('.checkout-overlay');
+if (checkoutForm) {
+  checkoutForm.noValidate = true;
+  const msg = checkoutForm.dataset;
+  const rules = [
+    ['CustomerName', v => v ? '' : msg.msgName],
+    ['CustomerPhone', v => !v ? msg.msgPhone : (/^\+?[\d\s().-]{8,30}$/.test(v) && (v.match(/\d/g) || []).length >= 8 ? '' : msg.msgPhoneInvalid)],
+    ['CustomerEmail', v => !v ? msg.msgEmail : (/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v) ? '' : msg.msgEmailInvalid)],
+    ['ShippingMethodId', v => v ? '' : msg.msgShipping],
+    ['ShippingAddress', v => v ? '' : msg.msgAddress],
+    ['InstaPayUsername', v => !v ? msg.msgInstapay : (/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(v) ? '' : msg.msgInstapayInvalid)]
+  ];
+  const fieldOf = name => checkoutForm.elements.namedItem(name);
+  const isActive = el => el && !el.disabled && !el.closest('[hidden]') && el.type !== 'hidden';
+  const slotOf = el => checkoutForm.querySelector('[data-valmsg-for="' + el.name + '"]');
+  const setError = (el, text) => {
+    const slot = slotOf(el);
+    const host = el.closest('.field') || el.parentElement;
+    if (text) {
+      el.setAttribute('aria-invalid', 'true');
+      host.classList.add('has-field-error');
+      if (slot) {
+        slot.textContent = text;
+        slot.className = 'field-validation-error field-error-text';
+        slot.setAttribute('role', 'alert');
+        if (!slot.id) slot.id = 'err-' + el.name;
+        el.setAttribute('aria-describedby', [...new Set((el.getAttribute('aria-describedby') || '').split(' ').filter(Boolean).concat(slot.id))].join(' '));
+      }
+    } else {
+      el.removeAttribute('aria-invalid');
+      host.classList.remove('has-field-error');
+      if (slot && slot.classList.contains('field-error-text')) {
+        slot.textContent = '';
+        slot.className = 'field-validation-valid';
+        slot.removeAttribute('role');
+      }
+    }
+  };
+  const validateField = (name, show = true) => {
+    const el = fieldOf(name);
+    if (!isActive(el)) { if (el && el.type !== 'hidden') setError(el, ''); return ''; }
+    const rule = rules.find(r => r[0] === name);
+    const text = rule[1](String(el.value || '').trim());
+    if (show) setError(el, text);
+    return text;
+  };
+  const scrollToField = el => {
+    const target = el.closest('.field') || el;
+    const bar = document.querySelector('.checkout-actions-row');
+    const barH = bar && getComputedStyle(bar).position === 'sticky' ? bar.offsetHeight : 0;
+    const header = document.querySelector('.site-header, header');
+    const headH = header && ['sticky', 'fixed'].includes(getComputedStyle(header).position) ? header.offsetHeight : 0;
+    const rect = target.getBoundingClientRect();
+    const top = rect.top + window.scrollY - headH - 16;
+    const visible = rect.top >= headH + 8 && rect.bottom <= window.innerHeight - barH - 8;
+    if (!visible) window.scrollTo({ top: Math.max(0, top), behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    el.focus({ preventScroll: true });
+  };
+  const validateAll = () => {
+    let first = null;
+    rules.forEach(([name]) => { const t = validateField(name); const el = fieldOf(name); if (t && !first) first = el; });
+    return first;
+  };
+  rules.forEach(([name]) => {
+    const el = fieldOf(name);
+    if (!el || el.type === 'hidden') return;
+    el.addEventListener('input', () => { if (el.getAttribute('aria-invalid')) validateField(name); }, { signal: lifecycle.signal });
+    el.addEventListener('change', () => { if (el.getAttribute('aria-invalid')) validateField(name); }, { signal: lifecycle.signal });
+    el.addEventListener('blur', () => { if (el.getAttribute('aria-invalid')) validateField(name); }, { signal: lifecycle.signal });
+  });
+  checkoutForm.addEventListener('submit', event => {
+    const first = validateAll();
+    if (first) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      scrollToField(first);
+    }
+  }, { capture: true, signal: lifecycle.signal });
+  // Server-side errors: show them per field in the same style, in the page language.
+  const serverBad = [...checkoutForm.querySelectorAll('.field-validation-error:not(.field-error-text)')].filter(n => n.textContent.trim());
+  if (serverBad.length) {
+    let first = null;
+    serverBad.forEach(slot => {
+      const el = fieldOf(slot.getAttribute('data-valmsg-for'));
+      if (!el) return;
+      const own = slot.textContent.trim();
+      const local = isActive(el) ? validateField(el.name, false) : '';
+      setError(el, local || own);
+      if (!first && isActive(el)) first = el;
+    });
+    if (first) scrollToField(first);
+  }
+}
 if (checkoutForm && checkoutOverlayEl) {
   checkoutForm.addEventListener('submit', () => {
     checkoutOverlayEl.classList.add('active');
