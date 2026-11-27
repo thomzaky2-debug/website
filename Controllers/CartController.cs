@@ -37,7 +37,7 @@ public class CartController(CartService cart, ApplicationDbContext db, CheckoutS
         if (Request.Headers.Accept.ToString().Contains("application/json", StringComparison.OrdinalIgnoreCase)) {
             var view = await cart.ViewAsync();
             var error = TempData["Error"] as string;
-            return Json(new { total=view.Total, count=view.Lines.Sum(l=>l.Quantity), error=error is null ? null : localizer[error].Value,
+            return Json(new { total=view.TotalAfterDiscount, subtotal=view.Total, discount=view.OrderDiscount, count=view.Lines.Sum(l=>l.Quantity), error=error is null ? null : localizer[error].Value,
                 lines=view.Lines.Select(l=>new {key=l.Key,quantity=l.Quantity,total=l.Total,unitPrice=l.Product.Price}) });
         }
         return RedirectToAction(nameof(Index));
@@ -56,13 +56,14 @@ public class CartController(CartService cart, ApplicationDbContext db, CheckoutS
         var settings = await db.StoreSettings.AsNoTracking().OrderBy(s => s.Id).FirstOrDefaultAsync();
         var isArabic = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "ar";
         var offerLabel = isArabic ? settings?.FreeDeliveryOfferLabelAr : settings?.FreeDeliveryOfferLabelEn;
+        var fd = OfferPricing.FreeDelivery(settings?.FreeDeliveryOfferEnabled ?? false, settings?.FreeDeliveryOfferThreshold ?? 0m, OfferContext.Live);
         var model = new CheckoutViewModel {
             Cart = view, CheckoutToken = token, ShippingMethods = methods,
             ShippingMethodId = methods.FirstOrDefault()?.Id ?? 0,
             CustomerUserId = userId, WalletBalance = walletBalance, UseWallet = walletBalance > 0,
-            FreeDeliveryOfferEnabled = settings?.FreeDeliveryOfferEnabled ?? false,
-            FreeDeliveryOfferThreshold = settings?.FreeDeliveryOfferThreshold ?? 0m,
-            FreeDeliveryOfferLabel = offerLabel
+            FreeDeliveryOfferEnabled = fd.Enabled,
+            FreeDeliveryOfferThreshold = fd.Threshold,
+            FreeDeliveryOfferLabel = fd.Offer is null ? offerLabel : (isArabic ? fd.Offer.TitleAr : fd.Offer.TitleEn)
         };
         await FillSavedContact(model, prefillAddress: true); return View(model);
     }
@@ -82,9 +83,10 @@ public class CartController(CartService cart, ApplicationDbContext db, CheckoutS
         model.ShippingMethods = await db.ShippingMethods.AsNoTracking().Where(s => s.IsActive).ToListAsync();
         var settings = await db.StoreSettings.AsNoTracking().OrderBy(s => s.Id).FirstOrDefaultAsync();
         var isArabic = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "ar";
-        model.FreeDeliveryOfferEnabled = settings?.FreeDeliveryOfferEnabled ?? false;
-        model.FreeDeliveryOfferThreshold = settings?.FreeDeliveryOfferThreshold ?? 0m;
-        model.FreeDeliveryOfferLabel = isArabic ? settings?.FreeDeliveryOfferLabelAr : settings?.FreeDeliveryOfferLabelEn;
+        var fd = OfferPricing.FreeDelivery(settings?.FreeDeliveryOfferEnabled ?? false, settings?.FreeDeliveryOfferThreshold ?? 0m, OfferContext.Live);
+        model.FreeDeliveryOfferEnabled = fd.Enabled;
+        model.FreeDeliveryOfferThreshold = fd.Threshold;
+        model.FreeDeliveryOfferLabel = fd.Offer is not null ? (isArabic ? fd.Offer.TitleAr : fd.Offer.TitleEn) : (isArabic ? settings?.FreeDeliveryOfferLabelAr : settings?.FreeDeliveryOfferLabelEn);
         var fullyCoveredByWallet = model.UseWallet && model.WalletBalance > 0 && model.TotalWithShipping > 0 && model.WalletBalance >= model.TotalWithShipping;
         if (fullyCoveredByWallet) ModelState.Remove(nameof(model.InstaPayUsername));
         if (!fullyCoveredByWallet && !nilePay.Ready) ModelState.AddModelError("", localizer["Payment_Unavailable"]);
@@ -184,11 +186,11 @@ public class CartController(CartService cart, ApplicationDbContext db, CheckoutS
                 {
                     name = CatalogService.Name(prod),
                     image = prod.ImageUrl ?? "/assets/img/product-placeholder.svg",
-                    price = prod.Price,
+                    price = CatalogService.Card(prod).Price,
                     quantity = x.Quantity,
                     size = x.Size,
                     color = x.Color,
-                    lineTotal = prod.Price * x.Quantity
+                    lineTotal = CatalogService.Card(prod).Price * x.Quantity
                 };
             }).ToList();
         return Json(new

@@ -35,6 +35,7 @@ public class CheckoutService(ApplicationDbContext db, IConfiguration? config = n
             var openCount = await db.Orders.AsNoTracking().CountAsync(o => o.CustomerUserId == customer.CustomerUserId && o.PaymentStatus == "Unpaid" && !o.InventoryReleased && o.Status == OrderStatuses.Pending);
             if (openCount >= maxPerAccount) throw new CheckoutException("Checkout_TooManyUnpaid");
         }
+        var liveOffers = await new OfferService(db).LiveAsync();
         var clientIp = http?.HttpContext?.Connection.RemoteIpAddress?.ToString();
         var maxPerIp = config?.GetValue("Checkout:MaxOpenUnpaidOrdersPerIp", 5) ?? 5;
         if (maxPerIp > 0 && !string.IsNullOrWhiteSpace(clientIp)) {
@@ -62,13 +63,16 @@ public class CheckoutService(ApplicationDbContext db, IConfiguration? config = n
             var changed = await db.Products.Where(x => x.Id == id && x.IsActive && !x.Category.IsHidden && x.StockQuantity >= quantity && x.Price == p.Price)
                 .ExecuteUpdateAsync(s => s.SetProperty(x => x.StockQuantity, x => x.StockQuantity - quantity));
             if (changed != 1) throw new CheckoutException("Error_StockChanged");
-            order.Items.Add(new OrderItem { SelectedSize = selection.Size, SelectedColor = selection.Color, ProductName = CatalogService.Name(p), ProductId = id, Quantity = quantity, UnitPrice = p.Price });
+            order.Items.Add(new OrderItem { SelectedSize = selection.Size, SelectedColor = selection.Color, ProductName = CatalogService.Name(p), ProductId = id, Quantity = quantity, UnitPrice = OfferPricing.Best(p.Id, p.CategoryId, p.Price, liveOffers)?.Price ?? p.Price });
         }
         var itemsTotal = order.Items.Sum(x => x.Quantity * x.UnitPrice);
         var storeSettings = await db.StoreSettings.AsNoTracking().OrderBy(s => s.Id).FirstOrDefaultAsync();
-        var qualifiesForFreeDelivery = storeSettings?.FreeDeliveryOfferEnabled == true && itemsTotal >= storeSettings.FreeDeliveryOfferThreshold;
+        var freeDelivery = OfferPricing.FreeDelivery(storeSettings?.FreeDeliveryOfferEnabled == true, storeSettings?.FreeDeliveryOfferThreshold ?? 0m, liveOffers);
+        var qualifiesForFreeDelivery = freeDelivery.Enabled && itemsTotal >= freeDelivery.Threshold;
         order.ShippingFee = qualifiesForFreeDelivery ? 0m : (shipping?.Fee ?? 0);
-        order.TotalAmount = itemsTotal + order.ShippingFee;
+        var orderDiscount = OfferPricing.OrderDiscount(itemsTotal, liveOffers);
+        order.DiscountAmount = orderDiscount.Amount; order.DiscountLabel = orderDiscount.Offer?.TitleEn;
+        order.TotalAmount = itemsTotal - order.DiscountAmount + order.ShippingFee;
         if (order.TotalAmount <= 0 || order.TotalAmount > 10000000) throw new CheckoutException("Payment_Limit");
 
         var wallet = new WalletService(db);

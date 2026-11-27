@@ -17,7 +17,8 @@ var keyDirPath = Environment.GetEnvironmentVariable("STAGING_KEYS_PATH")
 Directory.CreateDirectory(keyDirPath);
 
 var dbOpts = new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlServer(connStr).Options;
-await using var db = new ApplicationDbContext(dbOpts);
+// The seed phase runs against the OLD baseline schema, so it must not write columns that later migrations add.
+await using var db = phase == "seed" ? new PreMigrationSeedContext(dbOpts) : new ApplicationDbContext(dbOpts);
 
 static IDataProtectionProvider CreateProvider(string dir)
 {
@@ -193,3 +194,11 @@ sealed class StagingEnv : IHostEnvironment
     public Microsoft.Extensions.FileProviders.IFileProvider ContentRootFileProvider { get; set; } = null!;
 }
 
+sealed class PreMigrationSeedContext(DbContextOptions<ApplicationDbContext> options) : ApplicationDbContext(options)
+{
+    protected override void OnModelCreating(ModelBuilder b)
+    {
+        base.OnModelCreating(b);
+        b.Entity<Order>().Ignore(o => o.DiscountAmount).Ignore(o => o.DiscountLabel);
+    }
+}

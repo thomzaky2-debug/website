@@ -4,6 +4,7 @@ using NileShop.Services;
 namespace NileShop.ViewModels;
 public record ProductCard(int Id, string Slug, string Name, string Category, string ImageUrl, decimal Price, decimal? OldPrice, int StockQuantity, bool IsFeatured, bool HasOptions = false, bool IsNew = false)
 {
+    public string? OfferLabel { get; init; }
     public IReadOnlyList<string> Sizes { get; init; } = [];
     public IReadOnlyList<string> Colors { get; init; } = [];
     public bool HasDiscount => OldPrice.HasValue && OldPrice.Value > Price;
@@ -34,6 +35,9 @@ public class CartViewModel
 {
     public IReadOnlyList<CartLine> Lines { get; set; } = [];
     public decimal Total => Lines.Sum(x => x.Total);
+    public decimal OrderDiscount => OfferPricing.OrderDiscount(Total, OfferContext.Live).Amount;
+    public string? OrderDiscountLabel { get { var o = OfferPricing.OrderDiscount(Total, OfferContext.Live).Offer; return o is null ? null : (CatalogService.Language == "ar" ? o.TitleAr : o.TitleEn); } }
+    public decimal TotalAfterDiscount => Total - OrderDiscount;
 }
 public class CheckoutViewModel : IValidatableObject
 {
@@ -48,7 +52,7 @@ public class CheckoutViewModel : IValidatableObject
     public bool IsFreeDeliveryQualified => FreeDeliveryOfferEnabled && Cart.Total >= FreeDeliveryOfferThreshold;
     public decimal StandardShippingFee => ShippingMethods.FirstOrDefault(s => s.Id == ShippingMethodId)?.Fee ?? 0;
     public decimal ShippingFee => IsFreeDeliveryQualified ? 0m : StandardShippingFee;
-    public decimal TotalWithShipping => Cart.Total + ShippingFee;
+    public decimal TotalWithShipping => Cart.TotalAfterDiscount + ShippingFee;
     public decimal WalletAppliedPreview => UseWallet ? Math.Min(WalletBalance, TotalWithShipping) : 0m;
     public decimal PayablePreview => Math.Max(0m, TotalWithShipping - WalletAppliedPreview);
     private string instaPayUsername = "";

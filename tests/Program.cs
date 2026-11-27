@@ -412,6 +412,55 @@ Check(EmailOtp.ShouldDeferSignInForEmailGate(waVerified, emailConfirmed: false),
 Check(!EmailOtp.ShouldDeferSignInForEmailGate(waVerified, emailConfirmed: true), "phone verify with confirmed email signs in normally");
 Check(!EmailOtp.ShouldDeferSignInForEmailGate(emailVerified, emailConfirmed: false), "email challenge itself never defers sign-in");
 
+// ---- Offers ----
+{
+    var pct=new Offer{Id=1,Kind=OfferKinds.Percent,Value=15m,Scope=OfferScopes.All,TitleEn="a",TitleAr="a"};
+    var fix=new Offer{Id=2,Kind=OfferKinds.Fixed,Value=3m,Scope=OfferScopes.Category,CategoryId=7,TitleEn="b",TitleAr="b"};
+    var only=new Offer{Id=3,Kind=OfferKinds.Percent,Value=50m,Scope=OfferScopes.Products,ProductIds="5, 9,x",TitleEn="c",TitleAr="c"};
+    Check(OfferPricing.Reduce(10.25m,pct)==8.71m,"offer percent rounds to piasters (10.25 -15% = 8.71)");
+    Check(OfferPricing.Reduce(10m,fix)==7m,"offer fixed amount off");
+    Check(OfferPricing.Reduce(2m,fix)==0.01m,"offer never goes below 0.01");
+    Check(OfferPricing.Reduce(10m,new Offer{Kind=OfferKinds.Fixed,Value=0m})==null,"zero value offer does nothing");
+    Check(OfferPricing.Best(1,7,10m,[pct,fix])!.Price==7m,"best of offers wins, no stacking");
+    Check(OfferPricing.Best(1,8,10m,[pct,fix])!.Price==8.5m,"category offer skipped for other category");
+    Check(OfferPricing.Best(9,1,100m,[only])!.Price==50m && OfferPricing.Best(6,1,100m,[only])==null,"chosen products scope");
+    Check(OfferPricing.Best(1,1,10m,[new Offer{Kind=OfferKinds.FreeDelivery,Scope=OfferScopes.All,MinSubtotal=100m}])==null,"free delivery offer does not change prices");
+    var now=new DateTime(2026,11,27,12,0,0);
+    Check(!OfferPricing.IsLive(new Offer{IsActive=true,StartsAt=now.AddHours(1)},now),"offer not live before start");
+    Check(!OfferPricing.IsLive(new Offer{IsActive=true,EndsAt=now.AddHours(-1)},now),"offer not live after end");
+    Check(OfferPricing.IsLive(new Offer{IsActive=true,StartsAt=now.AddHours(-1),EndsAt=now.AddHours(1)},now) && !OfferPricing.IsLive(new Offer{IsActive=false},now),"offer date window and active flag");
+    var fdo=new Offer{Kind=OfferKinds.FreeDelivery,MinSubtotal=300m};
+    Check(OfferPricing.FreeDelivery(false,0m,[]).Enabled==false,"no free delivery without setting or offer");
+    Check(OfferPricing.FreeDelivery(true,500m,[fdo]) is {Enabled:true,Threshold:300m},"lowest free delivery threshold wins");
+    Check(OfferPricing.FreeDelivery(true,200m,[fdo]) is {Enabled:true,Threshold:200m},"setting kept when lower than offer");
+    Check(OfferPricing.FreeDelivery(false,0m,[fdo]) is {Enabled:true,Threshold:300m},"offer enables free delivery alone");
+    // checkout total equals the card price sum
+    var offerCat=new Category{Slug="offer-cat",Translations=[new(){LanguageCode="en",Name="Offer cat"}]};
+    var offerProduct=new Product{Slug="offer-product",Category=offerCat,Price=40m,StockQuantity=10,Translations=[new(){LanguageCode="en",Name="Offer product",FullDescription="x"}]};
+    db.Products.Add(offerProduct); await db.SaveChangesAsync();
+    db.Offers.Add(new Offer{TitleEn="Sale",TitleAr="Sale",Kind=OfferKinds.Percent,Value=25m,Scope=OfferScopes.Products,ProductIds=offerProduct.Id.ToString(),IsActive=true});
+    await db.SaveChangesAsync();
+    var liveNow=await new OfferService(db).LiveAsync();
+    OfferContext.Live=liveNow;
+    var cardPrice=CatalogService.Card(await db.Products.Include(x=>x.Category).ThenInclude(x=>x.Translations).Include(x=>x.Translations).SingleAsync(x=>x.Id==offerProduct.Id)).Price;
+    Check(cardPrice==30m,"product card shows discounted price");
+    var offerOrder=await service.PlaceAsync(Customer("token-offer"),new Dictionary<int,int>{{offerProduct.Id,2}});
+    Check(offerOrder.Items.Single().UnitPrice==30m && offerOrder.TotalAmount-offerOrder.ShippingFee==60m,"checkout total equals card price times quantity");
+    // ---- whole-order discount ----
+    var op=new Offer{Id=10,Kind=OfferKinds.OrderPercent,Value=10m,MinSubtotal=100m};
+    var of=new Offer{Id=11,Kind=OfferKinds.OrderFixed,Value=30m};
+    Check(OfferPricing.OrderDiscount(200m,[op]).Amount==20m,"order percent discount");
+    Check(OfferPricing.OrderDiscount(99.99m,[op]).Amount==0m,"order discount below minimum subtotal gives nothing");
+    Check(OfferPricing.OrderDiscount(200m,[op,of]).Amount==30m,"order discounts do not stack, largest wins");
+    Check(OfferPricing.OrderDiscount(10m,[of]).Amount==9.99m,"order fixed discount never takes items below 0.01");
+    Check(OfferPricing.Best(1,1,100m,[op,of])==null,"order offers never change product prices");
+    Check(OfferPricing.OrderDiscount(33.33m,[new Offer{Kind=OfferKinds.OrderPercent,Value=15m}]).Amount==5m,"order percent rounds to piasters");
+    db.Offers.Add(new Offer{TitleEn="Cart sale",TitleAr="x",Kind=OfferKinds.OrderFixed,Value=10m,MinSubtotal=50m,IsActive=true});
+    await db.SaveChangesAsync();
+    var o2=await service.PlaceAsync(Customer("token-order-discount"),new Dictionary<int,int>{{offerProduct.Id,2}});
+    Check(o2.DiscountAmount==10m && o2.TotalAmount==o2.Items.Sum(i=>i.Quantity*i.UnitPrice)-10m+o2.ShippingFee && o2.DiscountLabel=="Cart sale","checkout total = items - order discount + shipping, discount stored on order");
+    OfferContext.Live=[];
+}
 sealed class FakeSession : Microsoft.AspNetCore.Http.ISession
 {
     private readonly Dictionary<string, byte[]> _store = new();

@@ -1,0 +1,22 @@
+@using NileShop.Services
+@using NileShop.Models
+@model IReadOnlyList<Offer>
+@{ViewData["Title"]=Localizer["Offers"];var now=(DateTime)ViewData["Now"]!;}
+<div class="section-head"><div><span class="eyebrow">Chic & Unique · @Localizer["Admin_Navigation"]</span><h1>@Localizer["Offers"]</h1></div><a class="primary-button" asp-action="Create">@Localizer["Offer_New"]</a></div>
+@foreach(var o in Model){var live=OfferPricing.IsLive(o,now);
+<article class="panel offer-admin-card">
+<header><strong>@(CultureInfo_Ar()?o.TitleAr:o.TitleEn)</strong><span class="status-pill @(live?"":"off")">@Localizer[live?"Offer_Live":(o.IsActive?"Offer_Scheduled":"Offer_Off")]</span></header>
+<p class="offer-kind-line">@Localizer["Offer_Kind_"+o.Kind]</p>
+<ul class="offer-facts">
+@if(o.Kind!=OfferKinds.FreeDelivery){<li><span>@Localizer[o.Kind is OfferKinds.Percent or OfferKinds.OrderPercent?"Offer_Value_Percent":"Offer_Value_Fixed"]</span><bdi>@o.Value.ToString("0.##",System.Globalization.CultureInfo.InvariantCulture)@(o.Kind is OfferKinds.Percent or OfferKinds.OrderPercent?"%":" EGP")</bdi></li>}
+@if(o.MinSubtotal is not null){<li><span>@Localizer["Offer_MinSubtotal"]</span><bdi>@o.MinSubtotal.Value.ToString("0.##",System.Globalization.CultureInfo.InvariantCulture)</bdi></li>}
+@if(o.Kind is OfferKinds.Percent or OfferKinds.Fixed){<li><span>@Localizer["Offer_Scope"]</span><span>@Localizer["Offer_Scope_"+o.Scope]</span></li>}
+@if(o.StartsAt is not null||o.EndsAt is not null){<li><span>@Localizer["Offer_Sec_When"]</span><bdi>@(o.StartsAt?.ToString("yyyy-MM-dd HH:mm")??"...") → @(o.EndsAt?.ToString("yyyy-MM-dd HH:mm")??"...")</bdi></li>}
+</ul>
+<div class="offer-admin-actions">
+<a class="offer-btn" asp-action="Edit" asp-route-id="@o.Id">@Localizer["Edit"]</a>
+<form asp-action="Toggle" asp-route-id="@o.Id" method="post"><button class="offer-btn">@Localizer[o.IsActive?"Offer_Pause":"Offer_Activate"]</button></form>
+<form asp-action="Delete" asp-route-id="@o.Id" method="post"><button class="offer-btn danger">@Localizer["Delete"]</button></form>
+</div></article>}
+@if(!Model.Any()){<div class="panel empty">@Localizer["Offers_None_Admin"]</div>}
+@functions{static bool CultureInfo_Ar()=>System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName=="ar";}

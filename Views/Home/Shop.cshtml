@@ -1,5 +1,6 @@
 @model CatalogViewModel
 @{ViewData["Title"] = Localizer["Nav_Shop"]; var selectedCategory=Model.Categories.FirstOrDefault(c=>c.Slug==Model.Category); var activeFilters=(Model.MinPrice.HasValue?1:0)+(Model.MaxPrice.HasValue?1:0)+(Model.InStock?1:0)+(Model.Sort!="relevance"?1:0);}
+<partial name="_OffersStrip" />
 @section HeaderSearch {
     <details class="header-catalog" id="header-catalog">
         <summary><partial name="_StoreIcon" model='@("search")'/><span>@Localizer["Catalog_Refine"]</span>@if(activeFilters>0){<span class="catalog-filter-count">@activeFilters</span>}</summary>

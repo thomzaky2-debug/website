@@ -1,0 +1,8 @@
+@model NileShop.Controllers.OffersViewModel
+@{ViewData["Title"]=Localizer["Offers"];var ar=System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName=="ar";}
+<div class="section-head"><div><span class="eyebrow">Chic & Unique</span><h1>@Localizer["Offers"]</h1></div></div>
+@if(!Model.Live.Any()){<div class="panel empty">@Localizer["Offers_None"]</div>}
+else{
+<div class="offers-list">@foreach(var o in Model.Live){<article class="offer-card"><strong>@(ar?o.TitleAr:o.TitleEn)</strong>@if(o.EndsAt is not null){<small>@Localizer["Offer_Until"] @o.EndsAt.Value.ToString("yyyy-MM-dd")</small>}</article>}</div>
+@if(Model.Products.Any()){<div class="product-grid">@foreach(var card in Model.Products){<partial name="_ProductCard" model="card" />}</div>}
+}

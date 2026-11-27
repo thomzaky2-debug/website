@@ -1,0 +1,49 @@
+@using NileShop.Services
+@using NileShop.Models
+@model NileShop.Controllers.OfferFormViewModel
+@{ViewData["Title"]=Localizer[Model.Id==0?"Offer_New":"Offer_Edit"];}
+<div class="section-head"><div><span class="eyebrow">Chic & Unique · @Localizer["Admin_Navigation"]</span><h1>@ViewData["Title"]</h1></div></div>
+@if(Model.Error is not null){<div class="alert error" role="alert">@Localizer[Model.Error]</div>}
+<form asp-action="Save" method="post" class="offer-form" data-offer-form>
+<input type="hidden" asp-for="Id"/>
+<section class="panel offer-section">
+<h2>@Localizer["Offer_Sec_Names"]</h2>
+<label>@Localizer["Offer_TitleAr"]<input asp-for="TitleAr" maxlength="150" required dir="rtl"/></label>
+<label>@Localizer["Offer_TitleEn"]<input asp-for="TitleEn" maxlength="150" required dir="ltr"/></label>
+<div class="offer-pair">
+<label>@Localizer["Offer_BadgeAr"]<input asp-for="BadgeAr" maxlength="40" dir="rtl"/></label>
+<label>@Localizer["Offer_BadgeEn"]<input asp-for="BadgeEn" maxlength="40" dir="ltr"/></label>
+</div>
+<p class="offer-hint" data-kinds="Percent Fixed">@Localizer["Offer_Badge_Hint"]</p>
+</section>
+<section class="panel offer-section">
+<h2>@Localizer["Offer_Sec_Discount"]</h2>
+<label>@Localizer["Offer_Type"]<select asp-for="Kind" data-offer-kind><option value="Percent">@Localizer["Offer_Kind_Percent"]</option><option value="Fixed">@Localizer["Offer_Kind_Fixed"]</option><option value="FreeDelivery">@Localizer["Offer_Kind_FreeDelivery"]</option><option value="OrderPercent">@Localizer["Offer_Kind_OrderPercent"]</option><option value="OrderFixed">@Localizer["Offer_Kind_OrderFixed"]</option></select></label>
+<p class="offer-hint" data-kinds="Percent">@Localizer["Offer_Hint_Percent"]</p>
+<p class="offer-hint" data-kinds="Fixed">@Localizer["Offer_Hint_Fixed"]</p>
+<p class="offer-hint" data-kinds="FreeDelivery">@Localizer["Offer_Hint_FreeDelivery"]</p>
+<p class="offer-hint" data-kinds="OrderPercent">@Localizer["Offer_Hint_OrderPercent"]</p>
+<p class="offer-hint" data-kinds="OrderFixed">@Localizer["Offer_Hint_OrderFixed"]</p>
+<div class="offer-pair">
+<label data-kinds="Percent Fixed OrderPercent OrderFixed"><span><span data-kinds-inline="Percent OrderPercent">@Localizer["Offer_Value_Percent"]</span><span data-kinds-inline="Fixed OrderFixed">@Localizer["Offer_Value_Fixed"]</span></span><input asp-for="Value" inputmode="decimal" dir="ltr" autocomplete="off"/></label>
+<label data-kinds="FreeDelivery OrderPercent OrderFixed"><span>@Localizer["Offer_MinSubtotal"]</span><input asp-for="MinSubtotal" inputmode="decimal" dir="ltr" autocomplete="off"/></label>
+</div>
+</section>
+<section class="panel offer-section" data-kinds="Percent Fixed">
+<h2>@Localizer["Offer_Scope"]</h2>
+<label><span class="sr-only">@Localizer["Offer_Scope"]</span><select asp-for="Scope" data-offer-scope><option value="All">@Localizer["Offer_Scope_All"]</option><option value="Category">@Localizer["Offer_Scope_Category"]</option><option value="Products">@Localizer["Offer_Scope_Products"]</option></select></label>
+<label data-scopes="Category">@Localizer["Categories"]<select asp-for="CategoryId"><option value="">-</option>@foreach(var c in Model.Categories){<option value="@c.Id" selected="@(Model.CategoryId==c.Id)">@c.Name</option>}</select></label>
+<div data-scopes="Products"><p class="offer-hint">@Localizer["Offer_PickProducts"]</p><div class="offer-products">@foreach(var p in Model.Products){<label class="offer-check"><input type="checkbox" name="ProductIds" value="@p.Id" checked="@Model.ProductIds.Contains(p.Id)"/><span>@p.Name</span></label>}</div></div>
+</section>
+<section class="panel offer-section">
+<h2>@Localizer["Offer_Sec_When"]</h2>
+<div class="offer-pair offer-dates">
+<label>@Localizer["Offer_Starts"]<input asp-for="StartsAt" type="datetime-local" dir="ltr"/></label>
+<label>@Localizer["Offer_Ends"]<input asp-for="EndsAt" type="datetime-local" dir="ltr"/></label>
+</div>
+<label class="offer-check offer-active"><input asp-for="IsActive" type="checkbox"/><span>@Localizer["Offer_Active"]</span></label>
+<p class="offer-hint">@Localizer["Offer_Help"]</p>
+</section>
+<div class="offer-form-actions"><button class="primary-button">@Localizer["Save"]</button><a class="offer-btn" asp-action="Index">@Localizer["Cancel"]</a></div>
+</form>
+@section Scripts { <script src="~/assets/js/offers-admin.js" asp-append-version="true"></script> }

@@ -10,10 +10,12 @@ public class CatalogService(ApplicationDbContext db)
     public static string Language => CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
     public static string Name(Product p) => p.Translations.FirstOrDefault(t => t.LanguageCode == Language)?.Name ?? p.Translations.FirstOrDefault(t => t.LanguageCode == "en")?.Name ?? p.Slug;
     public static string Name(Category c) => c.Translations.FirstOrDefault(t => t.LanguageCode == Language)?.Name ?? c.Translations.FirstOrDefault(t => t.LanguageCode == "en")?.Name ?? c.Slug;
-    public static ProductCard Card(Product p) => new(p.Id, p.Slug, Name(p), Name(p.Category), p.ImageUrl ?? "/assets/img/product-placeholder.svg", p.Price, p.OldPrice, p.StockQuantity, p.IsFeatured, !string.IsNullOrWhiteSpace(p.Sizes) || !string.IsNullOrWhiteSpace(p.Colors), (DateTime.UtcNow - p.CreatedAt).TotalDays <= 14)
+    public static ProductCard Card(Product p) => Card(p, OfferPricing.Best(p.Id, p.CategoryId, p.Price, OfferContext.Live));
+    public static ProductCard Card(Product p, OfferPricing.Applied? offer) => new(p.Id, p.Slug, Name(p), Name(p.Category), p.ImageUrl ?? "/assets/img/product-placeholder.svg", offer?.Price ?? p.Price, offer is null ? p.OldPrice : Math.Max(p.OldPrice ?? 0m, p.Price), p.StockQuantity, p.IsFeatured, !string.IsNullOrWhiteSpace(p.Sizes) || !string.IsNullOrWhiteSpace(p.Colors), (DateTime.UtcNow - p.CreatedAt).TotalDays <= 14)
     {
         Sizes = ProductOptions.Values(p.Sizes),
-        Colors = ProductOptions.Values(p.Colors)
+        Colors = ProductOptions.Values(p.Colors),
+        OfferLabel = offer is null ? null : (Language == "ar" ? (offer.Offer.BadgeAr ?? offer.Offer.TitleAr) : (offer.Offer.BadgeEn ?? offer.Offer.TitleEn))
     };
     public IQueryable<Product> Active() => db.Products.AsNoTracking().Where(p => p.IsActive && !p.Category.IsHidden).Include(p => p.Translations).Include(p => p.Category).ThenInclude(c => c.Translations);
     public async Task<IReadOnlyList<CategoryLink>> CategoriesAsync(bool includeHidden = false) => (await db.Categories.AsNoTracking().Where(c => includeHidden || !c.IsHidden).Include(c => c.Translations).OrderBy(c => c.Id).ToListAsync()).Select(c => new CategoryLink(c.Id, c.Slug, Name(c))).ToList();

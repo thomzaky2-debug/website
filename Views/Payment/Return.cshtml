@@ -123,7 +123,8 @@
                     }
                 </div>
                 <div class="order-subtotals">
-                    <div class="subtotal-row"><span>@Localizer["Subtotal"]</span><strong>@((Model.TotalAmount - Model.ShippingFee).ToString("N2")) EGP</strong></div>
+                    <div class="subtotal-row"><span>@Localizer["Subtotal"]</span><strong>@((Model.TotalAmount - Model.ShippingFee + Model.DiscountAmount).ToString("N2")) EGP</strong></div>
+@if(Model.DiscountAmount>0){<div class="subtotal-row"><span>@Localizer["Order_Discount"]</span><strong dir="ltr">−@Model.DiscountAmount.ToString("N2") EGP</strong></div>}
                     <div class="subtotal-row"><span>@Localizer["Shipping_Fee"] (@Model.ShippingMethodName)</span><strong>@Model.ShippingFee.ToString("N2") EGP</strong></div>
                     @if (Model.WalletAmountUsed > 0)
                     {

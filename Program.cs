@@ -125,6 +125,7 @@ builder.Services.Configure<NilePayOptions>(builder.Configuration.GetSection("Nil
 builder.Services.AddHttpClient<NilePayClient>(http => { http.Timeout = TimeSpan.FromSeconds(20); http.MaxResponseContentBufferSize = 65536; })
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
 builder.Services.AddScoped<NilePayService>();
+builder.Services.AddScoped<OfferService>();
 builder.Services.AddScoped<OrderOperations>();
 builder.Services.Configure<SubdomainOptions>(builder.Configuration.GetSection("Subdomains"));
 builder.Services.AddScoped<WalletService>();
@@ -174,6 +175,12 @@ app.Use(async (context, next) => {
     await next();
 });
 app.UseStaticFiles();
+app.Use(async (context, next) => {
+    // Live offers for this request. If the offers table is not migrated yet, the shop keeps working at regular prices.
+    try { OfferContext.Live = await context.RequestServices.GetRequiredService<OfferService>().LiveAsync(context.RequestAborted); }
+    catch (Exception) { OfferContext.Live = []; }
+    await next();
+});
 app.UseRouting();
 app.UseRateLimiter();
 app.UseSession();

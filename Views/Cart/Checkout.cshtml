@@ -200,6 +200,10 @@
     {
         <div class="order-total-row order-item-row"><span>@line.Product.Name <small><bdi>@line.Size @line.Color</bdi></small></span><span class="order-qty"><bdi>@line.Quantity</bdi></span><strong class="order-amount"><bdi>@Money(line.Total) EGP</bdi></strong></div>
     }
+    @if (Model.Cart.OrderDiscount > 0)
+    {
+        <div class="order-total-row order-discount-row"><span>@Localizer["Order_Discount"] <small>@Model.Cart.OrderDiscountLabel</small></span><strong class="order-amount"><bdi>−@Money(Model.Cart.OrderDiscount) EGP</bdi></strong></div>
+    }
     <div class="order-total-row">
         <span>@Localizer["Shipping_Fee"]</span>
         <strong class="order-amounts">
@@ -216,7 +220,7 @@
         </strong>
     </div>
     <div class="order-total-row wallet-summary-row" id="wallet-credit-row" hidden="@(Model.WalletAppliedPreview <= 0 ? "hidden" : null)"><span>@Localizer["Wallet_Credit_Applied"]</span><strong class="order-amount"><bdi>−<span id="wallet-applied">@Money(Model.WalletAppliedPreview)</span> EGP</bdi></strong></div>
-    <div class="order-total-row grand"><span>@Localizer["Total"]</span><strong class="order-amount"><bdi><span id="checkout-total" data-subtotal="@Model.Cart.Total.ToString(CultureInfo.InvariantCulture)">@Money(Model.TotalWithShipping)</span> EGP</bdi></strong></div>
+    <div class="order-total-row grand"><span>@Localizer["Total"]</span><strong class="order-amount"><bdi><span id="checkout-total" data-subtotal="@Model.Cart.TotalAfterDiscount.ToString(CultureInfo.InvariantCulture)">@Money(Model.TotalWithShipping)</span> EGP</bdi></strong></div>
     <div class="order-total-row payable-summary-row" id="checkout-payable-row" hidden="@(Model.WalletAppliedPreview <= 0 ? "hidden" : null)"><span>@Localizer["Remaining_To_Pay"]</span><strong class="order-amount"><bdi><span id="checkout-payable">@Money(Model.PayablePreview)</span> EGP</bdi></strong></div>
     </div>
     <p class="muted">@Localizer["Delivery_EstimateNote"]</p>

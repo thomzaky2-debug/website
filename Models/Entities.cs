@@ -56,6 +56,8 @@ public class Order
     public string? PaymentSessionStatus { get; set; }
     [MaxLength(450)] public string? CustomerUserId { get; set; }
     public decimal ShippingFee { get; set; }
+    public decimal DiscountAmount { get; set; }
+    [MaxLength(150)] public string? DiscountLabel { get; set; }
     public int DeliveryMinDays { get; set; }
     public int DeliveryMaxDays { get; set; }
     [MaxLength(100)] public string? ShippingMethodName { get; set; }
