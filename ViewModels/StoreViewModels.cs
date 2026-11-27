@@ -4,6 +4,7 @@ using NileShop.Services;
 namespace NileShop.ViewModels;
 public record ProductCard(int Id, string Slug, string Name, string Category, string ImageUrl, decimal Price, decimal? OldPrice, int StockQuantity, bool IsFeatured, bool HasOptions = false, bool IsNew = false)
 {
+    public string? OfferLabel { get; init; }
     public IReadOnlyList<string> Sizes { get; init; } = [];
     public IReadOnlyList<string> Colors { get; init; } = [];
     public bool HasDiscount => OldPrice.HasValue && OldPrice.Value > Price;

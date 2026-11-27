@@ -78,7 +78,7 @@ public class HomeController(CatalogService catalog, ApplicationDbContext db) : C
         if(maxPrice.HasValue)query=query.Where(p=>p.Price<=maxPrice);
         if(inStock)query=query.Where(p=>p.StockQuantity>0);
         var products=await CatalogSearch.Rank(query,q).Take(6).ToListAsync(ct);
-        return Json(new {products=products.Select(p=>new {name=CatalogService.Name(p),price=p.Price,image=CatalogService.Card(p).ImageUrl,url=Url.Action("Details","Products",new {slug=p.Slug})})});
+        return Json(new {products=products.Select(p=>new {name=CatalogService.Name(p),price=CatalogService.Card(p).Price,image=CatalogService.Card(p).ImageUrl,url=Url.Action("Details","Products",new {slug=p.Slug})})});
     }
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> SetLanguage(string culture, string returnUrl)

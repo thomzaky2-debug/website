@@ -26,6 +26,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<Offer> Offers => Set<Offer>();
     protected override void OnModelCreating(ModelBuilder b)
     {
         base.OnModelCreating(b);
@@ -80,7 +81,12 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             b.Entity<Order>().Property(x => x.DetectedAmountEgp).HasConversion<double>();
             b.Entity<WalletTransaction>().Property(x => x.Amount).HasConversion<double>();
             b.Entity<OrderItem>().Property(x => x.UnitPrice).HasConversion<double>();
+            b.Entity<Offer>().Property(x => x.Value).HasConversion<double>();
+            b.Entity<Offer>().Property(x => x.MinSubtotal).HasConversion<double>();
         }
+        b.Entity<Offer>().Property(x => x.Value).HasPrecision(18, 2);
+        b.Entity<Offer>().Property(x => x.MinSubtotal).HasPrecision(18, 2);
+        b.Entity<Offer>().HasIndex(x => new { x.IsActive, x.StartsAt, x.EndsAt });
         b.Entity<Category>().HasIndex(x => x.Slug).IsUnique();
         b.Entity<CategoryTranslation>().HasIndex(x => new { x.CategoryId, x.LanguageCode }).IsUnique();
         b.Entity<Product>().HasIndex(x => x.Slug).IsUnique();

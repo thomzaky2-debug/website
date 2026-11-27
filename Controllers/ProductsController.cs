@@ -47,7 +47,8 @@ public class ProductsController(CatalogService catalog, ApplicationDbContext db)
         ViewData["og:description"] = localizedDesc;
         ViewData["og:image"] = absoluteImage;
         ViewData["og:type"] = "product";
-        ViewData["og:price"] = p.Price.ToString("F2");
+        var livePrice = CatalogService.Card(p).Price;
+        ViewData["og:price"] = livePrice.ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
         var jsonLd = JsonSerializer.Serialize(new
         {
             @context = "https://schema.org",
@@ -58,7 +59,7 @@ public class ProductsController(CatalogService catalog, ApplicationDbContext db)
             offers = new
             {
                 @type = "Offer",
-                price = p.Price.ToString("F2"),
+                price = livePrice.ToString("F2", System.Globalization.CultureInfo.InvariantCulture),
                 priceCurrency = "EGP",
                 availability = p.StockQuantity > 0 ? "https://schema.org/InStock" : "https://schema.org/OutOfStock"
             }

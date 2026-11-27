@@ -5361,3 +5361,23 @@ body .payment-issue-card { border-inline-start: 4px solid #d99a00; display: grid
 body .payment-issue-card.kind-review { border-inline-start-color: #c0392b; }
 body .payment-issue-card.kind-underpaid { border-inline-start-color: #e67e22; }
 body .payment-issue-meta strong { font-size: 1rem; }
+
+body .badge-offer{background:#7a1f3d;color:#fff}
+body .offers-strip{display:flex;align-items:center;gap:.6rem;margin:.75rem 0;padding:.7rem .9rem;border-radius:12px;background:#7a1f3d;color:#fff;text-decoration:none;font-weight:600}
+body .offers-strip-tag{background:#fff;color:#7a1f3d;border-radius:999px;padding:.1rem .6rem;font-size:.8rem;white-space:nowrap}
+body .offers-strip-text{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body .offers-list{display:grid;gap:.6rem;margin-bottom:1rem}
+body .offer-card{display:flex;flex-direction:column;gap:.2rem;padding:.8rem 1rem;border-radius:12px;border:1px solid #7a1f3d}
+body .offer-form{display:grid;gap:.75rem}
+body .offer-form label{display:grid;gap:.25rem}
+body .offer-form label.check{display:flex;align-items:center;gap:.5rem}
+body .offer-products{display:grid;gap:.4rem;max-height:260px;overflow:auto;padding:.5rem}
+body .offer-admin-card header{display:flex;justify-content:space-between;gap:.5rem;align-items:center}
+body .offer-admin-actions{display:flex;flex-wrap:wrap;gap:.5rem}
+body .offer-admin-actions form{margin:0}
+body .offer-btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 1rem;border-radius:12px;border:1px solid var(--line,#cfd8dc);background:transparent;color:inherit;font:inherit;font-weight:600;text-decoration:none;cursor:pointer}
+body .offer-btn.danger{border-color:#c0392b;color:#c0392b}
+body .offer-form .primary-button{width:100%}
+body .offer-form .offer-btn{width:100%}
+body .offer-admin-actions .offer-btn{height:44px;box-sizing:border-box;line-height:1}
+body .offer-admin-actions{align-items:center}
