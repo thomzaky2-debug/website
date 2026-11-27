@@ -86,6 +86,8 @@ public class StoreAdminController(ApplicationDbContext db, CustomerAdminService 
         await OrderStatusPresentation.LoadAsync(db, new[] { order });
         ViewData["Attempt"]=await db.PaymentAttempts.AsNoTracking().Where(p=>p.OrderId==id).OrderByDescending(p=>p.CreatedAt).ThenByDescending(p=>p.Id).FirstOrDefaultAsync();
         ViewData["Emails"]=await db.OrderEmails.AsNoTracking().Where(e=>e.OrderId==id).ToListAsync();
+        var prefix=order.OrderNumber;
+        ViewData["Audit"]=await db.AuditLogs.AsNoTracking().Where(a=>a.EntityName=="Order" && a.Details!=null && a.Details.StartsWith(prefix)).OrderByDescending(a=>a.Timestamp).Take(50).ToListAsync();
         return View(order);
     }
     [HttpPost,ValidateAntiForgeryToken]
@@ -143,6 +145,56 @@ public class StoreAdminController(ApplicationDbContext db, CustomerAdminService 
         if(!await db.OrderEmails.AnyAsync(e=>e.OrderId==id && e.Kind=="Delivered"))
             db.OrderEmails.Add(new OrderEmail{OrderId=id,Kind="Delivered"});
         await audit.LogAsync("DELIVER","Order",order.OrderNumber);await tx.CommitAsync();
+        TempData["Success"]="Admin_Saved";return RedirectToAction(nameof(Order),new{id});
+    }
+    [HttpPost,ValidateAntiForgeryToken]
+    public async Task<IActionResult> AddNote(int id,string note)
+    {
+        note=(note??"").Trim();
+        if(note.Length is 0 or > 300)return BadRequest();
+        var order=await db.Orders.AsNoTracking().SingleOrDefaultAsync(o=>o.Id==id);if(order is null)return NotFound();
+        await audit.LogAsync("ORDER_NOTE","Order",$"{order.OrderNumber}: {note}");
+        TempData["Success"]="Admin_Saved";return RedirectToAction(nameof(Order),new{id});
+    }
+    [HttpPost,ValidateAntiForgeryToken]
+    public async Task<IActionResult> EditDetails(int id,string customerName,string customerEmail,string customerPhone,string shippingAddress,string reason,bool confirmed)
+    {
+        customerName=(customerName??"").Trim();customerEmail=(customerEmail??"").Trim();customerPhone=(customerPhone??"").Trim();shippingAddress=(shippingAddress??"").Trim();reason=(reason??"").Trim();
+        if(!confirmed||reason.Length is 0 or > 120||customerName.Length is 0 or > 150||customerPhone.Length is 0 or > 30||shippingAddress.Length is 0 or > 1000||customerEmail.Length is 0 or > 254||!new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(customerEmail))return BadRequest();
+        await using var tx=await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+        var order=await db.Orders.SingleOrDefaultAsync(o=>o.Id==id);if(order is null)return NotFound();
+        if(order.Status is not (OrderStatuses.Pending or OrderStatuses.Processing)){TempData["Error"]="Order_Edit_Locked";return RedirectToAction(nameof(Order),new{id});}
+        var changes=new List<string>();
+        void Diff(string label,string oldV,string newV){if(oldV!=newV)changes.Add($"{label}: {oldV} > {newV}");}
+        Diff("name",order.CustomerName,customerName);Diff("email",order.CustomerEmail,customerEmail);Diff("phone",order.CustomerPhone,customerPhone);Diff("address",order.ShippingAddress,shippingAddress);
+        if(changes.Count==0){await tx.RollbackAsync();return RedirectToAction(nameof(Order),new{id});}
+        order.CustomerName=customerName;order.CustomerEmail=customerEmail;order.CustomerPhone=customerPhone;order.ShippingAddress=shippingAddress;
+        await audit.LogAsync("ORDER_EDIT","Order",$"{order.OrderNumber}: {string.Join("; ",changes)} (reason: {reason})");
+        await tx.CommitAsync();TempData["Success"]="Admin_Saved";return RedirectToAction(nameof(Order),new{id});
+    }
+    [HttpPost,ValidateAntiForgeryToken]
+    public async Task<IActionResult> RevertStatus(int id,string reason,bool confirmed)
+    {
+        reason=(reason??"").Trim();
+        if(!confirmed||reason.Length is 0 or > 120)return BadRequest();
+        await using var tx=await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
+        var order=await db.Orders.SingleOrDefaultAsync(o=>o.Id==id);if(order is null)return NotFound();
+        var previous=order.Status switch{OrderStatuses.Delivered=>OrderStatuses.Shipped,OrderStatuses.Shipped=>OrderStatuses.Processing,_=>null};
+        if(previous is null){TempData["Error"]="Order_Revert_Unavailable";return RedirectToAction(nameof(Order),new{id});}
+        var from=order.Status;order.Status=previous;order.Updates.Add(new OrderUpdate{Status=previous});
+        await audit.LogAsync("ORDER_REVERT","Order",$"{order.OrderNumber}: {from} > {previous} (reason: {reason})");
+        await tx.CommitAsync();TempData["Success"]="Admin_Saved";return RedirectToAction(nameof(Order),new{id});
+    }
+    [HttpPost,ValidateAntiForgeryToken]
+    public async Task<IActionResult> ForceCancelUnpaid(int id,string reason,bool confirmed,CancellationToken ct)
+    {
+        reason=(reason??"").Trim();
+        if(!confirmed||reason.Length is 0 or > 120)return BadRequest();
+        var order=await db.Orders.AsNoTracking().SingleOrDefaultAsync(o=>o.Id==id,ct);if(order is null)return NotFound();
+        if(order.PaymentStatus!="Unpaid"||order.PaidAt!=null||order.Status==OrderStatuses.Cancelled||order.InventoryReleased||order.Status is OrderStatuses.Shipped or OrderStatuses.Delivered){TempData["Error"]="Order_ForceCancel_Unavailable";return RedirectToAction(nameof(Order),new{id});}
+        var done=await payments.ReleaseInventoryIfUnpaidAsync(id,"admin force-cancel: "+reason,ct);
+        if(!done){TempData["Error"]="Order_ForceCancel_Unavailable";return RedirectToAction(nameof(Order),new{id});}
+        await audit.LogAsync("ORDER_FORCE_CANCEL","Order",$"{order.OrderNumber}: unpaid order cancelled by admin, stock and wallet credit restored (reason: {reason})");
         TempData["Success"]="Admin_Saved";return RedirectToAction(nameof(Order),new{id});
     }
     [HttpPost,ValidateAntiForgeryToken]
