@@ -39,8 +39,8 @@ public sealed class PasswordRecoveryController(
                 if (origin is not null && path is not null)
                 {
                     var link = new Uri(origin, path).AbsoluteUri;
-                    await AccountMailSender.QueueAsync(db, protection, user.Email, "Chic & Unique | إعادة تعيين كلمة المرور",
-                        $"لإعادة تعيين كلمة المرور، افتح الرابط التالي. تجاهل هذه الرسالة إذا لم تطلب إعادة التعيين.\n\n{link}",
+                    var (resetSubject, resetBody) = CustomerMessages.PasswordReset(link);
+                    await AccountMailSender.QueueAsync(db, protection, user.Email, resetSubject, resetBody,
                         expiresAtUtc: DateTime.UtcNow.AddHours(1), ct: HttpContext.RequestAborted);
                 }
             }

@@ -20,6 +20,17 @@ var service = new CheckoutService(db);
 CheckoutViewModel Customer(string token)=>new(){InstaPayUsername="ahmed.mohammed",CheckoutToken=token,CustomerName="Test",CustomerEmail="test@example.com",CustomerPhone="01234567890",ShippingAddress="Test address"};
 void Check(bool condition,string name){if(!condition)throw new Exception(name);Console.WriteLine("PASS "+name);}
 var order=await service.PlaceAsync(Customer("token-one"),new Dictionary<int,int>{{p.Id,2}});
+{
+ var kinds=new[]{"Created","Paid","Overpaid","Confirmed","Processing","Shipped","Delivered","Cancelled","Refunded","Underpaid"};
+ var all=kinds.Select(k=>NileShop.Services.CustomerMessages.Order(k,"منى أحمد","NILE-20261125-ABC",550m,"https://shop.example/orders/track?token=t")).ToList();
+ Check(all.All(m=>!m.Subject.Contains("&#")&&!m.Body.Contains("&#")&&!m.Body.Contains("&amp;")),"customer emails contain no HTML entities");
+ Check(all.All(m=>!m.Subject.Contains("NilePay",StringComparison.OrdinalIgnoreCase)&&!m.Body.Contains("NilePay",StringComparison.OrdinalIgnoreCase)),"customer emails never name the gateway");
+ Check(all.All(m=>m.Body.Contains("NILE-20261125-ABC")&&m.Body.Contains("550.00")&&m.Body.Contains("orders/track?token=t")&&m.Body.Contains("أهلاً منى،")&&m.Body.EndsWith("فريق Chic & Unique")),"customer order emails keep number, total, link, greeting and sign-off");
+ var otpMail=NileShop.Services.CustomerMessages.Otp("123456",10);
+ Check(otpMail.Body.Contains("123456")&&otpMail.Body.Contains("10 دقائق"),"OTP email keeps code and expiry");
+ var resetMail=NileShop.Services.CustomerMessages.PasswordReset("https://shop.example/ResetPassword?userId=u&token=abc");
+ Check(resetMail.Body.Contains("userId=u&token=abc")&&!resetMail.Body.Contains("&amp;"),"reset email keeps raw link");
+}
 Check(order.TotalAmount==20.5m,"server-calculated decimal total");
 Check(await db.Products.Where(x=>x.Id==p.Id).Select(x=>x.StockQuantity).SingleAsync()==1,"inventory decremented");
 var retry=await service.PlaceAsync(Customer("token-one"),new Dictionary<int,int>{{p.Id,2}});

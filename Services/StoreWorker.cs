@@ -88,21 +88,9 @@ public class StoreWorker(IServiceScopeFactory scopes, IConfiguration config, ILo
             try {
                 using var transport = new SmtpClient(smtp.Host.Trim(), smtp.Port) { EnableSsl = smtp.EnableSsl, UseDefaultCredentials = false, Timeout = 20000 };
                 if (!string.IsNullOrEmpty(smtp.Username)) transport.Credentials = new NetworkCredential(smtp.Username.Trim(), smtp.Password);
-                var statusAr = email.Kind switch {
-                    "Paid" => "تم تأكيد الدفع",
-                    "Overpaid" => "تم تأكيد الدفع (مبلغ إضافي)",
-                    "Confirmed" => "تم تأكيد الطلب",
-                    "Processing" => "قيد التجهيز",
-                    "Shipped" => "تم الشحن",
-                    "Delivered" => "تم التوصيل",
-                    "Cancelled" => "تم الإلغاء",
-                    "Refunded" => "تم الاسترداد",
-                    _ => email.Kind
-                };
-                using var message = new MailMessage(smtp.From, email.Order.CustomerEmail) {
-                    Subject = $"Chic & Unique · الطلب {email.Order.OrderNumber} · {statusAr}",
-                    Body = $"Chic & Unique\nرقم الطلب: {email.Order.OrderNumber}\nحالة الطلب: {statusAr}\nالإجمالي: {email.Order.TotalAmount:0.00} ج.م\n\nتتبع طلبك:\n{site.TrimEnd('/')}/orders/track?token={email.Order.PaymentAccessToken}\n\nاحتفظ برابط التتبع الخاص بك في مكان آمن."
-                };
+                var (subject, body) = CustomerMessages.Order(email.Kind, email.Order.CustomerName, email.Order.OrderNumber, email.Order.TotalAmount,
+                    $"{site.TrimEnd('/')}/orders/track?token={email.Order.PaymentAccessToken}");
+                using var message = new MailMessage(smtp.From, email.Order.CustomerEmail) { Subject = subject, Body = body };
                 message.Headers.Add("Message-ID", $"<nileshop-order-{email.OrderId}-{email.Kind}@{origin.Host}>");
                 await transport.SendMailAsync(message, ct);
                 await db.OrderEmails.Where(e => e.Id == id).ExecuteUpdateAsync(s => s.SetProperty(e => e.SentAt, DateTime.UtcNow).SetProperty(e => e.LastError, (string?)null), ct);
