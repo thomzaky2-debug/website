@@ -30,7 +30,7 @@ public static class DbInitializer
             CheckoutSessionLifetimeMinutes = 15,
             DeliveryPolicyEn = """
                 Order Processing & Confirmation
-                • Orders are processed after NilePay payment confirmation is received.
+                • Orders are processed after payment confirmation is received.
                 • Delivery timeframes are counted in business days (Sunday–Thursday, excluding Egyptian public holidays).
 
                 Delivery Areas & Timeframes
@@ -47,7 +47,7 @@ public static class DbInitializer
                 """,
             DeliveryPolicyAr = """
                 تجهيز الطلب وتأكيد الدفع
-                • يبدأ تجهيز وشحن الطلب بعد تأكيد الدفع عبر نايل باي (NilePay).
+                • يبدأ تجهيز وشحن الطلب بعد تأكيد الدفع.
                 • تُحتسب مدد التوصيل بأيام العمل الرسمية (من الأحد إلى الخميس، باستثناء العطلات الرسمية في مصر).
 
                 مناطق ومدة التوصيل
