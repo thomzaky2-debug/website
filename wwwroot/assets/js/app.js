@@ -1076,3 +1076,12 @@ window.initializeNileShopPage();
     if (e.target.matches && e.target.matches('[data-dmy-date]')) validate(e.target);
   }, true);
 })();
+
+// Floating cart badge: hide it when the cart is empty and keep it in sync with the counter updates.
+(function () {
+  const badge = document.querySelector('.floating-cart .cart-count');
+  if (!badge) return;
+  const sync = () => badge.setAttribute('data-count', (badge.textContent || '').trim() || '0');
+  sync();
+  new MutationObserver(sync).observe(badge, { childList: true, characterData: true, subtree: true });
+})();
