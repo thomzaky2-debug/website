@@ -59,4 +59,13 @@
   <data name="Offer_Hint_OrderFixed" xml:space="preserve"><value>Takes a fixed amount off the whole cart. Shown as a discount line at cart and checkout.</value></data>
   <data name="Offer_Value_Percent" xml:space="preserve"><value>Percentage (1 to 90)</value></data>
   <data name="Offer_Value_Fixed" xml:space="preserve"><value>Amount (EGP)</value></data>
+  <data name="Order_Dispatched" xml:space="preserve"><value>Order marked as shipped and shipping details saved. The customer will be notified.</value></data>
+  <data name="Order_Tracking_Updated" xml:space="preserve"><value>Shipping details updated.</value></data>
+  <data name="Order_Dispatch_Invalid" xml:space="preserve"><value>Enter the carrier and tracking number (max 100 characters).</value></data>
+  <data name="Order_Dispatch_Invalid_Url" xml:space="preserve"><value>The tracking link must start with https://</value></data>
+  <data name="Order_Dispatch_Unavailable" xml:space="preserve"><value>This order can't be marked as shipped now. It must be paid, not under review, and in processing.</value></data>
+  <data name="Order_Shipped_State" xml:space="preserve"><value>Shipped</value></data>
+  <data name="Order_Update_Tracking" xml:space="preserve"><value>Update shipping details</value></data>
+  <data name="Order_Save_Tracking" xml:space="preserve"><value>Save shipping details</value></data>
+  <data name="Order_Shipped_Help" xml:space="preserve"><value>The order is shipped and the customer was notified. Edit the carrier or tracking number here if needed, and tap Confirm delivery when it arrives.</value></data>
 </root>

@@ -207,8 +207,16 @@
                     <span class="admin-card-icon" aria-hidden="true">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
                     </span>
-                    <h2>@Localizer["Dispatch"]</h2>
+                    <h2>@Localizer[Model.Status == OrderStatuses.Shipped ? "Order_Update_Tracking" : "Dispatch"]</h2>
+                    @if (Model.Status == OrderStatuses.Shipped)
+                    {
+                        <span class="status-pill">@Localizer["Order_Shipped_State"] ✓</span>
+                    }
                 </div>
+                @if (Model.Status == OrderStatuses.Shipped)
+                {
+                    <p class="admin-help">@Localizer["Order_Shipped_Help"]</p>
+                }
                 <form asp-action="Dispatch" method="post" data-async-form>
                     <input type="hidden" name="id" value="@Model.Id" />
                     <label>@Localizer["Carrier"]</label>
@@ -217,7 +225,7 @@
                     <input name="trackingNumber" value="@Model.TrackingNumber" required maxlength="100" dir="ltr" />
                     <label>@Localizer["Carrier_Tracking"]</label>
                     <input name="trackingUrl" value="@Model.TrackingUrl" type="url" dir="ltr" />
-                    <button class="primary-button admin-btn-full">@Localizer["Dispatch"]</button>
+                    <button class="primary-button admin-btn-full">@Localizer[Model.Status == OrderStatuses.Shipped ? "Order_Save_Tracking" : "Dispatch"]</button>
                 </form>
             </section>
         }
