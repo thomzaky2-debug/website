@@ -16,6 +16,7 @@
   <link rel="stylesheet" href="~/assets/css/device-layout.css" asp-append-version="true"/>
   <link rel="stylesheet" href="~/assets/css/product-editor.css" asp-append-version="true"/>
   <link rel="stylesheet" href="~/assets/css/storefront-studio.css" asp-append-version="true"/>
+  <link rel="stylesheet" href="~/assets/css/custom-select.css" asp-append-version="true"/>
   <meta property="og:title" content="@(ViewData["og:title"] ?? "Chic & Unique — Clothes | Perfume | Shoes")" />
   <meta property="og:description" content="@(ViewData["og:description"] ?? "Discover fashion, perfumes, and shoes at Chic & Unique")" />
   <meta property="og:image" content="@(ViewData["og:image"] ?? "/assets/img/logo.png")" />
@@ -66,6 +67,7 @@
 @if(!admin){<a class="floating-cart" asp-controller="Cart" asp-action="Index" aria-label="@Localizer["Nav_Cart"]"><partial name="_StoreIcon" model='@("cart")'/><span class="cart-count" aria-hidden="true">@Cart.Count</span></a>}
 <div class="cookie-consent" id="cookieConsent"><div class="cookie-consent-text">@Localizer["Studio_Cookies"]</div><button class="cookie-consent-btn" id="acceptCookies">@Localizer["Studio_Got_It"]</button></div>
 <script src="~/assets/js/async-updates.js" asp-append-version="true"></script>
+<script src="~/assets/js/custom-select.js" asp-append-version="true"></script>
 <script src="~/assets/js/app.js" asp-append-version="true"></script>@await RenderSectionAsync("Scripts", required:false)
 @if (LanguagePreferences.IsAdminContext(Context)) {<script nonce="@Context.Items["CspNonce"]">if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js');});}</script>}
 </body></html>
