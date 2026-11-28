@@ -125,14 +125,17 @@ public class StoreAdminController(ApplicationDbContext db, CustomerAdminService 
     [HttpPost,ValidateAntiForgeryToken]
     public async Task<IActionResult> Dispatch(int id,string carrier,string trackingNumber,string? trackingUrl)
     {
-        if(string.IsNullOrWhiteSpace(carrier)||carrier.Length>100||string.IsNullOrWhiteSpace(trackingNumber)||trackingNumber.Length>100)return BadRequest();
-        if(!string.IsNullOrWhiteSpace(trackingUrl) && (trackingUrl.Length>800 || !Uri.TryCreate(trackingUrl,UriKind.Absolute,out var url)||url.Scheme!="https"||!string.IsNullOrEmpty(url.UserInfo)))return BadRequest();
+        if(string.IsNullOrWhiteSpace(carrier)||carrier.Length>100||string.IsNullOrWhiteSpace(trackingNumber)||trackingNumber.Length>100){TempData["Error"]="Order_Dispatch_Invalid";return RedirectToAction(nameof(Order),new{id});}
+        if(!string.IsNullOrWhiteSpace(trackingUrl) && (trackingUrl.Length>800 || !Uri.TryCreate(trackingUrl,UriKind.Absolute,out var url)||url.Scheme!="https"||!string.IsNullOrEmpty(url.UserInfo))){TempData["Error"]="Order_Dispatch_Invalid_Url";return RedirectToAction(nameof(Order),new{id});}
         await using var tx=await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable);
         var order=await db.Orders.SingleOrDefaultAsync(o=>o.Id==id);if(order is null)return NotFound();
-        if(order.PaymentStatus is not ("Paid" or "Overpaid")||order.NeedsPaymentReview||order.Status is not (OrderStatuses.Processing or OrderStatuses.Shipped))return BadRequest();
+        if(order.PaymentStatus is not ("Paid" or "Overpaid")||order.NeedsPaymentReview||order.Status is not (OrderStatuses.Processing or OrderStatuses.Shipped)){TempData["Error"]="Order_Dispatch_Unavailable";return RedirectToAction(nameof(Order),new{id});}
+        var firstDispatch=order.Status!=OrderStatuses.Shipped;
         order.Carrier=carrier.Trim();order.TrackingNumber=trackingNumber.Trim();order.TrackingUrl=trackingUrl;
-        if(order.Status!=OrderStatuses.Shipped){order.Status=OrderStatuses.Shipped;order.Updates.Add(new OrderUpdate{Status="Shipped"});db.OrderEmails.Add(new OrderEmail{OrderId=id,Kind="Shipped"});}
-        await audit.LogAsync("DISPATCH","Order",order.OrderNumber);await tx.CommitAsync();return RedirectToAction(nameof(Order),new{id});
+        if(firstDispatch){order.Status=OrderStatuses.Shipped;order.Updates.Add(new OrderUpdate{Status="Shipped"});db.OrderEmails.Add(new OrderEmail{OrderId=id,Kind="Shipped"});}
+        await audit.LogAsync("DISPATCH","Order",order.OrderNumber);await tx.CommitAsync();
+        TempData["Success"]=firstDispatch?"Order_Dispatched":"Order_Tracking_Updated";
+        return RedirectToAction(nameof(Order),new{id});
     }
     [HttpPost,ValidateAntiForgeryToken]
     public async Task<IActionResult> Deliver(int id)
