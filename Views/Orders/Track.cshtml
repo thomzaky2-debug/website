@@ -26,7 +26,7 @@
                 <span dir="ltr">@Model.OrderNumber</span>
                 <button type="button" class="btn-copy-sm" id="btnCopyOrder" aria-label="Copy order number" data-copy-value="@Model.OrderNumber" data-copied-text="@Localizer["Copied"]">@Localizer["Copy"]</button>
             </h1>
-            <small class="muted">@Model.CreatedAt.ToString("dd/MM/yyyy h:mm tt", CultureInfo.InvariantCulture)</small>
+            <small class="muted">@CairoTime.Fmt(Model.CreatedAt, "dd/MM/yyyy h:mm tt")</small>
         </div>
         <div class="order-state-strip">
             <span class="status-pill @(OrderStatusPresentation.IsWarning(Model)?"off":"")">@Localizer[OrderStatusPresentation.Key(Model)]</span>
@@ -41,14 +41,14 @@
             <li class="step-item @(step1Done ? "is-completed" : "")">
                 <span class="step-icon-wrap" aria-hidden="true">✓</span>
                 <span class="step-label">@Localizer["Step_OrderPlaced"]</span>
-                <span class="step-time">@Model.CreatedAt.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture)</span>
+                <span class="step-time">@CairoTime.Fmt(Model.CreatedAt, "dd/MM/yyyy")</span>
             </li>
             <li class="step-item @(step2Done ? "is-completed" : step2Active ? "is-warning" : isCancelled ? "is-warning" : "")">
                 <span class="step-icon-wrap" aria-hidden="true">@(step2Done ? "✓" : step2Active ? "◷" : isCancelled ? "✕" : "2")</span>
                 <span class="step-label">@Localizer["Step_PaymentConfirmed"]</span>
                 @if (isPaid && Model.PaidAt.HasValue)
                 {
-                    <span class="step-time">@Model.PaidAt.Value.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture)</span>
+                    <span class="step-time">@CairoTime.Fmt(Model.PaidAt.Value, "dd/MM/yyyy")</span>
                 }
             </li>
             <li class="step-item @(step3Done ? "is-completed" : step3Active ? "is-active" : "")">
@@ -176,7 +176,7 @@
                 {
                     <li>
                         <strong>@Localizer[update.Status]</strong>
-                        <time class="muted">@update.CreatedAt.ToString("dd/MM/yyyy h:mm tt", CultureInfo.InvariantCulture)</time>
+                        <time class="muted">@CairoTime.Fmt(update.CreatedAt, "dd/MM/yyyy h:mm tt")</time>
                     </li>
                 }
             </ol>

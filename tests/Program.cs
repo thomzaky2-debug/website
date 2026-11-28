@@ -499,6 +499,11 @@ Check(!EmailOtp.ShouldDeferSignInForEmailGate(emailVerified, emailConfirmed: fal
     Check(OfferPricing.Reduce(10m,new Offer{Kind=OfferKinds.Fixed,Value=0m})==null,"zero value offer does nothing");
     Check(OfferPricing.Best(1,7,10m,[pct,fix])!.Price==7m,"best of offers wins, no stacking");
     Check(OfferPricing.Best(1,8,10m,[pct,fix])!.Price==8.5m,"category offer skipped for other category");
+    Check(CairoTime.FromUtc(new DateTime(2026,1,15,12,0,0))==new DateTime(2026,1,15,14,0,0),"Cairo time is UTC+2 in winter");
+    Check(CairoTime.FromUtc(new DateTime(2026,7,15,12,0,0))==new DateTime(2026,7,15,15,0,0),"Cairo time is UTC+3 in summer (DST)");
+    Check(CairoTime.FromUtc(new DateTime(2026,11,28,22,30,0))==new DateTime(2026,11,29,0,30,0),"late UTC evening is already the next Cairo day");
+    Check(CairoTime.ToUtc(new DateTime(2026,11,29,0,0,0))==new DateTime(2026,11,28,22,0,0)&&CairoTime.ToUtc(new DateTime(2026,7,15,0,0,0))==new DateTime(2026,7,14,21,0,0),"Cairo day boundary converts to UTC with DST");
+    Check(CairoTime.Fmt(new DateTime(2026,11,28,22,30,0),"dd/MM/yyyy h:mm tt")=="29/11/2026 12:30 AM","display format uses Cairo time");
     Check(OfferPricing.Best(9,1,100m,[only])!.Price==50m && OfferPricing.Best(6,1,100m,[only])==null,"chosen products scope");
     Check(OfferPricing.Best(1,1,10m,[new Offer{Kind=OfferKinds.FreeDelivery,Scope=OfferScopes.All,MinSubtotal=100m}])==null,"free delivery offer does not change prices");
     var now=new DateTime(2026,11,27,12,0,0);

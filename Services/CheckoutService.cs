@@ -49,7 +49,7 @@ public class CheckoutService(ApplicationDbContext db, IConfiguration? config = n
         var order = new Order {
             CustomerUserId = customer.CustomerUserId,
             ShippingFee = shipping?.Fee ?? 0, ShippingMethodName = shipping?.NameEn, DeliveryMinDays = shipping?.MinDays ?? 0, DeliveryMaxDays = shipping?.MaxDays ?? 0,
-            OrderNumber = $"NILE-{DateTime.UtcNow:yyyyMMdd}-{Convert.ToHexString(RandomNumberGenerator.GetBytes(6))}",
+            OrderNumber = $"NILE-{CairoTime.Now:yyyyMMdd}-{Convert.ToHexString(RandomNumberGenerator.GetBytes(6))}",
             CheckoutToken = customer.CheckoutToken, InstaPaySenderHandle = senderHandle, CustomerName = customer.CustomerName.Trim(),
             CustomerEmail = customer.CustomerEmail.Trim(), CustomerPhone = customer.CustomerPhone.Trim(), ShippingAddress = customer.ShippingAddress.Trim()
         };

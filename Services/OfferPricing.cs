@@ -6,13 +6,7 @@ public static class OfferPricing
 {
     public record Applied(decimal Price, Offer Offer);
 
-    public static DateTime StoreNow()
-    {
-        var utc = DateTime.UtcNow;
-        foreach (var id in new[] { "Africa/Cairo", "Egypt Standard Time" })
-            try { return TimeZoneInfo.ConvertTimeFromUtc(utc, TimeZoneInfo.FindSystemTimeZoneById(id)); } catch (TimeZoneNotFoundException) { } catch (InvalidTimeZoneException) { }
-        return utc.AddHours(2);
-    }
+    public static DateTime StoreNow() => CairoTime.Now;
     public static bool IsLive(Offer o, DateTime nowLocal) => o.IsActive && (o.StartsAt is null || o.StartsAt <= nowLocal) && (o.EndsAt is null || o.EndsAt >= nowLocal);
 
     public static bool Matches(Offer o, int productId, int categoryId) => (o.Kind == OfferKinds.Percent || o.Kind == OfferKinds.Fixed) && o.Scope switch

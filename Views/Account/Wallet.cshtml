@@ -92,7 +92,7 @@
                                     {
                                         <p>@tx.Description</p>
                                     }
-                                    <time>@tx.CreatedAt.ToString("dd/MM/yyyy HH:mm") UTC</time>
+                                    <time>@CairoTime.Fmt(tx.CreatedAt, "dd/MM/yyyy HH:mm")</time>
                                 </div>
                                 <strong class="wallet-tx-amount @(isCredit ? "credit" : "debit")">
                                     @(isCredit ? "+" : "−")@Math.Abs(tx.Amount).ToString("N2") EGP
