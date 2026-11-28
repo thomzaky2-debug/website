@@ -6,7 +6,7 @@
 <head>
   <meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
   @if (ViewData["Robots"] is string robots) {<meta name="robots" content="@robots"/>}
-  <meta name="theme-color" content="#073349"/><meta name="description" content="Chic & Unique · @Localizer["Hero_Tag"]"/>
+  <meta name="theme-color" content="#073349"/>@if (LanguagePreferences.IsAdminContext(Context)) {<link rel="manifest" href="~/manifest-admin.webmanifest"/><meta name="mobile-web-app-capable" content="yes"/>}<meta name="description" content="Chic & Unique · @Localizer["Hero_Tag"]"/>
   <title>@ViewData["Title"] · Chic &amp; Unique</title>
   <script nonce="@Context.Items["CspNonce"]">try{var _dm=localStorage.getItem('darkMode');if(_dm==='true'||(_dm===null&&window.matchMedia('(prefers-color-scheme: dark)').matches))document.documentElement.classList.add('dark-mode');}catch(e){}</script>
   <link rel="icon" type="image/png" href="~/assets/favicon/favicon.png"/>
@@ -67,4 +67,5 @@
 <div class="cookie-consent" id="cookieConsent"><div class="cookie-consent-text">@Localizer["Studio_Cookies"]</div><button class="cookie-consent-btn" id="acceptCookies">@Localizer["Studio_Got_It"]</button></div>
 <script src="~/assets/js/async-updates.js" asp-append-version="true"></script>
 <script src="~/assets/js/app.js" asp-append-version="true"></script>@await RenderSectionAsync("Scripts", required:false)
+@if (LanguagePreferences.IsAdminContext(Context)) {<script nonce="@Context.Items["CspNonce"]">if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js');});}</script>}
 </body></html>
