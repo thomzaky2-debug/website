@@ -24,7 +24,7 @@
             <span dir="ltr"><strong>@o.PayableAmount.ToString("N2")</strong> EGP</span>
             <span>@Localizer[o.PaymentStatus]</span>
             <span dir="ltr">@(o.PaymentSessionStatus ?? "—")</span>
-            <time dir="ltr">@o.CreatedAt.ToString("dd/MM/yyyy h:mm tt", CultureInfo.InvariantCulture)</time>
+            <time dir="ltr">@CairoTime.Fmt(o.CreatedAt, "dd/MM/yyyy h:mm tt")</time>
         </div>
         <a class="action-link" asp-action="Order" asp-route-id="@o.Id">@Localizer["Details"] →</a>
     </article>

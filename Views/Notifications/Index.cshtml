@@ -18,7 +18,7 @@
 <div class="notification-card-head">
     <h2>@item.Title</h2>
     @if(!read.Contains(item.Id)){<span class="notification-new">@(ar ? "جديد" : "New")</span>}
-    <time dir="ltr" datetime="@item.CreatedAt.ToString("o")">@item.CreatedAt.ToString("dd/MM/yyyy HH:mm", System.Globalization.CultureInfo.InvariantCulture) UTC</time>
+    <time dir="ltr" datetime="@DateTime.SpecifyKind(item.CreatedAt, DateTimeKind.Utc).ToString("o")">@CairoTime.Fmt(item.CreatedAt, "dd/MM/yyyy HH:mm")</time>
 </div>
 <p class="notification-body">@item.Body</p>
 @if(!read.Contains(item.Id)) {<form action="/Account/Notifications/Read" method="post" data-notification-read class="notification-read-form">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@item.Id"/><button type="submit" class="notification-read-btn">@(ar ? "تحديد كمقروء" : "Mark as read")</button><span role="status" class="notification-read-status"></span></form>}

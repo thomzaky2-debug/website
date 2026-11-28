@@ -192,7 +192,7 @@
                             <div class="account-recent-row">
                                 <div>
                                     <strong>@order.OrderNumber</strong>
-                                    <small>@order.CreatedAt.ToString("dd/MM/yyyy HH:mm")</small>
+                                    <small>@CairoTime.Fmt(order.CreatedAt, "dd/MM/yyyy HH:mm")</small>
                                 </div>
                                 <div class="account-recent-badges">
                                     <span class="status-pill @(OrderStatusPresentation.IsWarning(order)?"off":"")">@Localizer[OrderStatusPresentation.Key(order)]</span>

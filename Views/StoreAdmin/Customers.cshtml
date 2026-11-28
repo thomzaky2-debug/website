@@ -13,7 +13,7 @@
     <td><span dir="ltr">@(string.IsNullOrWhiteSpace(customer.Phone)?Localizer["Customer_Not_Provided"].Value:customer.Phone)</span>@if(!string.IsNullOrWhiteSpace(customer.WhatsApp)){<small class="table-subline">@Localizer["WhatsApp_Number"]: <bdi>@customer.WhatsApp</bdi></small>}</td>
     <td><strong>@customer.Orders</strong><small class="table-subline">@Localizer["Customer_Paid_Count",customer.PaidOrders]</small></td>
     <td class="money">@customer.PaidOrderValue.ToString("N2") <small>EGP</small></td>
-    <td>@(customer.LastOrderAt?.ToString("dd/MM/yyyy h:mm tt", CultureInfo.InvariantCulture)??Localizer["No_Account_Orders"].Value)</td>
+    <td>@(CairoTime.Fmt(customer.LastOrderAt, "dd/MM/yyyy h:mm tt")??Localizer["No_Account_Orders"].Value)</td>
     <td><span class="status-pill @(customer.IsLocked?"off":"")">@Localizer[NileShop.Services.AccountBlock.IsBlockedEnd(customer.LockoutEnd)?"Customer_Blocked":customer.IsLocked?"Customer_Locked":"Customer_Active"]</span></td>
     <td><a class="action-link" asp-action="Customer" asp-route-id="@customer.Id">@Localizer["Customer_View_Profile"] →</a></td>
 </tr>}

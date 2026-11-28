@@ -417,12 +417,14 @@ public class StoreAdminController(ApplicationDbContext db, CustomerAdminService 
     }
     async Task<ReportViewModel> Report(DateTime? from,DateTime? to)
     {
-        var start=(from??DateTime.UtcNow.AddDays(-30)).Date;var end=(to??DateTime.UtcNow).Date;
+        var start=(from??CairoTime.Now.AddDays(-30)).Date;var end=(to??CairoTime.Now).Date;
         if(end<start)end=start;if((end-start).TotalDays>366)start=end.AddDays(-366);
         var until=end.AddDays(1);
-        var paid=await db.Orders.AsNoTracking().Where(o=>o.PaidAt>=start&&o.PaidAt<until).Select(o=>new {o.PaidAt,o.TotalAmount}).ToListAsync();
-        var days=paid.GroupBy(o=>o.PaidAt!.Value.Date).Select(g=>new SalesDay(g.Key,g.Count(),g.Sum(o=>o.TotalAmount))).OrderBy(x=>x.Date).ToList();
-        var refunds=(await db.Orders.AsNoTracking().Where(o=>o.RefundedAt>=start&&o.RefundedAt<until).Select(o=>o.TotalAmount).ToListAsync()).Sum();
+        // Report days are Cairo days; stored times are UTC, so convert the day boundaries.
+        var startUtc=CairoTime.ToUtc(start);var untilUtc=CairoTime.ToUtc(until);
+        var paid=await db.Orders.AsNoTracking().Where(o=>o.PaidAt>=startUtc&&o.PaidAt<untilUtc).Select(o=>new {o.PaidAt,o.TotalAmount}).ToListAsync();
+        var days=paid.GroupBy(o=>CairoTime.FromUtc(o.PaidAt!.Value).Date).Select(g=>new SalesDay(g.Key,g.Count(),g.Sum(o=>o.TotalAmount))).OrderBy(x=>x.Date).ToList();
+        var refunds=(await db.Orders.AsNoTracking().Where(o=>o.RefundedAt>=startUtc&&o.RefundedAt<untilUtc).Select(o=>o.TotalAmount).ToListAsync()).Sum();
         return new(start,end,days,refunds);
     }
     static DateTime? ParseReportDate(string? value)
